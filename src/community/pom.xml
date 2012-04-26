@@ -221,5 +221,12 @@
         <module>xslt</module>
       </modules>
     </profile>
+    <profile>
+      <id>geosync</id>
+      <modules>
+        <module>geogit-versioning</module>
+        <module>geosync</module>
+      </modules>
+    </profile>
   </profiles>
 </project>
