@@ -982,6 +982,45 @@
       <artifactId>guava</artifactId>
       <version>11.0.1</version>
     </dependency>
+    <!-- Berkeley DB JE -->
+    <dependency>
+      <groupId>com.sleepycat</groupId>
+      <artifactId>je</artifactId>
+      <version>4.1.10</version>
+    </dependency>
+    <!-- GeoGIT -->
+    <dependency>
+      <groupId>org.geogit</groupId>
+      <artifactId>geogit</artifactId>
+      <version>1.0-M2</version>
+    </dependency>
+    <dependency>
+      <groupId>org.geogit</groupId>
+      <artifactId>geogit</artifactId>
+      <version>1.0-M2</version>
+      <classifier>tests</classifier>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.gvsig</groupId>
+      <artifactId>bxml-api</artifactId>
+      <version>1.0-M4</version>
+    </dependency>
+    <dependency>
+      <groupId>org.gvsig</groupId>
+      <artifactId>bxml-impl</artifactId>
+      <version>1.0-M4</version>
+    </dependency>
+    <dependency>
+      <groupId>org.gvsig</groupId>
+      <artifactId>bxml-utils</artifactId>
+      <version>1.0-M4</version>
+    </dependency>
+    <dependency>
+      <groupId>org.gvsig</groupId>
+      <artifactId>bxml-geoserver</artifactId>
+      <version>1.0-M4</version>
+    </dependency>
   </dependencies>
  </dependencyManagement>
 
