@@ -3,17 +3,18 @@
  * application directory.
  */
 package org.geoserver.wfs.versioning;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 
 import org.custommonkey.xmlunit.XMLAssert;
 import org.geoserver.data.test.MockData;
-import org.geotools.feature.NameImpl;
+import org.geoserver.data.test.SystemTestData;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
-import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.filter.v2_0.FES;
 import org.geotools.wfs.v2_0.WFS;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.FeatureType;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -21,8 +22,8 @@ import org.w3c.dom.NodeList;
 public class GetFeatureWithLockTest extends WFS20VersioningTestSupport {
 
     @Override
-    protected void setUpInternal() throws Exception {
-        super.setUpInternal();
+    protected void setUpInternal(SystemTestData testData) throws Exception {
+        super.setUpInternal(testData);
         getServiceDescriptor20().getOperations().add( "ReleaseLock");
     }
 

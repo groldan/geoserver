@@ -1,6 +1,7 @@
 package org.geoserver.wfs.versioning;
 
 import static org.geotools.feature.type.DateUtil.serializeDateTime;
+import static org.junit.Assert.assertEquals;
 
 import java.util.Date;
 

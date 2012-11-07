@@ -1,5 +1,8 @@
 package org.geoserver.wfs.versioning;
 
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -22,6 +25,7 @@ import org.geogit.repository.Repository;
 import org.geoserver.catalog.FeatureTypeInfo;
 import org.geoserver.data.geogit.GeoToolsCommitStateResolver;
 import org.geoserver.data.test.MockData;
+import org.geoserver.data.test.SystemTestData;
 import org.geoserver.geogit.GEOGIT;
 import org.geoserver.wfs.v2_0.WFS20TestSupport;
 import org.geotools.data.DataUtilities;
@@ -131,14 +135,14 @@ public abstract class WFS20VersioningTestSupport extends WFS20TestSupport {
     }
 
     @Override
-    public final void oneTimeTearDown() throws Exception {
+    public void onTearDown(SystemTestData testData) throws Exception {
+        super.onTearDown(testData);
         GeoGIT.setCommitStateResolver(null);
     }
 
     @Override
-    public final void oneTimeSetUp() throws Exception {
-
-        super.oneTimeSetUp();
+    protected void onSetUp(SystemTestData testData) throws Exception{
+        super.onSetUp(testData);
         xpath = XMLUnit.newXpathEngine();
 
         ggitFacade = GEOGIT.get();

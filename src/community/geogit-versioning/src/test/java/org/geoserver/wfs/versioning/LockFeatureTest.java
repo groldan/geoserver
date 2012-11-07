@@ -1,5 +1,8 @@
 package org.geoserver.wfs.versioning;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import org.geoserver.data.test.MockData;
 import org.geotools.wfs.v2_0.WFS;
 import org.w3c.dom.Document;

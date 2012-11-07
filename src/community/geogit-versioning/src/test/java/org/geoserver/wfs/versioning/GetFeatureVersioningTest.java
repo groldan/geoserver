@@ -1,6 +1,8 @@
 package org.geoserver.wfs.versioning;
-
 import static org.geotools.feature.type.DateUtil.serializeDateTime;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Collections;
 import java.util.Date;
@@ -9,10 +11,10 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import junit.framework.AssertionFailedError;
-import junit.framework.Test;
 
 import org.custommonkey.xmlunit.XMLAssert;
 import org.geoserver.data.test.MockData;
+import org.geoserver.data.test.SystemTestData;
 import org.geotools.filter.v2_0.FES;
 import org.geotools.util.logging.Logging;
 import org.opengis.filter.identity.ResourceId;
@@ -38,15 +40,8 @@ public class GetFeatureVersioningTest extends WFS20VersioningTestSupport {
 
     String buildings, bridges;
 
-    /**
-     * This is a READ ONLY TEST so we can use one time setup
-     */
-    public static Test suite() {
-        return new OneTimeTestSetup(new GetFeatureVersioningTest());
-    }
-
     @Override
-    protected void setUpInternal() {
+    protected void setUpInternal(SystemTestData data) {
         buildings = getLayerId(MockData.BUILDINGS);
         bridges = getLayerId(MockData.BRIDGES);
     }

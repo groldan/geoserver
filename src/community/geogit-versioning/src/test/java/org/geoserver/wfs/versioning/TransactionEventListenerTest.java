@@ -1,5 +1,8 @@
 package org.geoserver.wfs.versioning;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -10,12 +13,11 @@ import net.opengis.wfs.TransactionResponseType;
 import net.opengis.wfs.TransactionType;
 
 import org.custommonkey.xmlunit.XMLAssert;
+import org.geoserver.data.test.SystemTestData;
 import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.wfs.TransactionEvent;
 import org.geoserver.wfs.TransactionPlugin;
 import org.geoserver.wfs.WFSException;
-import org.geoserver.wfs.request.TransactionRequest;
-import org.geoserver.wfs.request.TransactionResponse;
 import org.geotools.data.DataUtilities;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.feature.DefaultFeatureCollection;
@@ -31,12 +33,12 @@ public class TransactionEventListenerTest extends WFS20VersioningTestSupport {
      * 
      * @return
      */
-    @Override
-    protected String[] getSpringContextLocations() {
-        return new String[] { "classpath*:/applicationContext.xml",
-                "classpath*:/applicationSecurityContext.xml",
-                "classpath*:/TransactionEventListenerTestContext.xml" };
-    }
+//    @Override
+//    protected String[] getSpringContextLocations() {
+//        return new String[] { "classpath*:/applicationContext.xml",
+//                "classpath*:/applicationSecurityContext.xml",
+//                "classpath*:/TransactionEventListenerTestContext.xml" };
+//    }
 
     /**
      * Singleton instance added to application context through
@@ -94,13 +96,15 @@ public class TransactionEventListenerTest extends WFS20VersioningTestSupport {
     private RecordingTransactionPlugin transactionPlugin;
 
     @Override
-    public void setUpInternal() throws Exception {
+    public void setUpInternal(SystemTestData testData) throws Exception {
+        super.setUpInternal(testData);
         transactionPlugin = GeoServerExtensions.bean(RecordingTransactionPlugin.class);
         assertNotNull(transactionPlugin);
     }
 
     @Override
-    public void tearDownInternal() throws Exception {
+    public void onTearDown(SystemTestData testData) throws Exception {
+        super.onTearDown(testData);
         if (transactionPlugin != null) {
             transactionPlugin.clear();
         }
