@@ -287,6 +287,11 @@ public class VersionedLayersPage extends GeoServerSecuredPage implements IHeader
         @SuppressWarnings("unchecked")
         static final List<Property<VersionedLayerInfo>> PROPERTIES = Arrays.asList(TYPE, NAME);
 
+        public VersionedLayerProvider() {
+            super();
+            setSort(NAME.getName(), true);
+        }
+
         /**
          * @see org.geoserver.web.wicket.GeoServerDataProvider#getItems()
          */
