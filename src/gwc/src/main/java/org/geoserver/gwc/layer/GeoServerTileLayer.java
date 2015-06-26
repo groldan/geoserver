@@ -563,7 +563,7 @@ public class GeoServerTileLayer extends TileLayer implements ProxyLayer {
                 LOGGER.finer("--> " + Thread.currentThread().getName()
                         + " submitting getMap request for meta grid location "
                         + Arrays.toString(metaTile.getMetaGridPos()) + " on " + metaTile);
-                RenderedImageMap map;
+                WebMap map;
                 try {
                     long requestTime = System.currentTimeMillis();
                     map = dispatchGetMap(tile, metaTile);
@@ -613,7 +613,7 @@ public class GeoServerTileLayer extends TileLayer implements ProxyLayer {
         return metaKey.toString();
     }
 
-    private RenderedImageMap dispatchGetMap(final ConveyorTile tile, final MetaTile metaTile)
+    private WebMap dispatchGetMap(final ConveyorTile tile, final MetaTile metaTile)
             throws Exception {
 
         Map<String, String> params = buildGetMap(tile, metaTile);
@@ -624,14 +624,14 @@ public class GeoServerTileLayer extends TileLayer implements ProxyLayer {
 
             GWC.get().dispatchOwsRequest(params, cookies);
             map = WEB_MAP.get();
-            if (!(map instanceof RenderedImageMap)) {
+            if (!(map instanceof WebMap)) {
                 throw new IllegalStateException("Expected: RenderedImageMap, got " + map);
             }
         } finally {
             WEB_MAP.remove();
         }
 
-        return (RenderedImageMap) map;
+        return map;
     }
 
     private GeoServerMetaTile createMetaTile(ConveyorTile tile, final int metaX, final int metaY) {
@@ -1202,8 +1202,22 @@ public class GeoServerTileLayer extends TileLayer implements ProxyLayer {
         return;
     }
 
+<<<<<<< HEAD
+	@Override
+	public String getBlobStoreId() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public void setBlobStoreId(String arg0) {
+		// TODO Auto-generated method stub
+		
+	}
+=======
     @Override
     public void setBlobStoreId(String blobStoreId) {
         info.setBlobStoreId(blobStoreId);
     }
+>>>>>>> fff48155bd6a45f8ca3276ab5e42eda4d750e919
 }
