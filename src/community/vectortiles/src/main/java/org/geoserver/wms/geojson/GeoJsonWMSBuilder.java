@@ -110,7 +110,7 @@ public class GeoJsonWMSBuilder implements VectorTileBuilder {
     }
 
     @Override
-    public WebMap build(WMSMapContent mapContent) throws IOException {
+    public RawMap build(WMSMapContent mapContent) throws IOException {
         jsonWriter.endArray(); // end features
         jsonWriter.endObject();// end root object
         writer.flush();

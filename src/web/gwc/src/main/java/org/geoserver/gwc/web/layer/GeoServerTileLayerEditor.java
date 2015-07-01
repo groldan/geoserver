@@ -72,9 +72,9 @@ import com.google.common.collect.Lists;
  * the {@link CatalogLayerEventListener} will caught the modification to the layer or layer group
  * and delete the cache for the layer.
  * </p>
- * 
+ *
  * @author groldan
- * 
+ *
  * @see GridSubsetsEditor
  * @see LayerCacheOptionsTabPanel
  * @see LayerGroupCacheOptionsPanel
@@ -123,9 +123,9 @@ class GeoServerTileLayerEditor extends FormComponentPanel<GeoServerTileLayerInfo
     private final FormComponent<Integer> gutter;
 
     private final CheckGroup<String> cacheFormats;
-    
+
     private final FormComponent<Integer> expireCache;
-    
+
     private final FormComponent<Integer> expireClients;
 
     private final GridSubsetsEditor gridSubsets;
@@ -193,7 +193,7 @@ class GeoServerTileLayerEditor extends FormComponentPanel<GeoServerTileLayerInfo
         GeoServerTileLayerInfoModel model = ((GeoServerTileLayerInfoModel)tileLayerModel);
 
         boolean undefined = model.getEnabled() == null;
-        
+
         boolean doCreateTileLayer;
         if (tileLayerInfo.getId() != null) {
             doCreateTileLayer = true;
@@ -276,16 +276,16 @@ class GeoServerTileLayerEditor extends FormComponentPanel<GeoServerTileLayerInfo
         IModel<Integer> expireCacheModel = new PropertyModel<Integer>(getModel(), "expireCache");
         expireCache = new TextField<Integer>("expireCache", expireCacheModel);
         configs.add(expireCache);
-        
+
         IModel<Integer> expireClientsModel = new PropertyModel<Integer>(getModel(), "expireClients");
         expireClients = new TextField<Integer>("expireClients", expireClientsModel);
         configs.add(expireClients);
-        
+
         IModel<Set<XMLGridSubset>> gridSubsetsModel;
         gridSubsetsModel = new PropertyModel<Set<XMLGridSubset>>(getModel(), "gridSubsets");
         gridSubsets = new GridSubsetsEditor("cachedGridsets", gridSubsetsModel);
         configs.add(gridSubsets);
-        
+
         IModel<Set<ParameterFilter>> parameterFilterModel;
         parameterFilterModel = new PropertyModel<Set<ParameterFilter>>(getModel(), "parameterFilters");
         parameterFilters = new ParameterFilterEditor("parameterFilters", parameterFilterModel, layerModel);
@@ -350,9 +350,9 @@ class GeoServerTileLayerEditor extends FormComponentPanel<GeoServerTileLayerInfo
                 } else {
                     cache.addUncachedLayer(getModel().getObject().getName());
                 }
-            } 
+            }
         }
-        
+
         final String name;
         final GridSetBroker gridsets = gwc.getGridSetBroker();
         GeoServerTileLayer tileLayer;
@@ -453,7 +453,7 @@ class GeoServerTileLayerEditor extends FormComponentPanel<GeoServerTileLayerInfo
             cacheFormats.processInput();
             parameterFilters.processInput();
             gridSubsets.processInput();
-            
+
 //            // Remove add the Layer to the cache if it is present
 //            ConfigurableBlobStore store = GeoServerExtensions.bean(ConfigurableBlobStore.class);
 //            if(store != null){
@@ -464,7 +464,7 @@ class GeoServerTileLayerEditor extends FormComponentPanel<GeoServerTileLayerInfo
 //                    } else {
 //                        cache.addUncachedLayer(getModel().getObject().getName());
 //                    }
-//                } 
+//                }
 //            }
 
             tileLayerInfo.setId(layerModel.getObject().getId());

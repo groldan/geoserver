@@ -97,7 +97,7 @@ public class GeoServerTileLayer extends TileLayer implements ProxyLayer {
     private static LayerListenerList listeners = new LayerListenerList();
 
     private final GridSetBroker gridSetBroker;
-    
+
     private Catalog catalog;
 
     private String publishedId;
@@ -162,7 +162,7 @@ public class GeoServerTileLayer extends TileLayer implements ProxyLayer {
     public String getBlobStoreId(){
         return info.getBlobStoreId();
     }
-    
+
     @Override
     public String getName() {
         return info.getName();
@@ -200,7 +200,7 @@ public class GeoServerTileLayer extends TileLayer implements ProxyLayer {
      * {@link MetadataMap}, or there's no {@code GWC.enabled} property set at all but the global
      * {@link GWCConfig#isCacheLayersByDefault()} is {@code true}.
      * </p>
-     * 
+     *
      * @see org.geowebcache.layer.TileLayer#isEnabled()
      */
     @Override
@@ -233,7 +233,7 @@ public class GeoServerTileLayer extends TileLayer implements ProxyLayer {
     }
 
     /**
-     * 
+     *
      * @see org.geowebcache.layer.TileLayer#isQueryable()
      * @see WMS#isQueryable(LayerGroupInfo)
      * @see WMS#isQueryable(LayerInfo)
@@ -285,7 +285,7 @@ public class GeoServerTileLayer extends TileLayer implements ProxyLayer {
     /**
      * @return the {@link LayerInfo} for this layer, or {@code null} if it's backed by a
      *         {@link LayerGroupInfo} instead
-     *         
+     *
      * @deprecated use getPublishedInfo instead
      */
     @Deprecated
@@ -322,7 +322,7 @@ public class GeoServerTileLayer extends TileLayer implements ProxyLayer {
         }
 
         return publishedInfo;
-            
+
     }
 
     /**
@@ -349,7 +349,7 @@ public class GeoServerTileLayer extends TileLayer implements ProxyLayer {
     /**
      * Overrides to return a dynamic view of the backing {@link LayerInfo} or {@link LayerGroupInfo}
      * metadata adapted to GWC
-     * 
+     *
      * @see org.geowebcache.layer.TileLayer#getMetaInformation()
      */
     @Override
@@ -394,7 +394,7 @@ public class GeoServerTileLayer extends TileLayer implements ProxyLayer {
      * {@link GeoServerTileLayerInfo}. Instead it's 'live' and retrieved from the current
      * {@link LayerInfo} every time this method is invoked.
      * </p>
-     * 
+     *
      * @see org.geowebcache.layer.TileLayer#getStyles()
      * @see GeoServerTileLayerInfo#getDefaultStyle()
      */
@@ -573,7 +573,7 @@ public class GeoServerTileLayer extends TileLayer implements ProxyLayer {
                 } catch (Exception e) {
                     Throwables.propagateIfInstanceOf(e, GeoWebCacheException.class);
                     throw new GeoWebCacheException("Problem communicating with GeoServer", e);
-                } 
+                }
             }
             /** ****************** Return lock and response ****** */
         } finally {
@@ -586,10 +586,10 @@ public class GeoServerTileLayer extends TileLayer implements ProxyLayer {
 
         return finalizeTile(tile);
     }
-    
+
     private String buildLockKey(ConveyorTile tile, GeoServerMetaTile metaTile) {
         StringBuilder metaKey = new StringBuilder();
-        
+
         final long[] tileIndex;
         if(metaTile != null) {
             tileIndex = metaTile.getMetaGridPos();
@@ -607,7 +607,7 @@ public class GeoServerTileLayer extends TileLayer implements ProxyLayer {
         metaKey.append("_").append(x).append("_").append(y).append("_").append(z);
         if(tile.getParametersId() != null) {
             metaKey.append("_").append(tile.getParametersId());
-        }            
+        }
         metaKey.append(".").append(tile.getMimeType().getFileExtension());
 
         return metaKey.toString();
@@ -1040,7 +1040,7 @@ public class GeoServerTileLayer extends TileLayer implements ProxyLayer {
     	if (info.getExpireClients()>0) {
     		return info.getExpireClients();
     	}
-    	
+
         LayerInfo layerInfo = getLayerInfo();
         if(layerInfo != null) {
             return getLayerMaxAge(layerInfo);
@@ -1059,7 +1059,7 @@ public class GeoServerTileLayer extends TileLayer implements ProxyLayer {
 
     /**
      * Returns the max age of a layer group by looking for the minimum max age of its components
-     * 
+     *
      * @param lg
      * @return
      */
@@ -1080,7 +1080,7 @@ public class GeoServerTileLayer extends TileLayer implements ProxyLayer {
             }
             maxAge = Math.min(piAge, maxAge);
         }
-        
+
         return maxAge;
     }
 
@@ -1099,7 +1099,7 @@ public class GeoServerTileLayer extends TileLayer implements ProxyLayer {
                 return 0;
             }
         }
-        
+
         return 0;
     }
 
@@ -1136,7 +1136,7 @@ public class GeoServerTileLayer extends TileLayer implements ProxyLayer {
 
     /**
      * Empty method, returns {@code true}, initialization is dynamic for this class.
-     * 
+     *
      * @see org.geowebcache.layer.TileLayer#initialize(org.geowebcache.grid.GridSetBroker)
      */
     @Override
@@ -1202,8 +1202,12 @@ public class GeoServerTileLayer extends TileLayer implements ProxyLayer {
         return;
     }
 
-    @Override
-    public void setBlobStoreId(String blobStoreId) {
-        info.setBlobStoreId(blobStoreId);
-    }
+
+
+	@Override
+	public void setBlobStoreId(String arg0) {
+		// TODO Auto-generated method stub
+
+	}
+
 }
