@@ -18,6 +18,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import org.geoserver.platform.resource.ResourceNotification.Event;
 import org.geoserver.platform.resource.ResourceNotification.Kind;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -58,6 +59,13 @@ public class FileSystemResourceTheoryTest extends ResourceTheoryTest {
         (new File(c, "FileD")).createNewFile();
         folder.newFolder("DirE");
         store = new FileSystemResourceStore(folder.getRoot());
+    }
+
+    @After
+    public void after() throws Exception {
+        if (store != null && store.watcher != null) {
+            store.watcher.destroy();
+        }
     }
 
     @Test

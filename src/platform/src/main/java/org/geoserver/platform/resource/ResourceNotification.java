@@ -7,9 +7,11 @@ package org.geoserver.platform.resource;
 
 import java.io.File;
 import java.io.Serializable;
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Notification of resource changes.
@@ -114,35 +116,25 @@ public class ResourceNotification implements Serializable {
     private final long timestamp;
 
     public static List<Event> delta(
-            File baseDirectory, List<File> created, List<File> removed, List<File> modified) {
-        if (created == null) {
-            created = Collections.emptyList();
-        }
-        if (removed == null) {
-            removed = Collections.emptyList();
-        }
-        if (modified == null) {
-            modified = Collections.emptyList();
-        }
-        int size = created.size() + removed.size() + modified.size();
-        if (size == 0) {
-            return null;
-        }
-        List<Event> delta = new ArrayList<Event>(size);
-        for (File file : created) {
-            String newPath = Paths.convert(baseDirectory, file);
-            delta.add(new Event(newPath, Kind.ENTRY_CREATE));
-        }
-        for (File file : removed) {
-            String deletePath = Paths.convert(baseDirectory, file);
-            delta.add(new Event(deletePath, Kind.ENTRY_DELETE));
-        }
-        for (File file : modified) {
-            String changedPath = Paths.convert(baseDirectory, file);
-            delta.add(new Event(changedPath, Kind.ENTRY_MODIFY));
-        }
-        return delta;
+            File baseDirectory,
+            Collection<File> created,
+            Collection<File> removed,
+            Collection<File> modified) {
+        Stream<File> screated = created == null ? Stream.empty() : created.stream();
+        Stream<File> sremoved = removed == null ? Stream.empty() : removed.stream();
+        Stream<File> smodified = modified == null ? Stream.empty() : modified.stream();
+
+        Stream<Event> ecreated =
+                screated.map(f -> new Event(Paths.convert(baseDirectory, f), Kind.ENTRY_CREATE));
+        Stream<Event> eremoved =
+                sremoved.map(f -> new Event(Paths.convert(baseDirectory, f), Kind.ENTRY_DELETE));
+        Stream<Event> emodified =
+                smodified.map(f -> new Event(Paths.convert(baseDirectory, f), Kind.ENTRY_MODIFY));
+
+        return Stream.concat(Stream.concat(ecreated, eremoved), emodified)
+                .collect(Collectors.toList());
     }
+
     /**
      * Notification of a change to a single resource.
      *
