@@ -10,6 +10,7 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Future;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -36,6 +37,7 @@ import org.geoserver.catalog.util.LegacyCatalogImporter;
 import org.geoserver.catalog.util.LegacyCatalogReader;
 import org.geoserver.catalog.util.LegacyFeatureTypeInfoReader;
 import org.geoserver.config.AsynchResourceIterator.ResourceMapper;
+import org.geoserver.config.datadir.DataDirectoryLoader;
 import org.geoserver.config.util.LegacyConfigurationImporter;
 import org.geoserver.config.util.XStreamPersister;
 import org.geoserver.config.util.XStreamPersisterFactory;
@@ -394,7 +396,7 @@ public abstract class GeoServerLoader {
             // assume 2.x style data directory
             Stopwatch sw = Stopwatch.createStarted();
             LOGGER.info("Loading catalog...");
-            CatalogImpl catalog2 = (CatalogImpl) readCatalog(xp);
+            CatalogImpl catalog2 = (CatalogImpl) readCatalog2(xp);
             LOGGER.info("Read catalog in " + sw.stop());
             // make to remove the old resource pool catalog listener
             ((CatalogImpl) catalog).sync(catalog2);
@@ -429,6 +431,20 @@ public abstract class GeoServerLoader {
             }
         }
         return true;
+    }
+
+    Catalog readCatalog2(XStreamPersister xp) throws Exception {
+        DataDirectoryLoader loader = new DataDirectoryLoader(resourceLoader, xpf);
+        Future<Catalog> future = loader.loadCatalog();
+        try {
+            Catalog catalog = future.get();
+            return catalog;
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw e;
+        } finally {
+            loader.dispose();
+        }
     }
 
     /** Reads the catalog from disk. */
