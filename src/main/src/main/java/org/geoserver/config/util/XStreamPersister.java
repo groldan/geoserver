@@ -581,7 +581,8 @@ public class XStreamPersister {
     }
 
     public GeoServerSecurityManager getSecurityManager() {
-        return GeoServerExtensions.bean(GeoServerSecurityManager.class);
+        return null; //REVISIT: deadlock otherwise
+        //return GeoServerExtensions.bean(GeoServerSecurityManager.class);
     }
 
     public void setCallback(Callback callback) {
