@@ -240,12 +240,12 @@ public abstract class GeoServerLoader {
         GeoServerLoader.legacy = legacy;
     }
 
-    public final Object postProcessAfterInitialization(Object bean, String beanName)
+    public final Object postProcessBeforeInitialization(Object bean, String beanName)
             throws BeansException {
         return bean;
     }
 
-    public final Object postProcessBeforeInitialization(Object bean, String beanName)
+    public final Object postProcessAfterInitialization(Object bean, String beanName)
             throws BeansException {
         if (bean instanceof Catalog) {
             // ensure this is not a wrapper but the real deal
