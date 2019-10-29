@@ -17,6 +17,8 @@ import java.util.Set;
 import org.geoserver.platform.ServiceException;
 import org.geotools.util.SoftValueHashMap;
 
+import com.google.common.base.CharMatcher;
+
 /**
  * Utility class for performing reflective operations and other ows utility functions.
  *
@@ -136,23 +138,29 @@ public class OwsUtils {
      * @throws RuntimeException If an error occurs getting the property
      */
     public static Object get(Object object, String property) {
-        String[] props = property.split("\\.");
+        // use PropertyNames internal API so we don't even need to instantiate it
+        final int propertyCount = PropertyNames.propertyCount(property);
         Object result = object;
-        for (int i = 0; i < props.length && result != null; i++) {
-            String prop = props[i];
-            Method g = getter(result.getClass(), props[i], null);
-            if (g == null) {
-                throw new IllegalArgumentException(
-                        "No such property '" + prop + "' for object " + result);
-            }
-            try {
-                result = g.invoke(result, null);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+        for (int i = 0; i < propertyCount && result != null; i++) {
+            String prop = PropertyNames.getSubproperty(property, propertyCount, i);
+            result = getSingleProperty(result, prop);
         }
 
         return result;
+    }
+
+    private static Object getSingleProperty(Object object, String propertyName) {
+        Method g = getter(object.getClass(), propertyName, null);
+        if (g == null) {
+            throw new IllegalArgumentException(
+                    "No such property '" + propertyName + "' for object " + object);
+        }
+        try {
+            object = g.invoke(object, (Object[]) null);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return object;
     }
 
     /**
@@ -396,6 +404,69 @@ public class OwsUtils {
         if (oldValue != null) {
             oldValue.clear();
             oldValue.putAll(newValue);
+        }
+    }
+    
+    public static final class PropertyNames {
+        private static final char PROPERTY_NAME_DELIMITER = '.';
+        private static final CharMatcher DELIMITER_MATCHER = CharMatcher.is(PROPERTY_NAME_DELIMITER);
+        private String fqname;
+        private final int length;
+
+        PropertyNames(String fqname) {
+            this.fqname = fqname;
+            this.length = PropertyNames.propertyCount(fqname);
+        }
+
+        public static PropertyNames of(String qualifiedName) {
+            return new PropertyNames(qualifiedName);
+        }
+        
+        public String qualifiedName() {
+            return fqname;
+        }
+
+        public int length() {
+            return length;
+        }
+
+        /**
+         * @param index zero based index of property name
+         * @return
+         */
+        public String singleName(int index) {
+            return PropertyNames.getSubproperty(fqname, length, index);
+        }
+        
+        static int propertyCount(String qualifiedName) {
+            return 1 + DELIMITER_MATCHER.countIn(qualifiedName);
+        }
+        
+        static String getSubproperty(String qualifiedName, int precomputedPropertyCount, int propertyIndex) {
+            if (propertyIndex < 0 || propertyIndex >= precomputedPropertyCount) {
+                throw new ArrayIndexOutOfBoundsException(
+                        "offset: " + propertyIndex + ", properties: " + precomputedPropertyCount);
+            }
+            int substrStartIndex, substrEndIndex;
+            if (propertyIndex == 0) {
+                if (precomputedPropertyCount == 1) {
+                    return qualifiedName;
+                }
+                substrStartIndex = 0;
+                substrEndIndex = DELIMITER_MATCHER.indexIn(qualifiedName);
+            } else if (propertyIndex == precomputedPropertyCount - 1) {
+                substrStartIndex = 1 + DELIMITER_MATCHER.lastIndexIn(qualifiedName);
+                substrEndIndex = qualifiedName.length();
+            } else {
+                int start = 1 + DELIMITER_MATCHER.indexIn(qualifiedName);
+                for (int i = 1; i < propertyIndex; i++) {
+                    start = 1 + DELIMITER_MATCHER.indexIn(qualifiedName, start);
+                }
+                substrStartIndex = start;
+                substrEndIndex = propertyIndex == precomputedPropertyCount - 1 ? qualifiedName.length()
+                        : DELIMITER_MATCHER.indexIn(qualifiedName, start);
+            }
+            return qualifiedName.substring(substrStartIndex, substrEndIndex);
         }
     }
 }

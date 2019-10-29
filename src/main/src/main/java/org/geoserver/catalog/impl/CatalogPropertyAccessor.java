@@ -5,20 +5,15 @@
  */
 package org.geoserver.catalog.impl;
 
-import static com.google.common.base.Preconditions.checkState;
 
-import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-import com.google.common.io.Closeables;
+import static com.google.common.base.Preconditions.checkState;
+import static org.geoserver.ows.util.OwsUtils.PropertyNames;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +21,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import org.apache.commons.beanutils.PropertyUtils;
 import org.geoserver.catalog.Info;
 import org.geoserver.catalog.Predicates;
@@ -35,14 +31,24 @@ import org.geotools.filter.expression.PropertyAccessor;
 import org.geotools.util.Converters;
 import org.geotools.util.logging.Logging;
 
+import com.google.common.base.CharMatcher;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import com.google.common.io.Closeables;
+
 /**
  * Extracts a property from a {@link Info} object.
  *
- * <p>The property can be nested (p1.p2.p3), indexed (p1[3]), collection (colProp), or a combination
- * (colProp1.nonColProp.colProp2[1]).
+ * <p>
+ * The property can be nested (p1.p2.p3), indexed (p1[3]), collection (colProp),
+ * or a combination (colProp1.nonColProp.colProp2[1]).
  *
- * <p>In the later case, indicates {@code colProp1} is a collection property and a list of all the
- * id values from all the objects in the p1 property shall be returned.
+ * <p>
+ * In the later case, indicates {@code colProp1} is a collection property and a
+ * list of all the id values from all the objects in the p1 property shall be
+ * returned.
  */
 public class CatalogPropertyAccessor implements PropertyAccessor {
 
@@ -54,8 +60,7 @@ public class CatalogPropertyAccessor implements PropertyAccessor {
     }
 
     @Override
-    public <T> void set(Object object, String xpath, T value, Class<T> target)
-            throws IllegalArgumentException {
+    public <T> void set(Object object, String xpath, T value, Class<T> target) throws IllegalArgumentException {
 
         throw new UnsupportedOperationException();
     }
@@ -74,19 +79,20 @@ public class CatalogPropertyAccessor implements PropertyAccessor {
     }
 
     /**
-     * @param input the object to extract the (possibly nested,indexed, or collection) property from
+     * @param input        the object to extract the (possibly nested,indexed, or
+     *                     collection) property from
      * @param propertyName the property to extract from {@code input}
-     * @return the evaluated value of the given property, or {@code null} if a prior nested property
-     *     in the path is null;
-     * @throws IllegalArgumentException if no such property exists for the given object
+     * @return the evaluated value of the given property, or {@code null} if a prior
+     *         nested property in the path is null;
+     * @throws IllegalArgumentException if no such property exists for the given
+     *                                  object
      */
-    public Object getProperty(final Object input, final String propertyName)
-            throws IllegalArgumentException {
+    public Object getProperty(final Object input, final String propertyName) throws IllegalArgumentException {
 
         if (input instanceof Info && Predicates.ANY_TEXT.getPropertyName().equals(propertyName)) {
             return getAnyText((Info) input);
         }
-        String[] propertyNames = propertyName.split("\\.");
+        PropertyNames propertyNames = PropertyNames.of(propertyName);
         return getProperty(input, propertyNames, 0);
     }
 
@@ -107,29 +113,24 @@ public class CatalogPropertyAccessor implements PropertyAccessor {
         return textProps;
     }
 
-    public Object getProperty(final Object input, final String[] propertyNames, final int offset)
+    private Object getProperty(final Object input, final PropertyNames propertyNames, final int propertyIndex)
             throws IllegalArgumentException {
 
-        if (offset < 0 || offset > propertyNames.length) {
-            throw new ArrayIndexOutOfBoundsException(
-                    "offset: " + offset + ", properties: " + propertyNames.length);
-        }
-
-        if (offset == propertyNames.length) {
+        if (propertyIndex == propertyNames.length()) {
             return input;
         }
 
-        final String propName = propertyNames[offset];
+        final String propName = propertyNames.singleName(propertyIndex);
 
         if (null == input) {
-            throw new IllegalArgumentException(
-                    "Property not found: "
-                            + Joiner.on('.').join(Arrays.copyOf(propertyNames, offset + 1)));
+//            throw new IllegalArgumentException(
+//                    "Property not found: " + Joiner.on('.').join(Arrays.copyOf(propertyNames, propertyIndex + 1)));
+            throw new IllegalArgumentException("Property not found: " + propertyNames.qualifiedName());
         }
 
         // indexed property?
         if (propName.indexOf('[') > 0 && propName.endsWith("]")) {
-            return getIndexedProperty(input, propertyNames, offset);
+            return getIndexedProperty(input, propertyNames, propertyIndex);
         }
         if (input instanceof Collection) {
             @SuppressWarnings("unchecked")
@@ -143,7 +144,7 @@ public class CatalogPropertyAccessor implements PropertyAccessor {
                 // to the next one, we can have mixed collections (e.g., layer group layers)
                 try {
                     Object value = getProperty(o, propName);
-                    Object nested = getProperty(value, propertyNames, offset + 1);
+                    Object nested = getProperty(value, propertyNames, propertyIndex + 1);
                     result.add(nested);
                 } catch (Exception e) {
                     LOGGER.log(Level.FINE, "Skipping nested property not found", e);
@@ -155,11 +156,8 @@ public class CatalogPropertyAccessor implements PropertyAccessor {
         Object value;
         if (input instanceof Map) {
             if (!((Map<?, ?>) input).containsKey(propName)) {
-                throw new IllegalArgumentException(
-                        "Property "
-                                + propName
-                                + " does not exist in Map property "
-                                + (offset > 0 ? propertyNames[offset - 1] : ""));
+                throw new IllegalArgumentException("Property " + propName + " does not exist in Map property "
+                        + (propertyIndex > 0 ? propertyNames.singleName(propertyIndex - 1) : ""));
             }
             value = ((Map<?, ?>) input).get(propName);
         } else {
@@ -176,19 +174,19 @@ public class CatalogPropertyAccessor implements PropertyAccessor {
         }
 
         // if our nested access stumbles onto a null, we return a null value to allow
-        // for full text searches to work (e.g., workspace.name, but workspace can be null
+        // for full text searches to work (e.g., workspace.name, but workspace can be
+        // null
         // in both layer groups and styles
         if (value == null) {
             return null;
         }
 
-        return getProperty(value, propertyNames, offset + 1);
+        return getProperty(value, propertyNames, propertyIndex + 1);
     }
 
-    private Object getIndexedProperty(
-            Object input, final String[] propertyNames, final int offset) {
+    private Object getIndexedProperty(Object input, final PropertyNames propertyNames, final int offset) {
 
-        final String indexedPropName = propertyNames[offset];
+        final String indexedPropName = propertyNames.singleName(offset);
 
         final String colPropName = indexedPropName.substring(0, indexedPropName.indexOf('['));
 
@@ -198,8 +196,7 @@ public class CatalogPropertyAccessor implements PropertyAccessor {
             final int endIndex = indexedPropName.length() - 1;
             final String indexStr = indexedPropName.substring(beginIndex, endIndex);
             index = Integer.parseInt(indexStr);
-            Preconditions.checkArgument(
-                    index > 0, "Illegal indexed property, index shall be > 0: " + indexedPropName);
+            Preconditions.checkArgument(index > 0, "Illegal indexed property, index shall be > 0: " + indexedPropName);
         }
 
         Collection<Object> col = getCollectionProperty(input, colPropName);
@@ -212,8 +209,7 @@ public class CatalogPropertyAccessor implements PropertyAccessor {
             }
         } else {
             if (!(col instanceof List)) {
-                throw new RuntimeException(
-                        "Indexed property access is not valid for property " + colPropName);
+                throw new RuntimeException("Indexed property access is not valid for property " + colPropName);
             }
             List<Object> list = (List<Object>) col;
             if (index > list.size()) {
@@ -248,10 +244,7 @@ public class CatalogPropertyAccessor implements PropertyAccessor {
         }
         if (!(colProp instanceof Collection)) {
             throw new IllegalArgumentException(
-                    "Specified property "
-                            + colPropName
-                            + " is not a collection or array: "
-                            + colProp);
+                    "Specified property " + colPropName + " is not a collection or array: " + colProp);
         }
         @SuppressWarnings("unchecked")
         Collection<Object> col = (Collection<Object>) colProp;
@@ -265,8 +258,7 @@ public class CatalogPropertyAccessor implements PropertyAccessor {
         if (obj != null) {
             Class<?> clazz = ModificationProxy.unwrap(obj).getClass();
             ClassMappings classMappings = ClassMappings.fromImpl(clazz);
-            checkState(
-                    classMappings != null, "No class mappings found for class " + clazz.getName());
+            checkState(classMappings != null, "No class mappings found for class " + clazz.getName());
             Class<?> interf = classMappings.getInterface();
             props = fullTextProperties(interf);
         }
@@ -300,12 +292,8 @@ public class CatalogPropertyAccessor implements PropertyAccessor {
             try {
                 Closeables.close(stream, false);
             } catch (IOException e) {
-                LOGGER.log(
-                        Level.FINE,
-                        "Ignoring exception thrown while closing "
-                                + resource
-                                + " in CatalogPropertyAccessor",
-                        e);
+                LOGGER.log(Level.FINE,
+                        "Ignoring exception thrown while closing " + resource + " in CatalogPropertyAccessor", e);
             }
         }
         Map<String, String> map = Maps.fromProperties(properties);
