@@ -21,7 +21,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
-
 import javax.annotation.Nullable;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CatalogFacade;
@@ -957,8 +956,8 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
 
     public void syncTo(CatalogFacade dao) {
         dao = ProxyUtils.unwrap(dao, LockingCatalogFacade.class);
-        if(dao instanceof IsolatedCatalogFacade) {
-            dao = ((IsolatedCatalogFacade)dao).unwrap();
+        if (dao instanceof IsolatedCatalogFacade) {
+            dao = ((IsolatedCatalogFacade) dao).unwrap();
         }
         dao = ProxyUtils.unwrap(dao, LockingCatalogFacade.class);
         if (dao instanceof DefaultCatalogFacade) {
@@ -1093,8 +1092,8 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
     }
 
     @SuppressWarnings("unchecked")
-    public <T extends CatalogInfo> Iterable<T> iterable(final Class<T> of, final Filter filter,
-            final SortBy[] sortByList) {
+    public <T extends CatalogInfo> Iterable<T> iterable(
+            final Class<T> of, final Filter filter, final SortBy[] sortByList) {
 
         if (MapInfo.class.isAssignableFrom(of)) {
             return (List<T>) new ArrayList<>(maps);
@@ -1102,8 +1101,8 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
         return () -> stream(of, filter, sortByList).iterator();
     }
 
-    private <T extends CatalogInfo> Stream<T> stream(final Class<T> of, final Filter filter,
-            final SortBy[] sortByList) {
+    private <T extends CatalogInfo> Stream<T> stream(
+            final Class<T> of, final Filter filter, final SortBy[] sortByList) {
         Stream<T> all = lookupFor(of).stream(of, toPredicate(filter));
         if (null != sortByList) {
             for (int i = sortByList.length - 1; i >= 0; i--) {
@@ -1120,34 +1119,34 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
     }
 
     @SuppressWarnings("unchecked")
-    public <T extends CatalogInfo > CatalogInfoLookup<T> lookupFor(final Class<T> type) {
+    public <T extends CatalogInfo> CatalogInfoLookup<T> lookupFor(final Class<T> type) {
         if (NamespaceInfo.class.isAssignableFrom(type)) {
             return (CatalogInfoLookup<T>) namespaces;
-        } 
+        }
         if (WorkspaceInfo.class.isAssignableFrom(type)) {
             return (CatalogInfoLookup<T>) workspaces;
-        } 
+        }
         if (StoreInfo.class.isAssignableFrom(type)) {
             return (CatalogInfoLookup<T>) stores;
-        } 
+        }
         if (ResourceInfo.class.isAssignableFrom(type)) {
             return (CatalogInfoLookup<T>) resources;
-        } 
+        }
         if (LayerInfo.class.isAssignableFrom(type)) {
             return (CatalogInfoLookup<T>) layers;
-        } 
+        }
         if (LayerGroupInfo.class.isAssignableFrom(type)) {
             return (CatalogInfoLookup<T>) layerGroups;
-        } 
+        }
         if (PublishedInfo.class.isAssignableFrom(type)) {
             return (CatalogInfoLookup<T>) CatalogInfoLookup.combineAsImmutable(layers, layerGroups);
-        } 
+        }
         if (StyleInfo.class.isAssignableFrom(type)) {
             return (CatalogInfoLookup<T>) styles;
-        } 
+        }
         throw new IllegalArgumentException("Unknown type: " + type);
     }
-    
+
     private <T> Predicate<T> toPredicate(Filter filter) {
         if (filter != null && filter != Filter.INCLUDE) {
             return o -> filter.evaluate(o);

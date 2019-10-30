@@ -5,6 +5,7 @@
  */
 package org.geoserver.ows.util;
 
+import com.google.common.base.CharMatcher;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -16,8 +17,6 @@ import java.util.Map;
 import java.util.Set;
 import org.geoserver.platform.ServiceException;
 import org.geotools.util.SoftValueHashMap;
-
-import com.google.common.base.CharMatcher;
 
 /**
  * Utility class for performing reflective operations and other ows utility functions.
@@ -406,10 +405,11 @@ public class OwsUtils {
             oldValue.putAll(newValue);
         }
     }
-    
+
     public static final class PropertyNames {
         private static final char PROPERTY_NAME_DELIMITER = '.';
-        private static final CharMatcher DELIMITER_MATCHER = CharMatcher.is(PROPERTY_NAME_DELIMITER);
+        private static final CharMatcher DELIMITER_MATCHER =
+                CharMatcher.is(PROPERTY_NAME_DELIMITER);
         private String fqname;
         private final int length;
 
@@ -421,7 +421,7 @@ public class OwsUtils {
         public static PropertyNames of(String qualifiedName) {
             return new PropertyNames(qualifiedName);
         }
-        
+
         public String qualifiedName() {
             return fqname;
         }
@@ -437,12 +437,13 @@ public class OwsUtils {
         public String singleName(int index) {
             return PropertyNames.getSubproperty(fqname, length, index);
         }
-        
+
         static int propertyCount(String qualifiedName) {
             return 1 + DELIMITER_MATCHER.countIn(qualifiedName);
         }
-        
-        static String getSubproperty(String qualifiedName, int precomputedPropertyCount, int propertyIndex) {
+
+        static String getSubproperty(
+                String qualifiedName, int precomputedPropertyCount, int propertyIndex) {
             if (propertyIndex < 0 || propertyIndex >= precomputedPropertyCount) {
                 throw new ArrayIndexOutOfBoundsException(
                         "offset: " + propertyIndex + ", properties: " + precomputedPropertyCount);
@@ -463,8 +464,10 @@ public class OwsUtils {
                     start = 1 + DELIMITER_MATCHER.indexIn(qualifiedName, start);
                 }
                 substrStartIndex = start;
-                substrEndIndex = propertyIndex == precomputedPropertyCount - 1 ? qualifiedName.length()
-                        : DELIMITER_MATCHER.indexIn(qualifiedName, start);
+                substrEndIndex =
+                        propertyIndex == precomputedPropertyCount - 1
+                                ? qualifiedName.length()
+                                : DELIMITER_MATCHER.indexIn(qualifiedName, start);
             }
             return qualifiedName.substring(substrStartIndex, substrEndIndex);
         }

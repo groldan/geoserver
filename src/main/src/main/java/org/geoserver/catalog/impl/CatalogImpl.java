@@ -2069,13 +2069,13 @@ public class CatalogImpl implements Catalog {
     @Override
     public <T extends CatalogInfo> T get(Class<T> type, Filter filter)
             throws IllegalArgumentException {
-        
+
         T result = tryFastIdLookup(type, filter);
-        if(result != null) {
+        if (result != null) {
             return result;
         }
         final Integer limit = Integer.valueOf(2);
-        try (CloseableIterator<T> it = list(type, filter, null, limit, null)){
+        try (CloseableIterator<T> it = list(type, filter, null, limit, null)) {
             if (it.hasNext()) {
                 result = it.next();
                 if (it.hasNext()) {
@@ -2098,11 +2098,15 @@ public class CatalogImpl implements Catalog {
         final Expression expression1 = equalsTo.getExpression1();
         final Expression expression2 = equalsTo.getExpression2();
 
-        final PropertyName p = expression1 instanceof PropertyName ? (PropertyName) expression1
-                : (expression2 instanceof PropertyName ? (PropertyName) expression2 : null);
+        final PropertyName p =
+                expression1 instanceof PropertyName
+                        ? (PropertyName) expression1
+                        : (expression2 instanceof PropertyName ? (PropertyName) expression2 : null);
 
-        final Literal v = expression2 instanceof Literal ? (Literal) expression2
-                : (expression1 instanceof Literal ? (Literal) expression1 : null);
+        final Literal v =
+                expression2 instanceof Literal
+                        ? (Literal) expression2
+                        : (expression1 instanceof Literal ? (Literal) expression1 : null);
 
         if (v == null || p == null || !"id".equalsIgnoreCase(p.getPropertyName())) {
             return null;

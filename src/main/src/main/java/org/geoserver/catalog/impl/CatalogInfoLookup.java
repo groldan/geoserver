@@ -4,6 +4,7 @@
  */
 package org.geoserver.catalog.impl;
 
+import com.google.common.base.Stopwatch;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
@@ -19,24 +20,18 @@ import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
-
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CatalogInfo;
 import org.geoserver.ows.util.OwsUtils;
 import org.geotools.util.logging.Logging;
 import org.opengis.feature.type.Name;
 
-import com.google.common.base.Stopwatch;
-
 /**
- * A support index for {@link DefaultCatalogFacade}, can perform fast lookups of
- * {@link CatalogInfo} objects by id or by "name", where the name is defined by
- * a a user provided mapping function.
+ * A support index for {@link DefaultCatalogFacade}, can perform fast lookups of {@link CatalogInfo}
+ * objects by id or by "name", where the name is defined by a a user provided mapping function.
  *
- * <p>
- * The lookups by predicate have been tested and optimized for performance, in
- * particular the current for loops turned out to be significantly faster than
- * building and returning streams
+ * <p>The lookups by predicate have been tested and optimized for performance, in particular the
+ * current for loops turned out to be significantly faster than building and returning streams
  *
  * @param <T>
  */
@@ -103,9 +98,7 @@ class CatalogInfoLookup<T extends CatalogInfo> {
         return idMap.remove(value.getId());
     }
 
-    /**
-     * Updates the value in the name map. The new value must be a ModificationProxy
-     */
+    /** Updates the value in the name map. The new value must be a ModificationProxy */
     public void update(T proxiedValue) {
         ModificationProxy h = (ModificationProxy) Proxy.getInvocationHandler(proxiedValue);
         T actualValue = (T) h.getProxyObject();
@@ -127,11 +120,10 @@ class CatalogInfoLookup<T extends CatalogInfo> {
     /**
      * Looks up objects by class and matching predicate.
      *
-     * <p>
-     * This method is significantly faster than creating a stream and the applying
-     * the predicate on it. Just using this approach instead of the stream makes the
-     * overall startup of GeoServer with 20k layers go down from 50s to 44s (which
-     * is a lot, considering there is a lot of other things going on)
+     * <p>This method is significantly faster than creating a stream and the applying the predicate
+     * on it. Just using this approach instead of the stream makes the overall startup of GeoServer
+     * with 20k layers go down from 50s to 44s (which is a lot, considering there is a lot of other
+     * things going on)
      *
      * @param clazz
      * @param predicate
@@ -154,7 +146,8 @@ class CatalogInfoLookup<T extends CatalogInfo> {
                 }
             }
         }
-        System.err.printf("-------> listing of %s built in %s, size: %,d%n", clazz, sw.stop(), result.size());
+        System.err.printf(
+                "-------> listing of %s built in %s, size: %,d%n", clazz, sw.stop(), result.size());
         return result;
     }
 
@@ -252,11 +245,10 @@ class CatalogInfoLookup<T extends CatalogInfo> {
     /**
      * Looks up objects by class and matching predicate.
      *
-     * <p>
-     * This method is significantly faster than creating a stream and the applying
-     * the predicate on it. Just using this approach instead of the stream makes the
-     * overall startup of GeoServer with 20k layers go down from 50s to 44s (which
-     * is a lot, considering there is a lot of other things going on)
+     * <p>This method is significantly faster than creating a stream and the applying the predicate
+     * on it. Just using this approach instead of the stream makes the overall startup of GeoServer
+     * with 20k layers go down from 50s to 44s (which is a lot, considering there is a lot of other
+     * things going on)
      *
      * @param clazz
      * @param predicate
@@ -281,8 +273,7 @@ class CatalogInfoLookup<T extends CatalogInfo> {
     }
 
     /**
-     * Sets the specified catalog into all CatalogInfo objects contained in this
-     * lookup
+     * Sets the specified catalog into all CatalogInfo objects contained in this lookup
      *
      * @param catalog
      */
@@ -296,7 +287,10 @@ class CatalogInfoLookup<T extends CatalogInfo> {
                             try {
                                 setter.invoke(v, catalog);
                             } catch (Exception e) {
-                                LOGGER.log(Level.FINE, "Failed to switch CatalogInfo to new catalog impl", e);
+                                LOGGER.log(
+                                        Level.FINE,
+                                        "Failed to switch CatalogInfo to new catalog impl",
+                                        e);
                             }
                         }
                     }
@@ -315,10 +309,12 @@ class CatalogInfoLookup<T extends CatalogInfo> {
             return (CatalogInfoLookup<T>) others[0];
         }
         return new CatalogInfoLookup<T>(null) {
-            private final List<CatalogInfoLookup<? extends CatalogInfo>> delegates = Arrays.asList(others);
+            private final List<CatalogInfoLookup<? extends CatalogInfo>> delegates =
+                    Arrays.asList(others);
 
             public Collection<T> values() {
-                Collection<CatalogInfo> values = (Collection<CatalogInfo>) delegates.get(0).values();
+                Collection<CatalogInfo> values =
+                        (Collection<CatalogInfo>) delegates.get(0).values();
                 for (int i = 1; i < delegates.size(); i++) {
                     Collection<? extends CatalogInfo> values2 = delegates.get(i).values();
                     values.addAll(values2);
@@ -326,7 +322,8 @@ class CatalogInfoLookup<T extends CatalogInfo> {
                 return (Collection<T>) values;
             }
 
-            public @Override <U extends CatalogInfo> List<U> list(Class<U> clazz, Predicate<U> predicate) {
+            public @Override <U extends CatalogInfo> List<U> list(
+                    Class<U> clazz, Predicate<U> predicate) {
                 List<U> list = delegates.get(0).list(clazz, predicate);
                 for (int i = 1; i < delegates.size(); i++) {
                     List<U> next = delegates.get(i).list(clazz, predicate);
@@ -335,7 +332,8 @@ class CatalogInfoLookup<T extends CatalogInfo> {
                 return list;
             }
 
-            public @Override <U extends CatalogInfo> Stream<U> stream(Class<U> clazz, Predicate<U> predicate) {
+            public @Override <U extends CatalogInfo> Stream<U> stream(
+                    Class<U> clazz, Predicate<U> predicate) {
                 Stream<U> stream = delegates.get(0).stream(clazz, predicate);
                 for (int i = 1; i < delegates.size(); i++) {
                     Stream<U> next = delegates.get(i).stream(clazz, predicate);
@@ -344,7 +342,8 @@ class CatalogInfoLookup<T extends CatalogInfo> {
                 return stream;
             }
 
-            public @Override <U extends CatalogInfo> int count(Class<U> clazz, Predicate<U> predicate) {
+            public @Override <U extends CatalogInfo> int count(
+                    Class<U> clazz, Predicate<U> predicate) {
                 int count = 0;
                 for (int i = 0; i < delegates.size(); i++) {
                     count += delegates.get(i).count(clazz, predicate);

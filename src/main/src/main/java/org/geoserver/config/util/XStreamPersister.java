@@ -139,7 +139,6 @@ import org.geoserver.config.impl.LoggingInfoImpl;
 import org.geoserver.config.impl.ServiceInfoImpl;
 import org.geoserver.config.impl.SettingsInfoImpl;
 import org.geoserver.ows.util.OwsUtils;
-import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.security.GeoServerSecurityManager;
 import org.geoserver.security.SecureCatalogImpl;
 import org.geotools.coverage.grid.GeneralGridEnvelope;
@@ -581,8 +580,8 @@ public class XStreamPersister {
     }
 
     public GeoServerSecurityManager getSecurityManager() {
-        return null; //REVISIT: deadlock otherwise
-        //return GeoServerExtensions.bean(GeoServerSecurityManager.class);
+        return null; // REVISIT: deadlock otherwise
+        // return GeoServerExtensions.bean(GeoServerSecurityManager.class);
     }
 
     public void setCallback(Callback callback) {
