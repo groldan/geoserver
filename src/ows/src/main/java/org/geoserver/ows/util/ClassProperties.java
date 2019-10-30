@@ -49,11 +49,11 @@ public class ClassProperties {
 
         // avoid keeping lots of useless empty arrays in memory for
         // the long term, use just one
-        if (methods.size() == 0)
+        if (methods.isEmpty())
             methods = EMPTY;
-        if (getters.size() == 0)
+        if (getters.isEmpty())
             getters = EMPTY;
-        if (setters.size() == 0)
+        if (setters.isEmpty())
             setters = EMPTY;
     }
 
@@ -65,7 +65,7 @@ public class ClassProperties {
     public List<String> properties() {
         ArrayList<String> properties = new ArrayList<String>();
         for (String key : getters.keySet()) {
-            if (key.equals("Resource")) {
+            if (key.equals("resource")) {//??? WHY ???
                 properties.add(0, key);
             } else {
                 properties.add(key);
@@ -85,8 +85,9 @@ public class ClassProperties {
      * @return The setter for the property, or null if it does not exist.
      */
     public Method setter(String property, Class<?> type) {
-        Collection<Method> methods = setters.get(property);
-        for (Method setter : methods) {
+        List<Method> methods = setters.get(property);//MultiMap never returns null
+        for (int i = 0; i < methods.size(); i++) {
+            Method setter = methods.get(i);
             if (type == null) {
                 return setter;
             } else {
@@ -119,16 +120,16 @@ public class ClassProperties {
      */
     public Method getter(String property, Class<?> type) {
         List<Method> methods = getters.get(property);
-        if (methods != null) {
-            for (Method getter : methods) {
-                if (type == null) {
+        if (!methods.isEmpty()) {//MultiMap never returns null
+            if(type == null) {
+                return methods.get(0);
+            }
+            for (int i = 0; i < methods.size(); i++) {
+                Method getter = methods.get(i);
+                Class<?> target = getter.getReturnType();
+                if (type.isAssignableFrom(target) || (target.isPrimitive() && type == wrapper(target))
+                        || (type.isPrimitive() && target == wrapper(type))) {
                     return getter;
-                } else {
-                    Class<?> target = getter.getReturnType();
-                    if (type.isAssignableFrom(target) || (target.isPrimitive() && type == wrapper(target))
-                            || (type.isPrimitive() && target == wrapper(type))) {
-                        return getter;
-                    }
                 }
             }
         }
@@ -189,11 +190,11 @@ public class ClassProperties {
 
     /** Looks up a method by name. */
     public Method method(String name) {
-        Collection<Method> results = methods.get(name);
+        List<Method> results = methods.get(name);
         if (results.isEmpty()) {
             return null;
         } else {
-            return results.iterator().next();
+            return results.get(0);
         }
     }
 

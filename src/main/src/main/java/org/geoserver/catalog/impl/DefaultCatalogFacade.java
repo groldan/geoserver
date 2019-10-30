@@ -20,6 +20,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
+
 import javax.annotation.Nullable;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CatalogFacade;
@@ -955,6 +957,10 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
 
     public void syncTo(CatalogFacade dao) {
         dao = ProxyUtils.unwrap(dao, LockingCatalogFacade.class);
+        if(dao instanceof IsolatedCatalogFacade) {
+            dao = ((IsolatedCatalogFacade)dao).unwrap();
+        }
+        dao = ProxyUtils.unwrap(dao, LockingCatalogFacade.class);
         if (dao instanceof DefaultCatalogFacade) {
             // do an optimized sync
             DefaultCatalogFacade other = (DefaultCatalogFacade) dao;
@@ -1014,7 +1020,10 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
 
     @Override
     public <T extends CatalogInfo> int count(final Class<T> of, final Filter filter) {
-        return Iterables.size(iterable(of, filter, null));
+        if (MapInfo.class.isAssignableFrom(of)) {
+            return (int) maps.stream().filter(toPredicate(filter)).count();
+        }
+        return lookupFor(of).count(of, toPredicate(filter));
     }
 
     /**
@@ -1084,34 +1093,18 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
     }
 
     @SuppressWarnings("unchecked")
-    public <T extends CatalogInfo> Iterable<T> iterable(
-            final Class<T> of, final Filter filter, final SortBy[] sortByList) {
-        List<T> all;
+    public <T extends CatalogInfo> Iterable<T> iterable(final Class<T> of, final Filter filter,
+            final SortBy[] sortByList) {
 
-        if (NamespaceInfo.class.isAssignableFrom(of)) {
-            all = (List<T>) namespaces.list(of, toPredicate(filter));
-        } else if (WorkspaceInfo.class.isAssignableFrom(of)) {
-            all = (List<T>) workspaces.list(of, toPredicate(filter));
-        } else if (StoreInfo.class.isAssignableFrom(of)) {
-            all = (List<T>) stores.list(of, toPredicate(filter));
-        } else if (ResourceInfo.class.isAssignableFrom(of)) {
-            all = (List<T>) resources.list(of, toPredicate(filter));
-        } else if (LayerInfo.class.isAssignableFrom(of)) {
-            all = (List<T>) layers.list(of, toPredicate(filter));
-        } else if (LayerGroupInfo.class.isAssignableFrom(of)) {
-            all = (List<T>) layerGroups.list(of, toPredicate(filter));
-        } else if (PublishedInfo.class.isAssignableFrom(of)) {
-            all = new ArrayList<>();
-            all.addAll((List<T>) layers.list(LayerInfo.class, toPredicate(filter)));
-            all.addAll((List<T>) layerGroups.list(LayerGroupInfo.class, toPredicate(filter)));
-        } else if (StyleInfo.class.isAssignableFrom(of)) {
-            all = (List<T>) styles.list(of, toPredicate(filter));
-        } else if (MapInfo.class.isAssignableFrom(of)) {
-            all = (List<T>) new ArrayList<>(maps);
-        } else {
-            throw new IllegalArgumentException("Unknown type: " + of);
+        if (MapInfo.class.isAssignableFrom(of)) {
+            return (List<T>) new ArrayList<>(maps);
         }
+        return () -> stream(of, filter, sortByList).iterator();
+    }
 
+    private <T extends CatalogInfo> Stream<T> stream(final Class<T> of, final Filter filter,
+            final SortBy[] sortByList) {
+        Stream<T> all = lookupFor(of).stream(of, toPredicate(filter));
         if (null != sortByList) {
             for (int i = sortByList.length - 1; i >= 0; i--) {
                 SortBy sortBy = sortByList[i];
@@ -1119,13 +1112,42 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
                 if (SortOrder.DESCENDING.equals(sortBy.getSortOrder())) {
                     ordering = ordering.reverse();
                 }
-                all = ordering.sortedCopy(all);
+                all = all.sorted(ordering);
             }
         }
-
-        return ModificationProxy.createList(all, of);
+        all = all.map(t -> ModificationProxy.create(t, of));
+        return all;
     }
 
+    @SuppressWarnings("unchecked")
+    public <T extends CatalogInfo > CatalogInfoLookup<T> lookupFor(final Class<T> type) {
+        if (NamespaceInfo.class.isAssignableFrom(type)) {
+            return (CatalogInfoLookup<T>) namespaces;
+        } 
+        if (WorkspaceInfo.class.isAssignableFrom(type)) {
+            return (CatalogInfoLookup<T>) workspaces;
+        } 
+        if (StoreInfo.class.isAssignableFrom(type)) {
+            return (CatalogInfoLookup<T>) stores;
+        } 
+        if (ResourceInfo.class.isAssignableFrom(type)) {
+            return (CatalogInfoLookup<T>) resources;
+        } 
+        if (LayerInfo.class.isAssignableFrom(type)) {
+            return (CatalogInfoLookup<T>) layers;
+        } 
+        if (LayerGroupInfo.class.isAssignableFrom(type)) {
+            return (CatalogInfoLookup<T>) layerGroups;
+        } 
+        if (PublishedInfo.class.isAssignableFrom(type)) {
+            return (CatalogInfoLookup<T>) CatalogInfoLookup.combineAsImmutable(layers, layerGroups);
+        } 
+        if (StyleInfo.class.isAssignableFrom(type)) {
+            return (CatalogInfoLookup<T>) styles;
+        } 
+        throw new IllegalArgumentException("Unknown type: " + type);
+    }
+    
     private <T> Predicate<T> toPredicate(Filter filter) {
         if (filter != null && filter != Filter.INCLUDE) {
             return o -> filter.evaluate(o);

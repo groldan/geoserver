@@ -398,8 +398,12 @@ public abstract class GeoServerLoader {
             LOGGER.info("Loading catalog...");
             CatalogImpl catalog2 = (CatalogImpl) readCatalog2(xp);
             LOGGER.info("Read catalog in " + sw.stop());
+            System.err.println("----------> Read catalog in " + sw);
             // make to remove the old resource pool catalog listener
+            sw.reset().start();
             ((CatalogImpl) catalog).sync(catalog2);
+            LOGGER.info("Loaded catalog synchronized in " + sw.stop());
+            System.err.println("----------> Loaded catalog synchronized in " + sw);
         } else {
             // import old style catalog, register the persister now so that we start
             // with a new version of the catalog

@@ -2070,49 +2070,12 @@ public class CatalogImpl implements Catalog {
     public <T extends CatalogInfo> T get(Class<T> type, Filter filter)
             throws IllegalArgumentException {
         
-        if(filter instanceof PropertyIsEqualTo) {
-            MatchAction matchAction = ((PropertyIsEqualTo)filter).getMatchAction();
-            if(matchAction != MatchAction.ALL) {
-                Expression expression1 = ((PropertyIsEqualTo)filter).getExpression1();
-                Expression expression2 = ((PropertyIsEqualTo)filter).getExpression2();
-                PropertyName p = expression1 instanceof PropertyName ? (PropertyName) expression1
-                        : (expression2 instanceof PropertyName ? (PropertyName) expression2 : null);
-                Literal v = expression1 instanceof Literal ? (Literal) expression1
-                        : (expression2 instanceof Literal ? (Literal) expression2 : null);
-                if (v != null && p != null && "id".equalsIgnoreCase(p.getPropertyName())) {
-                    String id = v.getValue() == null ? null : String.valueOf(v.getValue());
-                    if (id != null) {
-                        if (WorkspaceInfo.class.isAssignableFrom(type)) {
-                            return type.cast(getWorkspace(id));
-                        }
-                        if (NamespaceInfo.class.isAssignableFrom(type)) {
-                            return type.cast(getNamespace(id));
-                        }
-                        if (StoreInfo.class.isAssignableFrom(type)) {
-                            Class<? extends StoreInfo> t = (Class<? extends StoreInfo>) type;
-                            return type.cast(getStore(id, t));
-                        }
-                        if (ResourceInfo.class.isAssignableFrom(type)) {
-                            Class<? extends ResourceInfo> clazz = (Class<? extends ResourceInfo>) type;
-                            return type.cast(getResource(id, clazz));
-                        }
-                        if (LayerInfo.class.isAssignableFrom(type)) {
-                            return type.cast(getLayer(id));
-                        }
-                        if (LayerGroupInfo.class.isAssignableFrom(type)) {
-                            return type.cast(getLayerGroup(id));
-                        }
-                        if (StyleInfo.class.isAssignableFrom(type)) {
-                            return type.cast(getStyle(id));
-                        }
-                    }
-                }
-            }
+        T result = tryFastIdLookup(type, filter);
+        if(result != null) {
+            return result;
         }
         final Integer limit = Integer.valueOf(2);
-        CloseableIterator<T> it = list(type, filter, null, limit, null);
-        T result = null;
-        try {
+        try (CloseableIterator<T> it = list(type, filter, null, limit, null)){
             if (it.hasNext()) {
                 result = it.next();
                 if (it.hasNext()) {
@@ -2120,10 +2083,60 @@ public class CatalogImpl implements Catalog {
                             "Specified query predicate resulted in more than one object");
                 }
             }
-        } finally {
-            it.close();
         }
         return result;
+    }
+
+    private <T extends CatalogInfo> T tryFastIdLookup(Class<T> type, Filter filter) {
+        if (!(filter instanceof PropertyIsEqualTo)) {
+            return null;
+        }
+        final PropertyIsEqualTo equalsTo = (PropertyIsEqualTo) filter;
+        if (MatchAction.ALL == equalsTo.getMatchAction()) {
+            return null;
+        }
+        final Expression expression1 = equalsTo.getExpression1();
+        final Expression expression2 = equalsTo.getExpression2();
+
+        final PropertyName p = expression1 instanceof PropertyName ? (PropertyName) expression1
+                : (expression2 instanceof PropertyName ? (PropertyName) expression2 : null);
+
+        final Literal v = expression2 instanceof Literal ? (Literal) expression2
+                : (expression1 instanceof Literal ? (Literal) expression1 : null);
+
+        if (v == null || p == null || !"id".equalsIgnoreCase(p.getPropertyName())) {
+            return null;
+        }
+        final String id = v.getValue() == null ? null : String.valueOf(v.getValue());
+        if (id == null) {
+            return null;
+        }
+        if (WorkspaceInfo.class.isAssignableFrom(type)) {
+            return type.cast(getWorkspace(id));
+        }
+        if (NamespaceInfo.class.isAssignableFrom(type)) {
+            return type.cast(getNamespace(id));
+        }
+        if (StoreInfo.class.isAssignableFrom(type)) {
+            @SuppressWarnings("unchecked")
+            Class<? extends StoreInfo> clazz = (Class<? extends StoreInfo>) type;
+            return type.cast(getStore(id, clazz));
+        }
+        if (ResourceInfo.class.isAssignableFrom(type)) {
+            @SuppressWarnings("unchecked")
+            Class<? extends ResourceInfo> clazz = (Class<? extends ResourceInfo>) type;
+            return type.cast(getResource(id, clazz));
+        }
+        if (LayerInfo.class.isAssignableFrom(type)) {
+            return type.cast(getLayer(id));
+        }
+        if (LayerGroupInfo.class.isAssignableFrom(type)) {
+            return type.cast(getLayerGroup(id));
+        }
+        if (StyleInfo.class.isAssignableFrom(type)) {
+            return type.cast(getStyle(id));
+        }
+        return null;
     }
 
     @Override

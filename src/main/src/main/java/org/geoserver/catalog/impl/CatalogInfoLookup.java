@@ -7,27 +7,36 @@ package org.geoserver.catalog.impl;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Stream;
+
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CatalogInfo;
 import org.geoserver.ows.util.OwsUtils;
 import org.geotools.util.logging.Logging;
 import org.opengis.feature.type.Name;
 
+import com.google.common.base.Stopwatch;
+
 /**
- * A support index for {@link DefaultCatalogFacade}, can perform fast lookups of {@link CatalogInfo}
- * objects by id or by "name", where the name is defined by a a user provided mapping function.
+ * A support index for {@link DefaultCatalogFacade}, can perform fast lookups of
+ * {@link CatalogInfo} objects by id or by "name", where the name is defined by
+ * a a user provided mapping function.
  *
- * <p>The lookups by predicate have been tested and optimized for performance, in particular the
- * current for loops turned out to be significantly faster than building and returning streams
+ * <p>
+ * The lookups by predicate have been tested and optimized for performance, in
+ * particular the current for loops turned out to be significantly faster than
+ * building and returning streams
  *
  * @param <T>
  */
@@ -94,7 +103,9 @@ class CatalogInfoLookup<T extends CatalogInfo> {
         return idMap.remove(value.getId());
     }
 
-    /** Updates the value in the name map. The new value must be a ModificationProxy */
+    /**
+     * Updates the value in the name map. The new value must be a ModificationProxy
+     */
     public void update(T proxiedValue) {
         ModificationProxy h = (ModificationProxy) Proxy.getInvocationHandler(proxiedValue);
         T actualValue = (T) h.getProxyObject();
@@ -116,16 +127,19 @@ class CatalogInfoLookup<T extends CatalogInfo> {
     /**
      * Looks up objects by class and matching predicate.
      *
-     * <p>This method is significantly faster than creating a stream and the applying the predicate
-     * on it. Just using this approach instead of the stream makes the overall startup of GeoServer
-     * with 20k layers go down from 50s to 44s (which is a lot, considering there is a lot of other
-     * things going on)
+     * <p>
+     * This method is significantly faster than creating a stream and the applying
+     * the predicate on it. Just using this approach instead of the stream makes the
+     * overall startup of GeoServer with 20k layers go down from 50s to 44s (which
+     * is a lot, considering there is a lot of other things going on)
      *
      * @param clazz
      * @param predicate
      * @return
      */
-    <U extends CatalogInfo> List<U> list(Class<U> clazz, Predicate<U> predicate) {
+    public <U extends CatalogInfo> List<U> list(Class<U> clazz, Predicate<U> predicate) {
+        Stopwatch sw = Stopwatch.createStarted();
+        System.err.println("-------> listing " + clazz);
         ArrayList<U> result = new ArrayList<U>();
         for (Class<T> key : nameMultiMap.keySet()) {
             if (clazz.isAssignableFrom(key)) {
@@ -140,8 +154,53 @@ class CatalogInfoLookup<T extends CatalogInfo> {
                 }
             }
         }
-
+        System.err.printf("-------> listing of %s built in %s, size: %,d%n", clazz, sw.stop(), result.size());
         return result;
+    }
+
+    public <U extends CatalogInfo> Stream<U> stream(Class<U> clazz, Predicate<U> predicate) {
+        Stream<U> stream = Stream.empty();
+        for (Class<T> key : nameMultiMap.keySet()) {
+            if (!clazz.isAssignableFrom(key)) {
+                continue;
+            }
+            Map<Name, T> valueMap = nameMultiMap.get(key);
+            if (valueMap == null) {
+                continue;
+            }
+            Stream<T> stream2 = valueMap.values().stream();
+            if (TRUE != predicate) {
+                Predicate<? super T> filter = (Predicate<? super T>) predicate;
+                stream2 = stream2.filter(filter);
+            }
+            stream = Stream.concat(stream, (Stream<U>) stream2);
+        }
+        return stream;
+    }
+
+    public <U extends CatalogInfo> int count(Class<U> clazz, Predicate<U> predicate) {
+        int count = 0;
+        for (Class<T> key : nameMultiMap.keySet()) {
+            if (!clazz.isAssignableFrom(key)) {
+                continue;
+            }
+            Map<Name, T> valueMap = nameMultiMap.get(key);
+            if (valueMap == null) {
+                continue;
+            }
+            if (TRUE == predicate) {
+                count += valueMap.size();
+            } else {
+                for (T v : valueMap.values()) {
+                    @SuppressWarnings("unchecked")
+                    final U u = (U) v;
+                    if (predicate.test(u)) {
+                        count++;
+                    }
+                }
+            }
+        }
+        return count;
     }
 
     /**
@@ -193,10 +252,11 @@ class CatalogInfoLookup<T extends CatalogInfo> {
     /**
      * Looks up objects by class and matching predicate.
      *
-     * <p>This method is significantly faster than creating a stream and the applying the predicate
-     * on it. Just using this approach instead of the stream makes the overall startup of GeoServer
-     * with 20k layers go down from 50s to 44s (which is a lot, considering there is a lot of other
-     * things going on)
+     * <p>
+     * This method is significantly faster than creating a stream and the applying
+     * the predicate on it. Just using this approach instead of the stream makes the
+     * overall startup of GeoServer with 20k layers go down from 50s to 44s (which
+     * is a lot, considering there is a lot of other things going on)
      *
      * @param clazz
      * @param predicate
@@ -221,11 +281,12 @@ class CatalogInfoLookup<T extends CatalogInfo> {
     }
 
     /**
-     * Sets the specified catalog into all CatalogInfo objects contained in this lookup
+     * Sets the specified catalog into all CatalogInfo objects contained in this
+     * lookup
      *
      * @param catalog
      */
-    public CatalogInfoLookup setCatalog(Catalog catalog) {
+    public CatalogInfoLookup<T> setCatalog(Catalog catalog) {
         for (Map<Name, T> valueMap : nameMultiMap.values()) {
             if (valueMap != null) {
                 for (T v : valueMap.values()) {
@@ -235,10 +296,7 @@ class CatalogInfoLookup<T extends CatalogInfo> {
                             try {
                                 setter.invoke(v, catalog);
                             } catch (Exception e) {
-                                LOGGER.log(
-                                        Level.FINE,
-                                        "Failed to switch CatalogInfo to new catalog impl",
-                                        e);
+                                LOGGER.log(Level.FINE, "Failed to switch CatalogInfo to new catalog impl", e);
                             }
                         }
                     }
@@ -247,5 +305,92 @@ class CatalogInfoLookup<T extends CatalogInfo> {
         }
 
         return this;
+    }
+
+    @SuppressWarnings("unchecked")
+    static <T extends CatalogInfo> CatalogInfoLookup<T> combineAsImmutable(
+            final CatalogInfoLookup<? extends CatalogInfo>... others) {
+        Objects.requireNonNull(others);
+        if (others.length == 1) {
+            return (CatalogInfoLookup<T>) others[0];
+        }
+        return new CatalogInfoLookup<T>(null) {
+            private final List<CatalogInfoLookup<? extends CatalogInfo>> delegates = Arrays.asList(others);
+
+            public Collection<T> values() {
+                Collection<CatalogInfo> values = (Collection<CatalogInfo>) delegates.get(0).values();
+                for (int i = 1; i < delegates.size(); i++) {
+                    Collection<? extends CatalogInfo> values2 = delegates.get(i).values();
+                    values.addAll(values2);
+                }
+                return (Collection<T>) values;
+            }
+
+            public @Override <U extends CatalogInfo> List<U> list(Class<U> clazz, Predicate<U> predicate) {
+                List<U> list = delegates.get(0).list(clazz, predicate);
+                for (int i = 1; i < delegates.size(); i++) {
+                    List<U> next = delegates.get(i).list(clazz, predicate);
+                    list.addAll(next);
+                }
+                return list;
+            }
+
+            public @Override <U extends CatalogInfo> Stream<U> stream(Class<U> clazz, Predicate<U> predicate) {
+                Stream<U> stream = delegates.get(0).stream(clazz, predicate);
+                for (int i = 1; i < delegates.size(); i++) {
+                    Stream<U> next = delegates.get(i).stream(clazz, predicate);
+                    stream = Stream.concat(stream, next);
+                }
+                return stream;
+            }
+
+            public @Override <U extends CatalogInfo> int count(Class<U> clazz, Predicate<U> predicate) {
+                int count = 0;
+                for (int i = 0; i < delegates.size(); i++) {
+                    count += delegates.get(i).count(clazz, predicate);
+                }
+                return count;
+            }
+
+            public @Override <U extends CatalogInfo> U findById(String id, Class<U> clazz) {
+                for (int i = 0; i < delegates.size(); i++) {
+                    U found = delegates.get(i).findById(id, clazz);
+                    if (null != found) {
+                        return found;
+                    }
+                }
+                return null;
+            }
+
+            public @Override <U extends CatalogInfo> U findByName(Name name, Class<U> clazz) {
+                for (int i = 0; i < delegates.size(); i++) {
+                    U found = delegates.get(i).findByName(name, clazz);
+                    if (null != found) {
+                        return found;
+                    }
+                }
+                return null;
+            }
+
+            public @Override CatalogInfoLookup<T> setCatalog(Catalog catalog) {
+                throw new UnsupportedOperationException();
+            }
+
+            public @Override T add(T value) {
+                throw new UnsupportedOperationException();
+            }
+
+            public @Override T remove(T value) {
+                throw new UnsupportedOperationException();
+            }
+
+            public @Override void update(T proxiedValue) {
+                throw new UnsupportedOperationException();
+            }
+
+            public @Override void clear() {
+                throw new UnsupportedOperationException();
+            }
+        };
     }
 }

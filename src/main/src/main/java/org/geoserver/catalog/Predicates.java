@@ -203,6 +203,12 @@ public class Predicates {
      * a false predicate is found.
      */
     public static Filter and(Filter op1, Filter op2) {
+        if(Filter.INCLUDE == op1) {
+            return op2;
+        }
+        if(Filter.INCLUDE == op2) {
+            return op1;
+        }
         List<Filter> children = new ArrayList<Filter>();
         if (op1 instanceof And) {
             children.addAll(((And) op1).getChildren());
