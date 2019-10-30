@@ -84,6 +84,11 @@ import org.geotools.util.SuppressFBWarnings;
 import org.geotools.util.logging.Logging;
 import org.opengis.feature.type.Name;
 import org.opengis.filter.Filter;
+import org.opengis.filter.MultiValuedFilter.MatchAction;
+import org.opengis.filter.PropertyIsEqualTo;
+import org.opengis.filter.expression.Expression;
+import org.opengis.filter.expression.Literal;
+import org.opengis.filter.expression.PropertyName;
 import org.opengis.filter.sort.SortBy;
 
 /**
@@ -2064,7 +2069,46 @@ public class CatalogImpl implements Catalog {
     @Override
     public <T extends CatalogInfo> T get(Class<T> type, Filter filter)
             throws IllegalArgumentException {
-
+        
+        if(filter instanceof PropertyIsEqualTo) {
+            MatchAction matchAction = ((PropertyIsEqualTo)filter).getMatchAction();
+            if(matchAction != MatchAction.ALL) {
+                Expression expression1 = ((PropertyIsEqualTo)filter).getExpression1();
+                Expression expression2 = ((PropertyIsEqualTo)filter).getExpression2();
+                PropertyName p = expression1 instanceof PropertyName ? (PropertyName) expression1
+                        : (expression2 instanceof PropertyName ? (PropertyName) expression2 : null);
+                Literal v = expression1 instanceof Literal ? (Literal) expression1
+                        : (expression2 instanceof Literal ? (Literal) expression2 : null);
+                if (v != null && p != null && "id".equalsIgnoreCase(p.getPropertyName())) {
+                    String id = v.getValue() == null ? null : String.valueOf(v.getValue());
+                    if (id != null) {
+                        if (WorkspaceInfo.class.isAssignableFrom(type)) {
+                            return type.cast(getWorkspace(id));
+                        }
+                        if (NamespaceInfo.class.isAssignableFrom(type)) {
+                            return type.cast(getNamespace(id));
+                        }
+                        if (StoreInfo.class.isAssignableFrom(type)) {
+                            Class<? extends StoreInfo> t = (Class<? extends StoreInfo>) type;
+                            return type.cast(getStore(id, t));
+                        }
+                        if (ResourceInfo.class.isAssignableFrom(type)) {
+                            Class<? extends ResourceInfo> clazz = (Class<? extends ResourceInfo>) type;
+                            return type.cast(getResource(id, clazz));
+                        }
+                        if (LayerInfo.class.isAssignableFrom(type)) {
+                            return type.cast(getLayer(id));
+                        }
+                        if (LayerGroupInfo.class.isAssignableFrom(type)) {
+                            return type.cast(getLayerGroup(id));
+                        }
+                        if (StyleInfo.class.isAssignableFrom(type)) {
+                            return type.cast(getStyle(id));
+                        }
+                    }
+                }
+            }
+        }
         final Integer limit = Integer.valueOf(2);
         CloseableIterator<T> it = list(type, filter, null, limit, null);
         T result = null;
