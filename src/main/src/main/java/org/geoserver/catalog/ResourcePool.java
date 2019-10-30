@@ -44,6 +44,8 @@ import javax.measure.quantity.Length;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.eclipse.xsd.XSDElementDeclaration;
 import org.eclipse.xsd.XSDParticle;
 import org.eclipse.xsd.XSDSchema;
@@ -134,11 +136,17 @@ import org.opengis.referencing.crs.GeographicCRS;
 import org.opengis.referencing.crs.SingleCRS;
 import org.opengis.referencing.cs.CoordinateSystem;
 import org.opengis.referencing.operation.TransformException;
+import org.springframework.cache.annotation.CacheConfig;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationContext;
 import org.vfny.geoserver.global.GeoServerFeatureLocking;
 import org.vfny.geoserver.global.GeoServerFeatureSource;
 import org.vfny.geoserver.util.DataStoreUtils;
 import org.xml.sax.EntityResolver;
+
+import com.github.benmanes.caffeine.cache.RemovalCause;
+import com.github.benmanes.caffeine.cache.RemovalListener;
+
 import si.uom.NonSI;
 import si.uom.SI;
 
@@ -160,7 +168,12 @@ import si.uom.SI;
  *
  * @author Justin Deoliveira, Boundless
  */
+@CacheConfig(cacheManager = ResourcePool.DATA_STORES_CACHE)
 public class ResourcePool {
+
+    public static final String CACHE_MANAGER_NAME = "resourcePoolCacheManager";
+    
+    public static final String DATA_STORES_CACHE = "ResourcePool.DataStore";
 
     /**
      * OGC "cilyndrical earth" model, we'll use it to translate meters to degrees (yes, it's ugly)
@@ -228,6 +241,7 @@ public class ResourcePool {
     }
 
     protected ResourcePool() {
+        System.err.println("### created resource pool " + this + " #####");
         crsCache = createCrsCache();
         dataStoreCache = createDataStoreCache();
         featureTypeCache = createFeatureTypeCache(FEATURETYPE_CACHE_SIZE_DEFAULT);
@@ -478,21 +492,21 @@ public class ResourcePool {
 
         if (srsName == null) return null;
 
-        CoordinateReferenceSystem crs = crsCache.get(srsName);
-        if (crs == null) {
-            synchronized (crsCache) {
-                crs = crsCache.get(srsName);
-                if (crs == null) {
-                    try {
-                        crs = CRS.decode(srsName);
-                        crsCache.put(srsName, crs);
-                    } catch (Exception e) {
-                        throw (IOException) new IOException().initCause(e);
-                    }
-                }
-            }
+        CoordinateReferenceSystem crs;
+        try {
+            crs =
+                    crsCache.computeIfAbsent(
+                            srsName,
+                            srs -> {
+                                try {
+                                    return CRS.decode(srs);
+                                } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                }
+                            });
+        } catch (RuntimeException wrapper) {
+            throw new IOException(wrapper.getCause());
         }
-
         return crs;
     }
 
@@ -535,7 +549,8 @@ public class ResourcePool {
      *     connection is needed)
      * @throws IOException Any errors that occur connecting to the resource.
      */
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @Cacheable(cacheManager = CACHE_MANAGER_NAME, cacheNames = DATA_STORES_CACHE, key = "#info.id", sync = true)
+    @SuppressWarnings({"unchecked"})
     public DataAccess<? extends FeatureType, ? extends Feature> getDataStore(DataStoreInfo info)
             throws IOException {
 
@@ -2925,5 +2940,14 @@ public class ResourcePool {
      */
     public CatalogRepository getRepository() {
         return repository;
+    }
+    
+    public static class ResourcePoolRemovalListener implements RemovalListener<Object, Object>{
+
+        @Override
+        public void onRemoval(@Nullable Object key, @Nullable Object value, @NonNull RemovalCause cause) {
+            
+        }
+        
     }
 }
