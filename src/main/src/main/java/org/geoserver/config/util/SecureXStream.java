@@ -4,6 +4,34 @@
  */
 package org.geoserver.config.util;
 
+import java.lang.reflect.Constructor;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import org.geoserver.platform.GeoServerExtensions;
+import org.geotools.util.NumberRange;
+import org.geotools.util.SimpleInternationalString;
+import org.geotools.util.Version;
+import org.geotools.util.logging.Logging;
+import org.opengis.feature.type.Name;
+import org.opengis.filter.Filter;
+import org.opengis.referencing.crs.CoordinateReferenceSystem;
+
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.converters.Converter;
 import com.thoughtworks.xstream.converters.ConverterLookup;
@@ -54,32 +82,6 @@ import com.thoughtworks.xstream.mapper.MapperWrapper;
 import com.thoughtworks.xstream.security.ForbiddenClassException;
 import com.thoughtworks.xstream.security.NoTypePermission;
 import com.thoughtworks.xstream.security.PrimitiveTypePermission;
-import java.lang.reflect.Constructor;
-import java.sql.Time;
-import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeMap;
-import java.util.TreeSet;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import org.geoserver.platform.GeoServerExtensions;
-import org.geotools.util.NumberRange;
-import org.geotools.util.SimpleInternationalString;
-import org.geotools.util.Version;
-import org.geotools.util.logging.Logging;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.Filter;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * A XStream subclass allowing conversion of no class other than those explicitly registered using
@@ -264,32 +266,32 @@ public class SecureXStream extends XStream {
 
         // late bound converters - allows XStream to be compiled on earlier JDKs
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.extended.SubjectConverter",
+                com.thoughtworks.xstream.converters.extended.SubjectConverter.class,
                 PRIORITY_NORMAL,
                 new Class[] {Mapper.class},
                 new Object[] {mapper});
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.extended.ThrowableConverter",
+                com.thoughtworks.xstream.converters.extended.ThrowableConverter.class,
                 PRIORITY_NORMAL,
                 new Class[] {ConverterLookup.class},
                 new Object[] {converterLookup});
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.extended.StackTraceElementConverter",
+                com.thoughtworks.xstream.converters.extended.StackTraceElementConverter.class,
                 PRIORITY_NORMAL,
                 null,
                 null);
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.extended.CurrencyConverter",
+                com.thoughtworks.xstream.converters.extended.CurrencyConverter.class,
                 PRIORITY_NORMAL,
                 null,
                 null);
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.extended.RegexPatternConverter",
+                com.thoughtworks.xstream.converters.extended.RegexPatternConverter.class,
                 PRIORITY_NORMAL,
                 null,
                 null);
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.extended.CharsetConverter",
+                com.thoughtworks.xstream.converters.extended.CharsetConverter.class,
                 PRIORITY_NORMAL,
                 null,
                 null);
@@ -297,151 +299,151 @@ public class SecureXStream extends XStream {
         // late bound converters - allows XStream to be compiled on earlier JDKs
         if (JVM.loadClassForName("javax.xml.datatype.Duration") != null) {
             registerConverterDynamically(
-                    "com.thoughtworks.xstream.converters.extended.DurationConverter",
+                    com.thoughtworks.xstream.converters.extended.DurationConverter.class,
                     PRIORITY_NORMAL,
                     null,
                     null);
         }
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.enums.EnumConverter",
+                com.thoughtworks.xstream.converters.enums.EnumConverter.class,
                 PRIORITY_NORMAL,
                 null,
                 null);
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.basic.StringBuilderConverter",
+                com.thoughtworks.xstream.converters.basic.StringBuilderConverter.class,
                 PRIORITY_NORMAL,
                 null,
                 null);
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.basic.UUIDConverter",
+                com.thoughtworks.xstream.converters.basic.UUIDConverter.class,
                 PRIORITY_NORMAL,
                 null,
                 null);
         if (JVM.loadClassForName("javax.activation.ActivationDataFlavor") != null) {
             registerConverterDynamically(
-                    "com.thoughtworks.xstream.converters.extended.ActivationDataFlavorConverter",
+                    com.thoughtworks.xstream.converters.extended.ActivationDataFlavorConverter.class,
                     PRIORITY_NORMAL,
                     null,
                     null);
         }
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.extended.PathConverter",
+                com.thoughtworks.xstream.converters.extended.PathConverter.class,
                 PRIORITY_NORMAL,
                 null,
                 null);
 
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.time.ChronologyConverter",
+                com.thoughtworks.xstream.converters.time.ChronologyConverter.class,
                 PRIORITY_NORMAL,
                 null,
                 null);
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.time.DurationConverter",
+                com.thoughtworks.xstream.converters.time.DurationConverter.class,
                 PRIORITY_NORMAL,
                 null,
                 null);
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.time.HijrahDateConverter",
+                com.thoughtworks.xstream.converters.time.HijrahDateConverter.class,
                 PRIORITY_NORMAL,
                 null,
                 null);
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.time.JapaneseDateConverter",
+                com.thoughtworks.xstream.converters.time.JapaneseDateConverter.class,
                 PRIORITY_NORMAL,
                 null,
                 null);
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.time.JapaneseEraConverter",
+                com.thoughtworks.xstream.converters.time.JapaneseEraConverter.class,
                 PRIORITY_NORMAL,
                 null,
                 null);
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.time.InstantConverter",
+                com.thoughtworks.xstream.converters.time.InstantConverter.class,
                 PRIORITY_NORMAL,
                 null,
                 null);
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.time.LocalDateConverter",
+                com.thoughtworks.xstream.converters.time.LocalDateConverter.class,
                 PRIORITY_NORMAL,
                 null,
                 null);
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.time.LocalDateTimeConverter",
+                com.thoughtworks.xstream.converters.time.LocalDateTimeConverter.class,
                 PRIORITY_NORMAL,
                 null,
                 null);
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.time.LocalTimeConverter",
+                com.thoughtworks.xstream.converters.time.LocalTimeConverter.class,
                 PRIORITY_NORMAL,
                 null,
                 null);
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.time.MinguoDateConverter",
+                com.thoughtworks.xstream.converters.time.MinguoDateConverter.class,
                 PRIORITY_NORMAL,
                 null,
                 null);
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.time.MonthDayConverter",
+                com.thoughtworks.xstream.converters.time.MonthDayConverter.class,
                 PRIORITY_NORMAL,
                 null,
                 null);
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.time.OffsetDateTimeConverter",
+                com.thoughtworks.xstream.converters.time.OffsetDateTimeConverter.class,
                 PRIORITY_NORMAL,
                 null,
                 null);
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.time.OffsetTimeConverter",
+                com.thoughtworks.xstream.converters.time.OffsetTimeConverter.class,
                 PRIORITY_NORMAL,
                 null,
                 null);
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.time.PeriodConverter",
+                com.thoughtworks.xstream.converters.time.PeriodConverter.class,
                 PRIORITY_NORMAL,
                 null,
                 null);
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.time.SystemClockConverter",
+                com.thoughtworks.xstream.converters.time.SystemClockConverter.class,
                 PRIORITY_NORMAL,
                 new Class[] {Mapper.class},
                 new Object[] {mapper});
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.time.ThaiBuddhistDateConverter",
+                com.thoughtworks.xstream.converters.time.ThaiBuddhistDateConverter.class,
                 PRIORITY_NORMAL,
                 null,
                 null);
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.time.ValueRangeConverter",
+                com.thoughtworks.xstream.converters.time.ValueRangeConverter.class,
                 PRIORITY_NORMAL,
                 new Class[] {Mapper.class},
                 new Object[] {mapper});
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.time.WeekFieldsConverter",
+                com.thoughtworks.xstream.converters.time.WeekFieldsConverter.class,
                 PRIORITY_NORMAL,
                 new Class[] {Mapper.class},
                 new Object[] {mapper});
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.time.YearConverter",
+                com.thoughtworks.xstream.converters.time.YearConverter.class,
                 PRIORITY_NORMAL,
                 null,
                 null);
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.time.YearMonthConverter",
+                com.thoughtworks.xstream.converters.time.YearMonthConverter.class,
                 PRIORITY_NORMAL,
                 null,
                 null);
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.time.ZonedDateTimeConverter",
+                com.thoughtworks.xstream.converters.time.ZonedDateTimeConverter.class,
                 PRIORITY_NORMAL,
                 null,
                 null);
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.time.ZoneIdConverter",
+                com.thoughtworks.xstream.converters.time.ZoneIdConverter.class,
                 PRIORITY_NORMAL,
                 null,
                 null);
         registerConverterDynamically(
-                "com.thoughtworks.xstream.converters.reflection.LambdaConverter",
+                com.thoughtworks.xstream.converters.reflection.LambdaConverter.class,
                 PRIORITY_NORMAL,
                 new Class[] {Mapper.class, ReflectionProvider.class, ClassLoaderReference.class},
                 new Object[] {mapper, reflectionProvider, classLoaderReference});
@@ -455,8 +457,22 @@ public class SecureXStream extends XStream {
             int priority,
             Class[] constructorParamTypes,
             Object[] constructorParamValues) {
+            Class type;
+            try {
+                type = Class.forName(className, false, getClassLoaderReference().getReference());
+            } catch (ClassNotFoundException e) {
+                throw new com.thoughtworks.xstream.InitializationException(
+                        "Could not instantiate converter : " + className, e);
+            }
+            registerConverterDynamically(type, priority, constructorParamTypes, constructorParamValues);
+    }
+
+    private void registerConverterDynamically(
+            Class<?> type,
+            int priority,
+            Class[] constructorParamTypes,
+            Object[] constructorParamValues) {
         try {
-            Class type = Class.forName(className, false, getClassLoaderReference().getReference());
             Constructor constructor = type.getConstructor(constructorParamTypes);
             Object instance = constructor.newInstance(constructorParamValues);
             if (instance instanceof Converter) {
@@ -466,10 +482,10 @@ public class SecureXStream extends XStream {
             }
         } catch (Exception e) {
             throw new com.thoughtworks.xstream.InitializationException(
-                    "Could not instantiate converter : " + className, e);
+                    "Could not instantiate converter : " + type.getName(), e);
         } catch (LinkageError e) {
             throw new com.thoughtworks.xstream.InitializationException(
-                    "Could not instantiate converter : " + className, e);
+                    "Could not instantiate converter : " + type.getName(), e);
         }
     }
 
