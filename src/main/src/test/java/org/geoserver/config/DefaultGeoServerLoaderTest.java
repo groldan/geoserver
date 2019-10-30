@@ -132,7 +132,7 @@ public class DefaultGeoServerLoaderTest {
         GeoServerImpl gs = new GeoServerImpl();
         gs.setCatalog(catalog);
         // this one already calls onto loadService
-        loader.postProcessBeforeInitialization(gs, "geoServer");
+        loader.postProcessAfterInitialization(gs, "geoServer");
 
         // for extra measure, also do a reload
         loader.reload();
