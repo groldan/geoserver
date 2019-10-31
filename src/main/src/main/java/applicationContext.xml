@@ -21,17 +21,12 @@
         
     <context:component-scan base-package="org.geoserver.system.status"/>
     <cache:annotation-driven/>
-    <bean id="resourcePoolCacheManager" class="org.springframework.cache.caffeine.CaffeineCacheManager">
-      <!-- CacheManager for ResourcePool. It ought to be non persistent and should not serialize entries. Caffeine is perfect. -->
-      <property name="cacheSpecification" value="softValues,recordStats"/>
-      <property name="cacheNames">
-        <set>
-            <value>ResourcePool.DataStore</value>
-        </set>
-      </property>
-    </bean>
     <bean id="cacheManager" class="org.springframework.cache.support.SimpleCacheManager">
-      <!-- just a simple default cache manager. Spring will complain if caching is enabled and there's no default "cacheManager" -->
+      <!-- 
+           just a simple default cache manager. Spring will complain if caching is 
+           enabled and there's no default "cacheManager". ResourcePool uses the "resourcePoolCacheManager"
+           defined bellow. 
+      -->
     </bean>
      
     <bean class="org.geoserver.platform.ModuleStatusImpl">
@@ -192,7 +187,19 @@
       <constructor-arg ref="entityResolverProvider"/>
   </bean>
   
+  <bean id="resourcePoolCacheManager" class="org.springframework.cache.caffeine.CaffeineCacheManager">
+    <!-- CacheManager for ResourcePool. It ought to be non persistent and should not serialize entries. Caffeine is perfect. -->
+    <property name="cacheSpecification" value="softValues,recordStats"/>
+    <property name="allowNullValues" value="false"/>
+    <property name="cacheNames">
+      <set>
+          <value>ResourcePool.DataStore</value>
+          <value>ResourcePool.CRS</value>
+      </set>
+    </property>
+  </bean>
   <bean id="resourcePool" class="org.geoserver.catalog.ResourcePool">
+      <property name="cacheManager" ref="resourcePoolCacheManager"></property>
   </bean>
 
   <!-- security wrapper factories  -->

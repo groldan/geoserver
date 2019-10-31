@@ -131,12 +131,17 @@ import org.opengis.feature.type.GeometryDescriptor;
 import org.opengis.feature.type.Name;
 import org.opengis.feature.type.PropertyDescriptor;
 import org.opengis.filter.Filter;
+import org.opengis.referencing.FactoryException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.crs.GeographicCRS;
 import org.opengis.referencing.crs.SingleCRS;
 import org.opengis.referencing.cs.CoordinateSystem;
 import org.opengis.referencing.operation.TransformException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheConfig;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationContext;
 import org.vfny.geoserver.global.GeoServerFeatureLocking;
@@ -174,7 +179,8 @@ public class ResourcePool {
     public static final String CACHE_MANAGER_NAME = "resourcePoolCacheManager";
     
     public static final String DATA_STORES_CACHE = "ResourcePool.DataStore";
-
+    public static final String CRS_CACHE = "ResourcePool.CRS";
+    
     /**
      * OGC "cilyndrical earth" model, we'll use it to translate meters to degrees (yes, it's ugly)
      */
@@ -212,7 +218,6 @@ public class ResourcePool {
     static int FEATURETYPE_CACHE_SIZE_DEFAULT = 100;
 
     Catalog catalog;
-    Map<String, CoordinateReferenceSystem> crsCache;
     DataStoreCache dataStoreCache;
     Map<String, FeatureType> featureTypeCache;
     Map<String, List<AttributeTypeInfo>> featureTypeAttributeCache;
@@ -226,6 +231,14 @@ public class ResourcePool {
     CatalogRepository repository;
     EntityResolverProvider entityResolverProvider;
 
+    private @Autowired ResourcePool pool;
+    private CacheManager cacheManager;
+    public void setCacheManager(CacheManager cacheManager) {
+        this.cacheManager = cacheManager;
+    }
+    public CacheManager getCacheManager() {
+        return cacheManager;
+    }
     /** Creates a new instance of the resource pool explicitly supplying the application context. */
     public static ResourcePool create(Catalog catalog, ApplicationContext appContext) {
         // look for an implementation in spring context
@@ -242,7 +255,6 @@ public class ResourcePool {
 
     protected ResourcePool() {
         System.err.println("### created resource pool " + this + " #####");
-        crsCache = createCrsCache();
         dataStoreCache = createDataStoreCache();
         featureTypeCache = createFeatureTypeCache(FEATURETYPE_CACHE_SIZE_DEFAULT);
 
@@ -287,13 +299,14 @@ public class ResourcePool {
      *
      * <p>The concrete Map implementation is determined by {@link #createCrsCache()}.
      */
-    public Map<String, CoordinateReferenceSystem> getCrsCache() {
-        return crsCache;
-    }
+//REVISIT: dead code
+//    public Map<String, CoordinateReferenceSystem> getCrsCache() {
+//        return crsCache;
+//    }
 
-    protected Map<String, CoordinateReferenceSystem> createCrsCache() {
-        return new HashMap<String, CoordinateReferenceSystem>();
-    }
+//    protected Map<String, CoordinateReferenceSystem> createCrsCache() {
+//        return new HashMap<String, CoordinateReferenceSystem>();
+//    }
 
     /**
      * Returns the cache for {@link DataAccess} objects.
@@ -488,24 +501,16 @@ public class ResourcePool {
      * @throws IOException In the event the srsName can not be parsed or leads to an exception in
      *     the underlying call to CRS.decode.
      */
+    @Cacheable(cacheManager = CACHE_MANAGER_NAME, cacheNames = CRS_CACHE, sync = true)
     public CoordinateReferenceSystem getCRS(String srsName) throws IOException {
 
         if (srsName == null) return null;
 
         CoordinateReferenceSystem crs;
         try {
-            crs =
-                    crsCache.computeIfAbsent(
-                            srsName,
-                            srs -> {
-                                try {
-                                    return CRS.decode(srs);
-                                } catch (Exception e) {
-                                    throw new RuntimeException(e);
-                                }
-                            });
-        } catch (RuntimeException wrapper) {
-            throw new IOException(wrapper.getCause());
+            crs = CRS.decode(srsName);
+        } catch (FactoryException e) {
+            throw new IOException(e);
         }
         return crs;
     }
@@ -549,7 +554,7 @@ public class ResourcePool {
      *     connection is needed)
      * @throws IOException Any errors that occur connecting to the resource.
      */
-    @Cacheable(cacheManager = CACHE_MANAGER_NAME, cacheNames = DATA_STORES_CACHE, key = "#info.id", sync = true)
+    @Cacheable(key = "#info.id", cacheManager = CACHE_MANAGER_NAME, cacheNames = DATA_STORES_CACHE, sync = true)
     @SuppressWarnings({"unchecked"})
     public DataAccess<? extends FeatureType, ? extends Feature> getDataStore(DataStoreInfo info)
             throws IOException {
@@ -771,6 +776,7 @@ public class ResourcePool {
      *
      * @param info The data store metadata.
      */
+    @CacheEvict(key = "#info.id", cacheManager = CACHE_MANAGER_NAME, cacheNames = DATA_STORES_CACHE)
     public void clear(DataStoreInfo info) {
         dataStoreCache.remove(info.getId());
     }
@@ -1197,7 +1203,7 @@ public class ResourcePool {
                     // rebuild with proper crs
                     AttributeTypeBuilder b = new AttributeTypeBuilder();
                     b.init(old);
-                    b.setCRS(getCRS(info.getSRS()));
+                    b.setCRS(pool.getCRS(info.getSRS()));
                     ad = b.buildDescriptor(old.getLocalName());
                 }
             } catch (Exception e) {
@@ -2263,7 +2269,13 @@ public class ResourcePool {
 
     /** Disposes all cached resources. */
     public void dispose() {
-        crsCache.clear();
+        CacheManager cacheManager = this.cacheManager;
+        if(cacheManager != null) {
+            for(String cacheName : cacheManager.getCacheNames()) {
+                Cache cache = cacheManager.getCache(cacheName);
+                cache.clear();
+            }
+        }
         dataStoreCache.clear();
         featureTypeCache.clear();
         featureTypeAttributeCache.clear();
