@@ -34,13 +34,16 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import javax.measure.Unit;
 import javax.measure.UnitConverter;
 import javax.measure.quantity.Length;
+
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -149,6 +152,7 @@ import org.vfny.geoserver.global.GeoServerFeatureSource;
 import org.vfny.geoserver.util.DataStoreUtils;
 import org.xml.sax.EntityResolver;
 
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.RemovalCause;
 import com.github.benmanes.caffeine.cache.RemovalListener;
 
@@ -156,33 +160,46 @@ import si.uom.NonSI;
 import si.uom.SI;
 
 /**
- * Provides access to resources such as datastores, coverage readers, and feature types.
+ * Provides access to resources such as datastores, coverage readers, and
+ * feature types.
  *
- * <p>Provides caches for:
+ * <p>
+ * Provides caches for:
  *
  * <ul>
- *   <li>{@link #crsCache} - quick lookup of CoorrdinateReferenceSystem by srs name
- *   <li>{@link #dataStoreCache} - live {@link DataAccess} connections. Responsible for maintaining
- *       lifecycle with an appropriate call to {@link DataAccess#dispose()} when no longer in use.
- *   <li>{@link #featureTypeCache}
- *   <li>{@link #featureTypeAttributeCache}
- *   <li>{@link #wmsCache}
- *   <li>{@link #hintCoverageReaderCache}
- *   <li>{@link #sldCache}
- *   <li>{@link #styleCache}
+ * <li>{@link #crsCache} - quick lookup of CoorrdinateReferenceSystem by srs
+ * name
+ * <li>{@link #dataStoreCache} - live {@link DataAccess} connections.
+ * Responsible for maintaining lifecycle with an appropriate call to
+ * {@link DataAccess#dispose()} when no longer in use.
+ * <li>{@link #featureTypeCache}
+ * <li>{@link #featureTypeAttributeCache}
+ * <li>{@link #wmsCache}
+ * <li>{@link #hintCoverageReaderCache}
+ * <li>{@link #sldCache}
+ * <li>{@link #styleCache}
  *
  * @author Justin Deoliveira, Boundless
  */
-@CacheConfig(cacheManager = ResourcePool.DATA_STORES_CACHE)
+@CacheConfig(cacheManager = ResourcePool.CACHE_MANAGER_NAME)
 public class ResourcePool {
 
     public static final String CACHE_MANAGER_NAME = "resourcePoolCacheManager";
-    
-    public static final String DATA_STORES_CACHE = "ResourcePool.DataStore";
-    public static final String CRS_CACHE = "ResourcePool.CRS";
-    
+
+    public static final String DATA_STORES_CACHE = "DataStores";
+
+    public static final String FEATURE_TYPES_CACHE = "FeatureTypes";
+
+    // i.e., native FeatureType
+    public static final String FEATURE_TYPES_CACHE_WITHOUT_PROJECTION_POLICY = "FeatureTypesWithoutProjectionPolicy";
+
+    public static final String FEATURE_TYPE_ATTRIBUTES_CACHE = "FeatureTypeAttributes";
+
+    public static final String CRS_CACHE = "CRS";
+
     /**
-     * OGC "cilyndrical earth" model, we'll use it to translate meters to degrees (yes, it's ugly)
+     * OGC "cilyndrical earth" model, we'll use it to translate meters to degrees
+     * (yes, it's ugly)
      */
     static final double OGC_DEGREE_TO_METERS = 6378137.0 * 2.0 * Math.PI / 360;
 
@@ -207,20 +224,14 @@ public class ResourcePool {
         try {
             // only support versioning if on classpath
             VERSIONING_FS = Class.forName("org.geotools.data.VersioningFeatureSource");
-            GS_VERSIONING_FS =
-                    Class.forName("org.vfny.geoserver.global.GeoServerVersioningFeatureSource");
+            GS_VERSIONING_FS = Class.forName("org.vfny.geoserver.global.GeoServerVersioningFeatureSource");
         } catch (ClassNotFoundException e) {
             // fall through
         }
     }
 
-    /** Default number of hard references */
-    static int FEATURETYPE_CACHE_SIZE_DEFAULT = 100;
-
     Catalog catalog;
     DataStoreCache dataStoreCache;
-    Map<String, FeatureType> featureTypeCache;
-    Map<String, List<AttributeTypeInfo>> featureTypeAttributeCache;
     Map<String, WebMapServer> wmsCache;
     Map<String, WebMapTileServer> wmtsCache;
     Map<CoverageHintReaderKey, GridCoverageReader> hintCoverageReaderCache;
@@ -231,21 +242,25 @@ public class ResourcePool {
     CatalogRepository repository;
     EntityResolverProvider entityResolverProvider;
 
-    private @Autowired ResourcePool pool;
-    private CacheManager cacheManager;
-    public void setCacheManager(CacheManager cacheManager) {
+    private @Autowired ResourcePool cachingPoolReference;
+    private ResourcePoolCacheManager cacheManager;
+
+    public void setCacheManager(ResourcePoolCacheManager cacheManager) {
         this.cacheManager = cacheManager;
     }
-    public CacheManager getCacheManager() {
+
+    public ResourcePoolCacheManager getCacheManager() {
         return cacheManager;
     }
-    /** Creates a new instance of the resource pool explicitly supplying the application context. */
+
+    /**
+     * Creates a new instance of the resource pool explicitly supplying the
+     * application context.
+     */
     public static ResourcePool create(Catalog catalog, ApplicationContext appContext) {
         // look for an implementation in spring context
-        ResourcePool pool =
-                appContext == null
-                        ? GeoServerExtensions.bean(ResourcePool.class)
-                        : GeoServerExtensions.bean(ResourcePool.class, appContext);
+        ResourcePool pool = appContext == null ? GeoServerExtensions.bean(ResourcePool.class)
+                : GeoServerExtensions.bean(ResourcePool.class, appContext);
         if (pool == null) {
             pool = new ResourcePool();
         }
@@ -256,9 +271,6 @@ public class ResourcePool {
     protected ResourcePool() {
         System.err.println("### created resource pool " + this + " #####");
         dataStoreCache = createDataStoreCache();
-        featureTypeCache = createFeatureTypeCache(FEATURETYPE_CACHE_SIZE_DEFAULT);
-
-        featureTypeAttributeCache = createFeatureTypeAttributeCache(FEATURETYPE_CACHE_SIZE_DEFAULT);
         hintCoverageReaderCache = createHintCoverageReaderCache();
 
         wmsCache = createWmsCache();
@@ -272,8 +284,9 @@ public class ResourcePool {
     /**
      * Creates the resource pool.
      *
-     * <p>Client code should use {@link ResourcePool#create(Catalog)} instead of calling this
-     * constructor directly.
+     * <p>
+     * Client code should use {@link ResourcePool#create(Catalog)} instead of
+     * calling this constructor directly.
      */
     protected ResourcePool(Catalog catalog) {
         this();
@@ -295,32 +308,40 @@ public class ResourcePool {
     /**
      * Returns the cache for {@link CoordinateReferenceSystem} objects.
      *
-     * <p>The cache key is the CRS identifier (see {@link #getCRS(String)}) for allowable forms.
+     * <p>
+     * The cache key is the CRS identifier (see {@link #getCRS(String)}) for
+     * allowable forms.
      *
-     * <p>The concrete Map implementation is determined by {@link #createCrsCache()}.
+     * <p>
+     * The concrete Map implementation is determined by {@link #createCrsCache()}.
      */
-//REVISIT: dead code
-//    public Map<String, CoordinateReferenceSystem> getCrsCache() {
-//        return crsCache;
-//    }
+    // REVISIT: dead code
+    // public Map<String, CoordinateReferenceSystem> getCrsCache() {
+    // return crsCache;
+    // }
 
-//    protected Map<String, CoordinateReferenceSystem> createCrsCache() {
-//        return new HashMap<String, CoordinateReferenceSystem>();
-//    }
+    // protected Map<String, CoordinateReferenceSystem> createCrsCache() {
+    // return new HashMap<String, CoordinateReferenceSystem>();
+    // }
 
     /**
      * Returns the cache for {@link DataAccess} objects.
      *
-     * <p>The cache key is the corresponding DataStoreInfo id ({@link CatalogInfo#getId()}).
+     * <p>
+     * The cache key is the corresponding DataStoreInfo id
+     * ({@link CatalogInfo#getId()}).
      *
-     * <p>The concrete Map implementation is determined by {@link #createDataStoreCache()}.
+     * <p>
+     * The concrete Map implementation is determined by
+     * {@link #createDataStoreCache()}.
      */
     public Map<String, DataAccess> getDataStoreCache() {
         return dataStoreCache;
     }
+
     /**
-     * DataStoreCache implementation responsible for freeing DataAccess resources when they are no
-     * longer in use.
+     * DataStoreCache implementation responsible for freeing DataAccess resources
+     * when they are no longer in use.
      *
      * @return Cache used to look up DataAccess via id
      * @see #getDataStoreCache()
@@ -332,42 +353,62 @@ public class ResourcePool {
     /**
      * Returns the cache for {@link FeatureType} objects.
      *
-     * <p>The cache key is the corresponding FeatureTypeInfo id ({@link CatalogInfo#getId()}.
+     * <p>
+     * The cache key is the corresponding FeatureTypeInfo id
+     * ({@link CatalogInfo#getId()}.
      *
-     * <p>The concrete Map implementation is determined by {@link #createFeatureTypeCache(int)}.
+     * <p>
+     * The concrete Map implementation is determined by the underlying
+     * {@link CacheManager}
      */
     public Map<String, FeatureType> getFeatureTypeCache() {
-        return featureTypeCache;
+        return cacheAsMap(FEATURE_TYPES_CACHE);
     }
 
-    protected Map<String, FeatureType> createFeatureTypeCache(int size) {
-        // for each feature type we cache two versions, one with the projection policy applied, one
-        // without it
-        return new FeatureTypeCache(size * 2);
+    private <K, V> Map<K, V> cacheAsMap(String cacheName) {
+        if (cacheManager == null) {
+            return null;
+        }
+        Cache cache = cacheManager.getCache(cacheName);
+        Object nativeCache = cache.getNativeCache();
+        if ((nativeCache instanceof Caffeine)) {
+            @SuppressWarnings({ "unchecked", "rawtypes" })
+            ConcurrentMap<K, V> map = ((com.github.benmanes.caffeine.cache.Cache) nativeCache).asMap();
+            return map;
+        }
+        throw new UnsupportedOperationException("Unexpected cache implementation: " + nativeCache.getClass().getName());
     }
 
     /**
-     * Returns the cache for {@link AttributeTypeInfo} objects for a particular feature type.
+     * Returns the cache for {@link AttributeTypeInfo} objects for a particular
+     * feature type.
      *
-     * <p>The cache key is the corresponding FeatureTypeInfo id ({@link CatalogInfo#getId()}.
+     * <p>
+     * The cache key is the corresponding FeatureTypeInfo id
+     * ({@link CatalogInfo#getId()}.
      *
-     * <p>The concrete Map implementation is determined by {@link
-     * #createFeatureTypeAttributeCache(int)}
+     * <p>
+     * The concrete Map implementation is determined by
+     * {@link #createFeatureTypeAttributeCache(int)}
      */
     public Map<String, List<AttributeTypeInfo>> getFeatureTypeAttributeCache() {
-        return featureTypeAttributeCache;
+        return cacheAsMap(FEATURE_TYPE_ATTRIBUTES_CACHE);
     }
 
     protected Map<String, List<AttributeTypeInfo>> createFeatureTypeAttributeCache(int size) {
-        // for each feature type we cache two versions, one with the projection policy applied, one
+        // for each feature type we cache two versions, one with the projection policy
+        // applied, one
         // without it
         return new FeatureTypeAttributeCache(size * 2);
     }
 
     /**
-     * Returns the cache for {@link GridCoverageReader} objects for a particular coverage hint.
+     * Returns the cache for {@link GridCoverageReader} objects for a particular
+     * coverage hint.
      *
-     * <p>The concrete Map implementation is determined by {@link #createHintCoverageReaderCache()}
+     * <p>
+     * The concrete Map implementation is determined by
+     * {@link #createHintCoverageReaderCache()}
      */
     public Map<CoverageHintReaderKey, GridCoverageReader> getHintCoverageReaderCache() {
         return hintCoverageReaderCache;
@@ -378,9 +419,11 @@ public class ResourcePool {
     }
 
     /**
-     * Returns the cache for {@link StyledLayerDescriptor} objects for a particular style.
+     * Returns the cache for {@link StyledLayerDescriptor} objects for a particular
+     * style.
      *
-     * <p>The concrete Map implementation is determined by {@link #createSldCache()}
+     * <p>
+     * The concrete Map implementation is determined by {@link #createSldCache()}
      */
     public Map<StyleInfo, StyledLayerDescriptor> getSldCache() {
         return sldCache;
@@ -393,7 +436,8 @@ public class ResourcePool {
     /**
      * Returns the cache for {@link Style} objects for a particular style.
      *
-     * <p>The concrete Map implementation is determined by {@link #createStyleCache()}
+     * <p>
+     * The concrete Map implementation is determined by {@link #createStyleCache()}
      */
     public Map<StyleInfo, Style> getStyleCache() {
         return styleCache;
@@ -404,11 +448,15 @@ public class ResourcePool {
     }
 
     /**
-     * Returns the cache for {@link WebMapServer} objects for a particular {@link WMSStoreInfo}.
+     * Returns the cache for {@link WebMapServer} objects for a particular
+     * {@link WMSStoreInfo}.
      *
-     * <p>The cache key is the corresponding {@link WMSStoreInfo} id ({@link CatalogInfo#getId()}.
+     * <p>
+     * The cache key is the corresponding {@link WMSStoreInfo} id
+     * ({@link CatalogInfo#getId()}.
      *
-     * <p>The concrete Map implementation is determined by {@link #createWmsCache()}
+     * <p>
+     * The concrete Map implementation is determined by {@link #createWmsCache()}
      */
     public Map<String, WebMapServer> getWmsCache() {
         return wmsCache;
@@ -425,24 +473,30 @@ public class ResourcePool {
     protected Map<String, WebMapTileServer> createWmtsCache() {
         return new WMTSCache();
     }
+
     /**
      * Sets the size of the feature type cache.
      *
-     * <p>A warning that calling this method will blow away the existing cache.
+     * <p>
+     * A warning that calling this method will blow away the existing cache.
      */
+    @CacheEvict(allEntries = true, //
+            beforeInvocation = true, //
+            cacheNames = { FEATURE_TYPES_CACHE, FEATURE_TYPES_CACHE_WITHOUT_PROJECTION_POLICY,
+                    FEATURE_TYPE_ATTRIBUTES_CACHE })
     public void setFeatureTypeCacheSize(int featureTypeCacheSize) {
-        synchronized (this) {
-            featureTypeCache.clear();
-            featureTypeCache = createFeatureTypeCache(featureTypeCacheSize);
-            featureTypeAttributeCache.clear();
-            featureTypeAttributeCache = createFeatureTypeAttributeCache(featureTypeCacheSize);
-        }
+        // for each feature type we cache two versions, one with the projection policy
+        // applied, one without it
+        this.cacheManager.setCacheSize(FEATURE_TYPES_CACHE, featureTypeCacheSize);
+        this.cacheManager.setCacheSize(FEATURE_TYPES_CACHE_WITHOUT_PROJECTION_POLICY, featureTypeCacheSize);
+        this.cacheManager.setCacheSize(FEATURE_TYPE_ATTRIBUTES_CACHE, featureTypeCacheSize);
     }
 
     /**
      * Sets the size of the feature type cache.
      *
-     * <p>A warning that calling this method will blow away the existing cache.
+     * <p>
+     * A warning that calling this method will blow away the existing cache.
      */
     public void setCoverageExecutor(ThreadPoolExecutor coverageExecutor) {
         synchronized (this) {
@@ -484,27 +538,29 @@ public class ResourcePool {
     }
 
     /**
-     * Returns a {@link CoordinateReferenceSystem} object based on its identifier caching the
-     * result.
+     * Returns a {@link CoordinateReferenceSystem} object based on its identifier
+     * caching the result.
      *
-     * <p>The <tt>srsName</tt> parameter should have one of the forms:
+     * <p>
+     * The <tt>srsName</tt> parameter should have one of the forms:
      *
      * <ul>
-     *   <li>EPSG:XXXX
-     *   <li>http://www.opengis.net/gml/srs/epsg.xml#XXXX
-     *   <li>urn:x-ogc:def:crs:EPSG:XXXX
+     * <li>EPSG:XXXX
+     * <li>http://www.opengis.net/gml/srs/epsg.xml#XXXX
+     * <li>urn:x-ogc:def:crs:EPSG:XXXX
      * </ul>
      *
      * OR be something parsable by {@link CRS#decode(String)}.
      *
      * @param srsName The coordinate reference system identifier.
-     * @throws IOException In the event the srsName can not be parsed or leads to an exception in
-     *     the underlying call to CRS.decode.
+     * @throws IOException In the event the srsName can not be parsed or leads to an
+     *                     exception in the underlying call to CRS.decode.
      */
-    @Cacheable(cacheManager = CACHE_MANAGER_NAME, cacheNames = CRS_CACHE, sync = true)
+    @Cacheable(cacheNames = CRS_CACHE, sync = true)
     public CoordinateReferenceSystem getCRS(String srsName) throws IOException {
 
-        if (srsName == null) return null;
+        if (srsName == null)
+            return null;
 
         CoordinateReferenceSystem crs;
         try {
@@ -516,14 +572,17 @@ public class ResourcePool {
     }
 
     /**
-     * Returns the datastore factory used to create underlying resources for a datastore.
+     * Returns the datastore factory used to create underlying resources for a
+     * datastore.
      *
-     * <p>This method first uses {@link DataStoreInfo#getType()} to obtain the datastore. In the
-     * event of a failure it falls back on {@link DataStoreInfo#getConnectionParameters()}.
+     * <p>
+     * This method first uses {@link DataStoreInfo#getType()} to obtain the
+     * datastore. In the event of a failure it falls back on
+     * {@link DataStoreInfo#getConnectionParameters()}.
      *
      * @param info The data store metadata.
-     * @return The datastore factory, or null if no such factory could be found, or the factory is
-     *     not available.
+     * @return The datastore factory, or null if no such factory could be found, or
+     *         the factory is not available.
      * @throws IOException Any I/O errors.
      */
     public DataAccessFactory getDataStoreFactory(DataStoreInfo info) throws IOException {
@@ -536,8 +595,8 @@ public class ResourcePool {
         }
 
         if (factory == null && expandedStore.getConnectionParameters() != null) {
-            Map<String, Serializable> params =
-                    getParams(expandedStore.getConnectionParameters(), catalog.getResourceLoader());
+            Map<String, Serializable> params = getParams(expandedStore.getConnectionParameters(),
+                    catalog.getResourceLoader());
             factory = DataStoreUtils.aquireFactory(params);
         }
 
@@ -547,17 +606,18 @@ public class ResourcePool {
     /**
      * Returns the underlying resource for a DataAccess, caching the result.
      *
-     * <p>In the result of the resource not being in the cache {@link
-     * DataStoreInfo#getConnectionParameters()} is used to create the connection.
+     * <p>
+     * In the result of the resource not being in the cache
+     * {@link DataStoreInfo#getConnectionParameters()} is used to create the
+     * connection.
      *
-     * @param info DataStoreMeta providing id used for cache lookup (and connection paraemters if a
-     *     connection is needed)
+     * @param info DataStoreMeta providing id used for cache lookup (and connection
+     *             paraemters if a connection is needed)
      * @throws IOException Any errors that occur connecting to the resource.
      */
-    @Cacheable(key = "#info.id", cacheManager = CACHE_MANAGER_NAME, cacheNames = DATA_STORES_CACHE, sync = true)
-    @SuppressWarnings({"unchecked"})
-    public DataAccess<? extends FeatureType, ? extends Feature> getDataStore(DataStoreInfo info)
-            throws IOException {
+    @Cacheable(key = "#info.id", cacheNames = DATA_STORES_CACHE, sync = true)
+    @SuppressWarnings({ "unchecked" })
+    public DataAccess<? extends FeatureType, ? extends Feature> getDataStore(DataStoreInfo info) throws IOException {
 
         DataStoreInfo expandedStore = clone(info, true);
 
@@ -570,31 +630,25 @@ public class ResourcePool {
                     dataStore = dataStoreCache.get(id);
                     if (dataStore == null) {
                         // create data store
-                        Map<String, Serializable> connectionParameters =
-                                expandedStore.getConnectionParameters();
+                        Map<String, Serializable> connectionParameters = expandedStore.getConnectionParameters();
 
                         // call this method to execute the hack which recognizes
                         // urls which are relative to the data directory
                         // TODO: find a better way to do this
-                        connectionParameters =
-                                ResourcePool.getParams(
-                                        connectionParameters, catalog.getResourceLoader());
+                        connectionParameters = ResourcePool.getParams(connectionParameters,
+                                catalog.getResourceLoader());
 
                         // obtain the factory
                         DataAccessFactory factory = null;
                         try {
                             factory = getDataStoreFactory(info);
                         } catch (IOException e) {
-                            throw new IOException(
-                                    "Failed to find the datastore factory for "
-                                            + info.getName()
-                                            + ", did you forget to install the store extension jar?");
+                            throw new IOException("Failed to find the datastore factory for " + info.getName()
+                                    + ", did you forget to install the store extension jar?");
                         }
                         if (factory == null) {
-                            throw new IOException(
-                                    "Failed to find the datastore factory for "
-                                            + info.getName()
-                                            + ", did you forget to install the store extension jar?");
+                            throw new IOException("Failed to find the datastore factory for " + info.getName()
+                                    + ", did you forget to install the store extension jar?");
                         }
                         Param[] params = factory.getParametersInfo();
 
@@ -615,8 +669,7 @@ public class ResourcePool {
 
                             if (supportsNamespace) {
                                 WorkspaceInfo ws = info.getWorkspace();
-                                NamespaceInfo ns =
-                                        info.getCatalog().getNamespaceByPrefix(ws.getName());
+                                NamespaceInfo ns = info.getCatalog().getNamespaceByPrefix(ws.getName());
                                 if (ns == null) {
                                     ns = info.getCatalog().getDefaultNamespace();
                                 }
@@ -653,8 +706,8 @@ public class ResourcePool {
                         if (dataStore == null) {
                             /*
                              * Preserve DataStore retyping behaviour by calling
-                             * DataAccessFinder.getDataStore after the call to
-                             * DataStoreUtils.getDataStore above.
+                             * DataAccessFinder.getDataStore after the call to DataStoreUtils.getDataStore
+                             * above.
                              *
                              * TODO: DataAccessFinder can also find DataStores, and when retyping is
                              * supported for DataAccess, we can use a single mechanism.
@@ -663,8 +716,7 @@ public class ResourcePool {
                         }
 
                         if (dataStore == null) {
-                            throw new NullPointerException(
-                                    "Could not acquire data access '" + info.getName() + "'");
+                            throw new NullPointerException("Could not acquire data access '" + info.getName() + "'");
                         }
 
                         // cache only if the id is not null, no need to cache the stores
@@ -698,14 +750,15 @@ public class ResourcePool {
     /**
      * Process connection parameters into a synchronized map.
      *
-     * <p>This is used to smooth any relative path kind of issues for any file URLS or directory.
-     * This code should be expanded to deal with any other context sensitive issues data stores tend
-     * to have.
+     * <p>
+     * This is used to smooth any relative path kind of issues for any file URLS or
+     * directory. This code should be expanded to deal with any other context
+     * sensitive issues data stores tend to have.
      *
      * <ul>
-     *   <li>key ends in URL, and value is a string
-     *   <li>value is a URL
-     *   <li>key is directory, and value is a string
+     * <li>key ends in URL, and value is a string
+     * <li>value is a URL
+     * <li>key is directory, and value is a string
      * </ul>
      *
      * @return Processed parameters with relative file URLs resolved
@@ -717,8 +770,7 @@ public class ResourcePool {
         @SuppressWarnings("unchecked")
         Map<K, V> params = Collections.synchronizedMap(new HashMap<K, V>(m));
 
-        final GeoServerEnvironment gsEnvironment =
-                GeoServerExtensions.bean(GeoServerEnvironment.class);
+        final GeoServerEnvironment gsEnvironment = GeoServerExtensions.bean(GeoServerEnvironment.class);
 
         for (Entry<K, V> entry : params.entrySet()) {
             String key = (String) entry.getKey();
@@ -735,35 +787,25 @@ public class ResourcePool {
                 String path = (String) value;
 
                 if (path.startsWith("file:")) {
-                    File fixedPath =
-                            Resources.find(
-                                    Resources.fromURL(
-                                            Files.asResource(loader.getBaseDirectory()), path),
-                                    true);
+                    File fixedPath = Resources
+                            .find(Resources.fromURL(Files.asResource(loader.getBaseDirectory()), path), true);
                     URL url = URLs.fileToUrl(fixedPath);
                     entry.setValue((V) url.toExternalForm());
                 }
             } else if (value instanceof URL && ((URL) value).getProtocol().equals("file")) {
                 URL url = (URL) value;
-                File fixedPath =
-                        Resources.find(
-                                Resources.fromURL(
-                                        Files.asResource(loader.getBaseDirectory()),
-                                        url.toString()),
-                                true);
+                File fixedPath = Resources
+                        .find(Resources.fromURL(Files.asResource(loader.getBaseDirectory()), url.toString()), true);
                 entry.setValue((V) URLs.fileToUrl(fixedPath));
-            } else if ((key != null)
-                    && (key.equals("directory") || key.equals("database"))
+            } else if ((key != null) && (key.equals("directory") || key.equals("database"))
                     && value instanceof String) {
                 String path = (String) value;
-                // if a url is used for a directory (for example property store), convert it to path
+                // if a url is used for a directory (for example property store), convert it to
+                // path
 
                 if (path.startsWith("file:")) {
-                    File fixedPath =
-                            Resources.find(
-                                    Resources.fromURL(
-                                            Files.asResource(loader.getBaseDirectory()), path),
-                                    true);
+                    File fixedPath = Resources
+                            .find(Resources.fromURL(Files.asResource(loader.getBaseDirectory()), path), true);
                     entry.setValue((V) fixedPath.toString());
                 }
             }
@@ -776,56 +818,43 @@ public class ResourcePool {
      *
      * @param info The data store metadata.
      */
-    @CacheEvict(key = "#info.id", cacheManager = CACHE_MANAGER_NAME, cacheNames = DATA_STORES_CACHE)
+    @CacheEvict(key = "#info.id", cacheNames = DATA_STORES_CACHE)
     public void clear(DataStoreInfo info) {
         dataStoreCache.remove(info.getId());
     }
 
+    @Cacheable(key = "#info.id", //
+            // cache attributes only if the id is not null -> the feature type is not new
+            condition = "#info.id != null", //
+            sync = true, //
+            cacheNames = FEATURE_TYPE_ATTRIBUTES_CACHE)
     public List<AttributeTypeInfo> getAttributes(FeatureTypeInfo info) throws IOException {
         // first check the feature type itself
-        //      workaround for GEOS-3294, upgrading from 2.0 data directory,
-        //      simply ignore any stored attributes
-        //      Also check if the bindings has been set, if it's not set it means we're reloading
-        //      an old set of attributes, by forcing them to be reloaded the binding and length
-        //      will be added into the info classes
-        if (info.getAttributes() != null
-                && !info.getAttributes().isEmpty()
+        // workaround for GEOS-3294, upgrading from 2.0 data directory,
+        // simply ignore any stored attributes
+        // Also check if the bindings has been set, if it's not set it means we're
+        // reloading
+        // an old set of attributes, by forcing them to be reloaded the binding and
+        // length
+        // will be added into the info classes
+        if (info.getAttributes() != null && !info.getAttributes().isEmpty()
                 && info.getAttributes().get(0).getBinding() != null) {
             return info.getAttributes();
         }
 
-        // check the cache
-        List<AttributeTypeInfo> atts = featureTypeAttributeCache.get(info.getId());
-        if (atts == null) {
-            synchronized (featureTypeAttributeCache) {
-                atts = featureTypeAttributeCache.get(info.getId());
-                if (atts == null) {
-                    // load from feature type
-                    atts = loadAttributes(info);
+        List<AttributeTypeInfo> atts = loadAttributes(info);
 
-                    // check for a schema override
-                    try {
-                        handleSchemaOverride(atts, info);
-                    } catch (Exception e) {
-                        LOGGER.log(
-                                Level.WARNING,
-                                "Error occured applying schema override for " + info.getName(),
-                                e);
-                    }
-
-                    // cache attributes only if the id is not null -> the feature type is not new
-                    if (info.getId() != null) {
-                        featureTypeAttributeCache.put(info.getId(), atts);
-                    }
-                }
-            }
+        // check for a schema override
+        try {
+            handleSchemaOverride(atts, info);
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Error occured applying schema override for " + info.getName(), e);
         }
-
         return atts;
     }
 
     public List<AttributeTypeInfo> loadAttributes(FeatureTypeInfo info) throws IOException {
-        List<AttributeTypeInfo> attributes = new ArrayList();
+        List<AttributeTypeInfo> attributes = new ArrayList<>();
         FeatureType ft = getFeatureType(info);
 
         for (PropertyDescriptor pd : ft.getDescriptors()) {
@@ -854,9 +883,7 @@ public class ResourcePool {
             File oldSchemaFile = Resources.file(dd.get(ft, "schema.xml"));
             if (oldSchemaFile != null) {
                 schemaFile = new File(oldSchemaFile.getParentFile(), "schema.xsd");
-                BufferedWriter out =
-                        new BufferedWriter(
-                                new OutputStreamWriter(new FileOutputStream(schemaFile)));
+                BufferedWriter out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(schemaFile)));
                 out.write("<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema'");
                 out.write(" xmlns:gml='http://www.opengis.net/gml'");
                 out.write(">");
@@ -877,15 +904,12 @@ public class ResourcePool {
             try {
                 schema = Schemas.parse(schemaFile.getAbsolutePath(), locators, null);
             } catch (Exception e) {
-                LOGGER.warning(
-                        "Unable to parse "
-                                + schemaFile.getAbsolutePath()
-                                + "."
-                                + " Falling back on native feature type");
+                LOGGER.warning("Unable to parse " + schemaFile.getAbsolutePath() + "."
+                        + " Falling back on native feature type");
             }
             if (schema != null) {
                 XSDTypeDefinition type = null;
-                for (Iterator e = schema.getElementDeclarations().iterator(); e.hasNext(); ) {
+                for (Iterator e = schema.getElementDeclarations().iterator(); e.hasNext();) {
                     XSDElementDeclaration element = (XSDElementDeclaration) e.next();
                     if (ft.getName().equals(element.getName())) {
                         type = element.getTypeDefinition();
@@ -893,7 +917,7 @@ public class ResourcePool {
                     }
                 }
                 if (type == null) {
-                    for (Iterator t = schema.getTypeDefinitions().iterator(); t.hasNext(); ) {
+                    for (Iterator t = schema.getTypeDefinitions().iterator(); t.hasNext();) {
                         XSDTypeDefinition typedef = (XSDTypeDefinition) t.next();
                         if ((ft.getName() + "_Type").equals(typedef.getName())) {
                             type = typedef;
@@ -904,10 +928,10 @@ public class ResourcePool {
 
                 if (type != null) {
                     List children = Schemas.getChildElementDeclarations(type, true);
-                    for (Iterator<AttributeTypeInfo> i = atts.iterator(); i.hasNext(); ) {
+                    for (Iterator<AttributeTypeInfo> i = atts.iterator(); i.hasNext();) {
                         AttributeTypeInfo at = i.next();
                         boolean found = false;
-                        for (Iterator c = children.iterator(); c.hasNext(); ) {
+                        for (Iterator c = children.iterator(); c.hasNext();) {
                             XSDElementDeclaration ce = (XSDElementDeclaration) c.next();
                             if (at.getName().equals(ce.getName())) {
                                 found = true;
@@ -932,25 +956,28 @@ public class ResourcePool {
     /**
      * Returns the underlying resource for a feature type, caching the result.
      *
-     * <p>In the event that the resource is not in the cache the associated data store resource is
-     * loaded, and the feature type resource obtained. During loading the underlying feature type
-     * resource is "wrapped" to take into account feature type name aliasing and reprojection.
+     * <p>
+     * In the event that the resource is not in the cache the associated data store
+     * resource is loaded, and the feature type resource obtained. During loading
+     * the underlying feature type resource is "wrapped" to take into account
+     * feature type name aliasing and reprojection.
      *
      * @param info The feature type metadata.
      * @throws IOException Any errors that occure while loading the resource.
      */
+    @Cacheable(key = "#info.id", //
+            condition = "isCacheable(#info)", //
+            cacheNames = FEATURE_TYPES_CACHE //
+    )
     public FeatureType getFeatureType(FeatureTypeInfo info) throws IOException {
         return getFeatureType(info, true);
     }
 
-    FeatureType getFeatureType(FeatureTypeInfo info, boolean handleProjectionPolicy)
-            throws IOException {
+    FeatureType getFeatureType(FeatureTypeInfo info, boolean handleProjectionPolicy) throws IOException {
         try {
             return tryGetFeatureType(info, handleProjectionPolicy);
         } catch (Exception ex) {
-            LOGGER.log(
-                    Level.WARNING,
-                    "Error while getting feature type, flushing cache and retrying: {0}",
+            LOGGER.log(Level.WARNING, "Error while getting feature type, flushing cache and retrying: {0}",
                     ex.getMessage());
             LOGGER.log(Level.FINE, "", ex);
             this.clear(info);
@@ -959,57 +986,42 @@ public class ResourcePool {
         }
     }
 
-    FeatureType tryGetFeatureType(FeatureTypeInfo info, boolean handleProjectionPolicy)
-            throws IOException {
+    FeatureType tryGetFeatureType(FeatureTypeInfo info, boolean handleProjectionPolicy) throws IOException {
         boolean cacheable = isCacheable(info);
-        return cacheable
-                ? getCacheableFeatureType(info, handleProjectionPolicy)
+        return cacheable ? getCacheableFeatureType(info, handleProjectionPolicy)
                 : getNonCacheableFeatureType(info, handleProjectionPolicy);
     }
 
-    FeatureType getCacheableFeatureType(FeatureTypeInfo info, boolean handleProjectionPolicy)
-            throws IOException {
-        String key = getFeatureTypeInfoKey(info, handleProjectionPolicy);
-        FeatureType ft = featureTypeCache.get(key);
-        if (ft == null) {
-            synchronized (featureTypeCache) {
-                ft = featureTypeCache.get(key);
-                if (ft == null) {
+    FeatureType getCacheableFeatureType(FeatureTypeInfo info, boolean handleProjectionPolicy) throws IOException {
 
-                    // grab the underlying feature type
-                    DataAccess<? extends FeatureType, ? extends Feature> dataAccess =
-                            getDataStore(info.getStore());
-                    FeatureTypeCallback initializer = getFeatureTypeInitializer(info, dataAccess);
-                    if (initializer != null) {
-                        initializer.initialize(info, dataAccess, null);
-                    }
-                    // ft = jstore.getSchema(vt.getName());
-                    ft = dataAccess.getSchema(info.getQualifiedNativeName());
-                    ft = buildFeatureType(info, handleProjectionPolicy, ft);
-
-                    featureTypeCache.put(key, ft);
-                }
-            }
+        FeatureType ft;
+        // grab the underlying feature type
+        DataAccess<? extends FeatureType, ? extends Feature> dataAccess = cachingPoolReference
+                .getDataStore(info.getStore());
+        FeatureTypeCallback initializer = getFeatureTypeInitializer(info, dataAccess);
+        if (initializer != null) {
+            initializer.initialize(info, dataAccess, null);
         }
+        // ft = jstore.getSchema(vt.getName());
+        ft = dataAccess.getSchema(info.getQualifiedNativeName());
+        ft = buildFeatureType(info, handleProjectionPolicy, ft);
         return ft;
     }
 
-    private FeatureType getNonCacheableFeatureType(
-            FeatureTypeInfo info, boolean handleProjectionPolicy) throws IOException {
-        FeatureType ft = null;
+    private FeatureType getNonCacheableFeatureType(FeatureTypeInfo info, boolean handleProjectionPolicy)
+            throws IOException {
+        FeatureType ft;
 
         // grab the underlying feature type
-        DataAccess<? extends FeatureType, ? extends Feature> dataAccess =
-                getDataStore(info.getStore());
+        DataAccess<? extends FeatureType, ? extends Feature> dataAccess = cachingPoolReference
+                .getDataStore(info.getStore());
 
         FeatureTypeCallback initializer = getFeatureTypeInitializer(info, dataAccess);
         Name temporaryName = null;
         if (initializer != null) {
             temporaryName = getTemporaryName(info, dataAccess, initializer);
         }
-        ft =
-                dataAccess.getSchema(
-                        temporaryName != null ? temporaryName : info.getQualifiedNativeName());
+        ft = dataAccess.getSchema(temporaryName != null ? temporaryName : info.getQualifiedNativeName());
         ft = buildFeatureType(info, handleProjectionPolicy, ft);
 
         // Remove layer configuration from datastore
@@ -1021,8 +1033,8 @@ public class ResourcePool {
     }
 
     /**
-     * Builds a temporary name for a feature type making sure there is no conflict with other
-     * existing type names in the store
+     * Builds a temporary name for a feature type making sure there is no conflict
+     * with other existing type names in the store
      *
      * @param info
      * @param dataAccess
@@ -1030,10 +1042,8 @@ public class ResourcePool {
      * @return
      * @throws IOException
      */
-    protected Name getTemporaryName(
-            FeatureTypeInfo info,
-            DataAccess<? extends FeatureType, ? extends Feature> dataAccess,
-            FeatureTypeCallback initializer)
+    protected Name getTemporaryName(FeatureTypeInfo info,
+            DataAccess<? extends FeatureType, ? extends Feature> dataAccess, FeatureTypeCallback initializer)
             throws IOException {
         Name temporaryName;
         // use a highly random name, we don't want to actually add the
@@ -1060,17 +1070,16 @@ public class ResourcePool {
 
     /**
      * Looks up a FetureTypeInitializer for this FeatureTypeInfo and DataAccess.
-     * FeatureTypeInitializer are used to init and dispose configured feature types (as opposed to
-     * ones that natively originate from the source)
+     * FeatureTypeInitializer are used to init and dispose configured feature types
+     * (as opposed to ones that natively originate from the source)
      *
      * @param info
      * @param dataAccess
      * @param initializer
      */
-    FeatureTypeCallback getFeatureTypeInitializer(
-            FeatureTypeInfo info, DataAccess<? extends FeatureType, ? extends Feature> dataAccess) {
-        List<FeatureTypeCallback> featureTypeInitializers =
-                GeoServerExtensions.extensions(FeatureTypeCallback.class);
+    FeatureTypeCallback getFeatureTypeInitializer(FeatureTypeInfo info,
+            DataAccess<? extends FeatureType, ? extends Feature> dataAccess) {
+        List<FeatureTypeCallback> featureTypeInitializers = GeoServerExtensions.extensions(FeatureTypeCallback.class);
         FeatureTypeCallback initializer = null;
         for (FeatureTypeCallback fti : featureTypeInitializers) {
             if (fti.canHandle(info, dataAccess)) {
@@ -1080,8 +1089,7 @@ public class ResourcePool {
         return initializer;
     }
 
-    private FeatureType buildFeatureType(
-            FeatureTypeInfo info, boolean handleProjectionPolicy, FeatureType ft)
+    private FeatureType buildFeatureType(FeatureTypeInfo info, boolean handleProjectionPolicy, FeatureType ft)
             throws IOException {
         // TODO: support reprojection for non-simple FeatureType
         if (ft instanceof SimpleFeatureType) {
@@ -1116,12 +1124,9 @@ public class ResourcePool {
                     // load the actual underlying attribute type
                     PropertyDescriptor pd = ft.getDescriptor(attName);
                     if (pd == null || !(pd instanceof AttributeDescriptor)) {
-                        throw new IOException(
-                                "the SimpleFeatureType "
-                                        + info.prefixedName()
-                                        + " does not contains the configured attribute "
-                                        + attName
-                                        + ". Check your schema configuration");
+                        throw new IOException("the SimpleFeatureType " + info.prefixedName()
+                                + " does not contains the configured attribute " + attName
+                                + ". Check your schema configuration");
                     }
 
                     AttributeDescriptor ad = (AttributeDescriptor) pd;
@@ -1139,13 +1144,13 @@ public class ResourcePool {
     }
 
     /**
-     * Returns true if this object is saved in the catalog and not a modified proxy. We don't want
-     * to cache the result of computations made against a dirty object, nor the ones made against an
-     * object that still haven't been saved
+     * Returns true if this object is saved in the catalog and not a modified proxy.
+     * We don't want to cache the result of computations made against a dirty
+     * object, nor the ones made against an object that still haven't been saved
      *
      * @param info
      */
-    boolean isCacheable(CatalogInfo info) {
+    public boolean isCacheable(CatalogInfo info) {
         // saved?
         if (info.getId() == null) {
             return false;
@@ -1154,8 +1159,7 @@ public class ResourcePool {
         // dirty?
         if (Proxy.isProxyClass(info.getClass())) {
             Object invocationHandler = Proxy.getInvocationHandler(info);
-            if (invocationHandler instanceof ModificationProxy
-                    && ((ModificationProxy) invocationHandler).isDirty()) {
+            if (invocationHandler instanceof ModificationProxy && ((ModificationProxy) invocationHandler).isDirty()) {
                 return false;
             }
         }
@@ -1164,7 +1168,8 @@ public class ResourcePool {
     }
 
     /*
-     * Helper method which overrides geometric attributes based on the reprojection policy.
+     * Helper method which overrides geometric attributes based on the reprojection
+     * policy.
      */
     AttributeDescriptor handleDescriptor(AttributeDescriptor ad, FeatureTypeInfo info) {
 
@@ -1203,7 +1208,7 @@ public class ResourcePool {
                     // rebuild with proper crs
                     AttributeTypeBuilder b = new AttributeTypeBuilder();
                     b.init(old);
-                    b.setCRS(pool.getCRS(info.getSRS()));
+                    b.setCRS(cachingPoolReference.getCRS(info.getSRS()));
                     ad = b.buildDescriptor(old.getLocalName());
                 }
             } catch (Exception e) {
@@ -1217,10 +1222,11 @@ public class ResourcePool {
     /**
      * Loads an attribute descriptor from feature type and attribute type metadata.
      *
-     * <p>This method returns null if the attribute descriptor could not be loaded.
+     * <p>
+     * This method returns null if the attribute descriptor could not be loaded.
      */
-    public AttributeDescriptor getAttributeDescriptor(
-            FeatureTypeInfo ftInfo, AttributeTypeInfo atInfo) throws Exception {
+    public AttributeDescriptor getAttributeDescriptor(FeatureTypeInfo ftInfo, AttributeTypeInfo atInfo)
+            throws Exception {
 
         FeatureType featureType = getFeatureType(ftInfo);
         if (featureType != null) {
@@ -1242,30 +1248,32 @@ public class ResourcePool {
      *
      * @param info The feature type metadata.
      */
+    @CacheEvict(key = "#info.id", cacheNames = { FEATURE_TYPES_CACHE, FEATURE_TYPES_CACHE_WITHOUT_PROJECTION_POLICY,
+            FEATURE_TYPE_ATTRIBUTES_CACHE })
     public void clear(FeatureTypeInfo info) {
-        featureTypeCache.remove(getFeatureTypeInfoKey(info, true));
-        featureTypeCache.remove(getFeatureTypeInfoKey(info, false));
-        featureTypeAttributeCache.remove(info.getId());
+        // nothing to do really
     }
 
     /**
      * Loads the feature source for a feature type.
      *
-     * <p>The <tt>hints</tt> parameter is used to control how the feature source is loaded. An
-     * example is using the {@link #REPROJECT} hint to control if the resulting feature source is
-     * reprojected or not.
+     * <p>
+     * The <tt>hints</tt> parameter is used to control how the feature source is
+     * loaded. An example is using the {@link #REPROJECT} hint to control if the
+     * resulting feature source is reprojected or not.
      *
-     * @param info The feature type info.
-     * @param hints Any hints to take into account while loading the feature source, may be <code>
+     * @param info  The feature type info.
+     * @param hints Any hints to take into account while loading the feature source,
+     *              may be <code>
      *     null</code>.
      * @throws IOException Any errors that occur while loading the feature source.
      */
-    public FeatureSource<? extends FeatureType, ? extends Feature> getFeatureSource(
-            FeatureTypeInfo info, Hints hints) throws IOException {
-        DataAccess<? extends FeatureType, ? extends Feature> dataAccess =
-                getDataStore(info.getStore());
+    public FeatureSource<? extends FeatureType, ? extends Feature> getFeatureSource(FeatureTypeInfo info, Hints hints)
+            throws IOException {
+        DataAccess<? extends FeatureType, ? extends Feature> dataAccess = getDataStore(info.getStore());
 
-        // TODO: support aliasing (renaming), reprojection, versioning, and locking for DataAccess
+        // TODO: support aliasing (renaming), reprojection, versioning, and locking for
+        // DataAccess
         if (!(dataAccess instanceof DataStore)) {
             return getFeatureSource(dataAccess, info);
         }
@@ -1285,14 +1293,10 @@ public class ResourcePool {
         final String typeName = info.getNativeName();
         final String alias = info.getName();
         final SimpleFeatureType nativeFeatureType = dataStore.getSchema(typeName);
-        final SimpleFeatureType renamedFeatureType =
-                (SimpleFeatureType) getFeatureType(info, false);
-        if (!typeName.equals(alias)
-                || DataUtilities.compare(nativeFeatureType, renamedFeatureType) != 0) {
+        final SimpleFeatureType renamedFeatureType = (SimpleFeatureType) getFeatureType(info, false);
+        if (!typeName.equals(alias) || DataUtilities.compare(nativeFeatureType, renamedFeatureType) != 0) {
             // rename and retype as necessary
-            fs =
-                    RetypingFeatureSource.getRetypingSource(
-                            dataStore.getFeatureSource(typeName), renamedFeatureType);
+            fs = RetypingFeatureSource.getRetypingSource(dataStore.getFeatureSource(typeName), renamedFeatureType);
         } else {
             // normal case
             fs = dataStore.getFeatureSource(info.getQualifiedName());
@@ -1323,11 +1327,9 @@ public class ResourcePool {
         } else {
             CoordinateReferenceSystem resultCRS = null;
             GeometryDescriptor gd = fs.getSchema().getGeometryDescriptor();
-            CoordinateReferenceSystem nativeCRS =
-                    gd != null ? gd.getCoordinateReferenceSystem() : null;
+            CoordinateReferenceSystem nativeCRS = gd != null ? gd.getCoordinateReferenceSystem() : null;
 
-            if (ppolicy == ProjectionPolicy.NONE
-                    && info.getNativeCRS() != null
+            if (ppolicy == ProjectionPolicy.NONE && info.getNativeCRS() != null
                     && info.getMetadata().get(FeatureTypeInfo.OTHER_SRS) != null)
                 resultCRS = info.getNativeCRS();
             else if (ppolicy == ProjectionPolicy.NONE && nativeCRS != null) {
@@ -1342,7 +1344,8 @@ public class ResourcePool {
             }
 
             // make sure we create the appropriate schema, with the right crs
-            // we checked above we are using DataStore/SimpleFeature/SimpleFeatureType (DSSFSFT)
+            // we checked above we are using DataStore/SimpleFeature/SimpleFeatureType
+            // (DSSFSFT)
             SimpleFeatureType schema = (SimpleFeatureType) getFeatureType(info);
             try {
                 if (!CRS.equalsIgnoreMetadata(resultCRS, schema.getCoordinateReferenceSystem()))
@@ -1356,27 +1359,14 @@ public class ResourcePool {
             //
             try {
                 // only support versioning if on classpath
-                if (VERSIONING_FS != null
-                        && GS_VERSIONING_FS != null
+                if (VERSIONING_FS != null && GS_VERSIONING_FS != null
                         && VERSIONING_FS.isAssignableFrom(fs.getClass())) {
                     // class implements versioning, reflectively create the versioning wrapper
                     try {
-                        Method m =
-                                GS_VERSIONING_FS.getMethod(
-                                        "create",
-                                        VERSIONING_FS,
-                                        SimpleFeatureType.class,
-                                        Filter.class,
-                                        CoordinateReferenceSystem.class,
-                                        int.class);
-                        return (FeatureSource)
-                                m.invoke(
-                                        null,
-                                        fs,
-                                        schema,
-                                        info.filter(),
-                                        resultCRS,
-                                        info.getProjectionPolicy().getCode());
+                        Method m = GS_VERSIONING_FS.getMethod("create", VERSIONING_FS, SimpleFeatureType.class,
+                                Filter.class, CoordinateReferenceSystem.class, int.class);
+                        return (FeatureSource) m.invoke(null, fs, schema, info.filter(), resultCRS,
+                                info.getProjectionPolicy().getCode());
                     } catch (Exception e) {
                         throw new DataSourceException("Creation of a versioning wrapper failed", e);
                     }
@@ -1401,35 +1391,26 @@ public class ResourcePool {
             }
 
             // return a normal
-            return GeoServerFeatureLocking.create(
-                    fs,
-                    new GeoServerFeatureSource.Settings(
-                            schema,
-                            info.filter(),
-                            resultCRS,
-                            info.getProjectionPolicy().getCode(),
-                            getTolerance(info),
-                            info.getMetadata()));
+            return GeoServerFeatureLocking.create(fs, new GeoServerFeatureSource.Settings(schema, info.filter(),
+                    resultCRS, info.getProjectionPolicy().getCode(), getTolerance(info), info.getMetadata()));
         }
     }
 
     /**
-     * Helper method that will search for the feature source corresponding to the provided feature
-     * type info on the provided data access. We will first search based on the published name
-     * (layer name) and only if this search fails we will search based on the native name.
+     * Helper method that will search for the feature source corresponding to the
+     * provided feature type info on the provided data access. We will first search
+     * based on the published name (layer name) and only if this search fails we
+     * will search based on the native name.
      */
     private FeatureSource<? extends FeatureType, ? extends Feature> getFeatureSource(
-            DataAccess<? extends FeatureType, ? extends Feature> dataAccess, FeatureTypeInfo info)
-            throws IOException {
+            DataAccess<? extends FeatureType, ? extends Feature> dataAccess, FeatureTypeInfo info) throws IOException {
         try {
-            // first try to search based on the published name, to avoid any unexpected aliasing
+            // first try to search based on the published name, to avoid any unexpected
+            // aliasing
             return dataAccess.getFeatureSource(info.getQualifiedName());
         } catch (Exception exception) {
-            LOGGER.log(
-                    Level.FINE,
-                    String.format(
-                            "Error retrieving feature type using published name '%s'.",
-                            info.getQualifiedName()));
+            LOGGER.log(Level.FINE,
+                    String.format("Error retrieving feature type using published name '%s'.", info.getQualifiedName()));
             // let's try now to search based on the native name
             return dataAccess.getFeatureSource(info.getQualifiedNativeName());
         }
@@ -1469,13 +1450,15 @@ public class ResourcePool {
             targetUnit = getFirstAxisUnit(crs.getCoordinateSystem());
         }
 
-        if ((targetUnit != null && targetUnit == NonSI.DEGREE_ANGLE)
-                || horizontalCRS instanceof GeographicCRS
+        if ((targetUnit != null && targetUnit == NonSI.DEGREE_ANGLE) || horizontalCRS instanceof GeographicCRS
                 || crs instanceof GeographicCRS) {
-            // assume we're working against a type of geographic crs, must estimate the degrees
+            // assume we're working against a type of geographic crs, must estimate the
+            // degrees
             // equivalent
-            // to the measure, we are going to use a very rough estimate (cylindrical earth model)
-            // TODO: maybe look at the layer bbox and get a better estimate computed at the center
+            // to the measure, we are going to use a very rough estimate (cylindrical earth
+            // model)
+            // TODO: maybe look at the layer bbox and get a better estimate computed at the
+            // center
             // of the bbox
             UnitConverter converter = mt.getUnit().asType(Length.class).getConverterTo(SI.METRE);
             double tolMeters = converter.convert(mt.doubleValue());
@@ -1497,26 +1480,25 @@ public class ResourcePool {
         return coordinateSystem.getAxis(0).getUnit();
     }
 
-    public GridCoverageReader getGridCoverageReader(CoverageInfo info, Hints hints)
-            throws IOException {
+    public GridCoverageReader getGridCoverageReader(CoverageInfo info, Hints hints) throws IOException {
         return getGridCoverageReader(info, (String) null, hints);
     }
 
-    public GridCoverageReader getGridCoverageReader(
-            CoverageInfo info, String coverageName, Hints hints) throws IOException {
+    public GridCoverageReader getGridCoverageReader(CoverageInfo info, String coverageName, Hints hints)
+            throws IOException {
         return getGridCoverageReader(info.getStore(), info, coverageName, hints);
     }
 
     /**
      * Returns a coverage reader, caching the result.
      *
-     * @param info The coverage metadata.
-     * @param hints Hints to use when loading the coverage, may be <code>null</code>.
+     * @param info  The coverage metadata.
+     * @param hints Hints to use when loading the coverage, may be
+     *              <code>null</code>.
      * @throws IOException Any errors that occur loading the reader.
      */
     @SuppressWarnings("deprecation")
-    public GridCoverageReader getGridCoverageReader(CoverageStoreInfo info, Hints hints)
-            throws IOException {
+    public GridCoverageReader getGridCoverageReader(CoverageStoreInfo info, Hints hints) throws IOException {
         return getGridCoverageReader(info, (String) null, hints);
     }
 
@@ -1524,26 +1506,27 @@ public class ResourcePool {
      * Returns a coverage reader, caching the result.
      *
      * @param storeInfo The coverage metadata.
-     * @param hints Hints to use when loading the coverage, may be <code>null</code>.
+     * @param hints     Hints to use when loading the coverage, may be
+     *                  <code>null</code>.
      * @throws IOException Any errors that occur loading the reader.
      */
     @SuppressWarnings("deprecation")
-    public GridCoverageReader getGridCoverageReader(
-            CoverageStoreInfo storeInfo, String coverageName, Hints hints) throws IOException {
+    public GridCoverageReader getGridCoverageReader(CoverageStoreInfo storeInfo, String coverageName, Hints hints)
+            throws IOException {
         return getGridCoverageReader(storeInfo, (CoverageInfo) null, coverageName, hints);
     }
 
     /**
      * Returns a coverage reader, caching the result.
      *
-     * @param info The coverage metadata.
-     * @param hints Hints to use when loading the coverage, may be <code>null</code>.
+     * @param info  The coverage metadata.
+     * @param hints Hints to use when loading the coverage, may be
+     *              <code>null</code>.
      * @throws IOException Any errors that occur loading the reader.
      */
     @SuppressWarnings("deprecation")
-    private GridCoverageReader getGridCoverageReader(
-            CoverageStoreInfo info, CoverageInfo coverageInfo, String coverageName, Hints hints)
-            throws IOException {
+    private GridCoverageReader getGridCoverageReader(CoverageStoreInfo info, CoverageInfo coverageInfo,
+            String coverageName, Hints hints) throws IOException {
 
         CoverageStoreInfo expandedStore = clone(info, true);
 
@@ -1552,7 +1535,8 @@ public class ResourcePool {
             throw new IOException("Could not find the raster plugin for format " + info.getType());
         }
 
-        // we are going to add the repository anyways, but we don't want to modify the original
+        // we are going to add the repository anyways, but we don't want to modify the
+        // original
         // hints
         // and need to ensure they are not null
         if (hints != null) {
@@ -1586,11 +1570,7 @@ public class ResourcePool {
                     // readers might change the provided hints, pass down a defensive copy
                     reader = gridFormat.getReader(readObject, hints);
                     if (reader == null) {
-                        throw new IOException(
-                                "Failed to create reader from "
-                                        + urlString
-                                        + " and hints "
-                                        + hints);
+                        throw new IOException("Failed to create reader from " + urlString + " and hints " + hints);
                     }
                     if (key != null) {
                         hintCoverageReaderCache.put((CoverageHintReaderKey) key, reader);
@@ -1607,41 +1587,43 @@ public class ResourcePool {
             MetadataMap metadata = coverageInfo.getMetadata();
             if (metadata != null && metadata.containsKey(CoverageView.COVERAGE_VIEW)) {
                 CoverageView coverageView = (CoverageView) metadata.get(CoverageView.COVERAGE_VIEW);
-                reader =
-                        CoverageViewReader.wrap(
-                                (GridCoverage2DReader) reader, coverageView, coverageInfo, hints);
+                reader = CoverageViewReader.wrap((GridCoverage2DReader) reader, coverageView, coverageInfo, hints);
             }
         }
 
         // wrap it if we are dealing with a multi-coverage reader
         if (coverageName != null) {
-            // force the result to work against a single coverage, so that the OGC service portion
+            // force the result to work against a single coverage, so that the OGC service
+            // portion
             // of
             // GeoServer does not need to be updated to the multicoverage stuff
-            // (we might want to introduce a hint later for code that really wants to get the
+            // (we might want to introduce a hint later for code that really wants to get
+            // the
             // multi-coverage reader)
 
-            if (reader.getFormat() instanceof GeoTiffFormat) { //  GEOS-9236
+            if (reader.getFormat() instanceof GeoTiffFormat) { // GEOS-9236
                 if ("geotiff_coverage".equalsIgnoreCase(coverageInfo.getNativeCoverageName())) {
                     coverageInfo.setNativeCoverageName(reader.getGridCoverageNames()[0]);
                 }
             }
 
-            return CoverageDimensionCustomizerReader.wrap(
-                    (GridCoverage2DReader) reader, coverageName, coverageInfo);
+            return CoverageDimensionCustomizerReader.wrap((GridCoverage2DReader) reader, coverageName, coverageInfo);
         } else {
             // In order to deal with Bands customization, we need to get a CoverageInfo.
-            // Therefore we won't wrap the reader into a CoverageDimensionCustomizerReader in case
-            // we don't have the coverageName and the underlying reader has more than 1 coverage.
-            // Indeed, there are cases (as during first initialization) where a multi-coverage
+            // Therefore we won't wrap the reader into a CoverageDimensionCustomizerReader
+            // in case
+            // we don't have the coverageName and the underlying reader has more than 1
+            // coverage.
+            // Indeed, there are cases (as during first initialization) where a
+            // multi-coverage
             // reader is requested
-            // to the resourcePool without specifying the coverageName: No way to get the proper
+            // to the resourcePool without specifying the coverageName: No way to get the
+            // proper
             // coverageInfo in
             // that case so returning the simple reader.
             final int numCoverages = ((GridCoverage2DReader) reader).getGridCoverageCount();
             if (numCoverages == 1) {
-                return CoverageDimensionCustomizerReader.wrap(
-                        (GridCoverage2DReader) reader, null, coverageInfo);
+                return CoverageDimensionCustomizerReader.wrap((GridCoverage2DReader) reader, null, coverageInfo);
             }
             // Avoid dimensions wrapping since we have a multi-coverage reader
             // but no coveragename have been specified
@@ -1650,14 +1632,15 @@ public class ResourcePool {
     }
 
     /**
-     * Attempted to convert the URL-ish string to a file object, otherwise just returns the string
-     * itself
+     * Attempted to convert the URL-ish string to a file object, otherwise just
+     * returns the string itself
      *
      * @param urlString the url string to parse, which may actually be a path
      * @return an object appropriate for passing to a grid coverage reader
      */
     private Object getObjectToRead(String urlString) {
-        // Check to see if our "url" points to a file or not, otherwise we use the string
+        // Check to see if our "url" points to a file or not, otherwise we use the
+        // string
         // itself for reading
         Object readObject = urlString;
         boolean isFile = true;
@@ -1668,22 +1651,15 @@ public class ResourcePool {
                 isFile = false;
             }
         } catch (URISyntaxException e) {
-            LOGGER.warning(
-                    "Unable to convert coverage URL to a URI, attempting to use " + "it as a path");
-            LOGGER.log(
-                    Level.FINEST,
-                    "Can't convert URL string to URI, this may be "
-                            + "fine if the URL is actually a path",
-                    e);
+            LOGGER.warning("Unable to convert coverage URL to a URI, attempting to use " + "it as a path");
+            LOGGER.log(Level.FINEST,
+                    "Can't convert URL string to URI, this may be " + "fine if the URL is actually a path", e);
         }
 
         if (isFile) {
             GeoServerResourceLoader loader = catalog.getResourceLoader();
-            final File readerFile =
-                    Resources.find(
-                            Resources.fromURL(
-                                    Files.asResource(loader.getBaseDirectory()), urlString),
-                            true);
+            final File readerFile = Resources
+                    .find(Resources.fromURL(Files.asResource(loader.getBaseDirectory()), urlString), true);
             if (readerFile != null) {
                 readObject = readerFile;
             }
@@ -1694,8 +1670,7 @@ public class ResourcePool {
     /** Clears any cached readers for the coverage. */
     public void clear(CoverageStoreInfo info) {
         String storeId = info.getId();
-        HashSet<CoverageHintReaderKey> keys =
-                new HashSet<CoverageHintReaderKey>(hintCoverageReaderCache.keySet());
+        HashSet<CoverageHintReaderKey> keys = new HashSet<CoverageHintReaderKey>(hintCoverageReaderCache.keySet());
         for (CoverageHintReaderKey key : keys) {
             if (key.id != null && key.id.equals(storeId)) {
                 hintCoverageReaderCache.remove(key);
@@ -1703,8 +1678,7 @@ public class ResourcePool {
         }
     }
 
-    public GridCoverage getGridCoverage(CoverageInfo info, ReferencedEnvelope env, Hints hints)
-            throws IOException {
+    public GridCoverage getGridCoverage(CoverageInfo info, ReferencedEnvelope env, Hints hints) throws IOException {
         return getGridCoverage(info, (String) null, env, hints);
     }
 
@@ -1713,15 +1687,14 @@ public class ResourcePool {
      *
      * <p>
      *
-     * @param info The grid coverage metadata.
+     * @param info         The grid coverage metadata.
      * @param coverageName The grid coverage to load
-     * @param env The section of the coverage to load.
-     * @param hints Hints to use while loading the coverage.
+     * @param env          The section of the coverage to load.
+     * @param hints        Hints to use while loading the coverage.
      * @throws IOException Any errors that occur loading the coverage.
      */
     @SuppressWarnings("deprecation")
-    public GridCoverage getGridCoverage(
-            CoverageInfo info, String coverageName, ReferencedEnvelope env, Hints hints)
+    public GridCoverage getGridCoverage(CoverageInfo info, String coverageName, ReferencedEnvelope env, Hints hints)
             throws IOException {
         final GridCoverageReader reader = getGridCoverageReader(info, coverageName, hints);
         if (reader == null) {
@@ -1736,15 +1709,14 @@ public class ResourcePool {
      *
      * <p>
      *
-     * @param info The grid coverage metadata.
-     * @param env The section of the coverage to load.
+     * @param info  The grid coverage metadata.
+     * @param env   The section of the coverage to load.
      * @param hints Hints to use while loading the coverage.
      * @throws IOException Any errors that occur loading the coverage.
      */
     @SuppressWarnings("deprecation")
-    public GridCoverage getGridCoverage(
-            CoverageInfo info, GridCoverageReader reader, ReferencedEnvelope env, Hints hints)
-            throws IOException {
+    public GridCoverage getGridCoverage(CoverageInfo info, GridCoverageReader reader, ReferencedEnvelope env,
+            Hints hints) throws IOException {
 
         ReferencedEnvelope coverageBounds;
         try {
@@ -1781,8 +1753,7 @@ public class ResourcePool {
             try {
                 envelope = CRS.transform(envelope, destCRS);
             } catch (TransformException e) {
-                throw (IOException)
-                        new IOException("error occured transforming envelope").initCause(e);
+                throw (IOException) new IOException("error occured transforming envelope").initCause(e);
             }
         }
 
@@ -1801,10 +1772,8 @@ public class ResourcePool {
         //
         // /////////////////////////////////////////////////////////
 
-        GridCoverage gc =
-                reader.read(
-                        CoverageUtils.getParameters(
-                                reader.getFormat().getReadParameters(), info.getParameters()));
+        GridCoverage gc = reader
+                .read(CoverageUtils.getParameters(reader.getFormat().getReadParameters(), info.getParameters()));
 
         if ((gc == null) || !(gc instanceof GridCoverage2D)) {
             throw new IOException("The requested coverage could not be found.");
@@ -1816,7 +1785,8 @@ public class ResourcePool {
     /**
      * Returns the format for a coverage.
      *
-     * <p>The format is inferred from {@link CoverageStoreInfo#getType()}
+     * <p>
+     * The format is inferred from {@link CoverageStoreInfo#getType()}
      *
      * @param info The coverage metadata.
      * @return The format, or null.
@@ -1850,10 +1820,8 @@ public class ResourcePool {
             String id = info.getId();
             WebMapServer wms = wmsCache.get(id);
             // if we have a hit but the resolver has been changed, clean and build again
-            if (wms != null
-                    && wms.getHints() != null
-                    && !Objects.equals(
-                            wms.getHints().get(XMLHandlerHints.ENTITY_RESOLVER), entityResolver)) {
+            if (wms != null && wms.getHints() != null
+                    && !Objects.equals(wms.getHints().get(XMLHandlerHints.ENTITY_RESOLVER), entityResolver)) {
                 wmsCache.remove(id);
                 wms = null;
             }
@@ -1865,9 +1833,7 @@ public class ResourcePool {
                         String capabilitiesURL = expandedStore.getCapabilitiesURL();
                         URL serverURL = new URL(capabilitiesURL);
                         Map<String, Object> hints = new HashMap<>();
-                        hints.put(
-                                DocumentHandler.DEFAULT_NAMESPACE_HINT_KEY,
-                                WMSSchema.getInstance());
+                        hints.put(DocumentHandler.DEFAULT_NAMESPACE_HINT_KEY, WMSSchema.getInstance());
                         hints.put(DocumentFactory.VALIDATION_HINT, Boolean.FALSE);
                         if (entityResolver != null) {
                             hints.put(XMLHandlerHints.ENTITY_RESOLVER, entityResolver);
@@ -1903,10 +1869,8 @@ public class ResourcePool {
             String id = info.getId();
             WebMapTileServer wmts = wmtsCache.get(id);
             // if we have a hit but the resolver has been changed, clean and build again
-            if (wmts != null
-                    && wmts.getHints() != null
-                    && !Objects.equals(
-                            wmts.getHints().get(XMLHandlerHints.ENTITY_RESOLVER), entityResolver)) {
+            if (wmts != null && wmts.getHints() != null
+                    && !Objects.equals(wmts.getHints().get(XMLHandlerHints.ENTITY_RESOLVER), entityResolver)) {
                 wmtsCache.remove(id);
                 wmts = null;
             }
@@ -1938,8 +1902,8 @@ public class ResourcePool {
     }
 
     /**
-     * Returns the entity resolver from the {@link EntityResolverProvider}, or null if none is
-     * configured
+     * Returns the entity resolver from the {@link EntityResolverProvider}, or null
+     * if none is configured
      *
      * @return
      */
@@ -1954,10 +1918,11 @@ public class ResourcePool {
     private HTTPClient getHTTPClient(HTTPStoreInfo info) {
         String capabilitiesURL = info.getCapabilitiesURL();
 
-        // check for mock bindings. Since we are going to run this code in production as well,
-        // guard it so that it only triggers if the MockHttpClientProvider has any active binding
-        if (TestHttpClientProvider.testModeEnabled()
-                && capabilitiesURL.startsWith(TestHttpClientProvider.MOCKSERVER)) {
+        // check for mock bindings. Since we are going to run this code in production as
+        // well,
+        // guard it so that it only triggers if the MockHttpClientProvider has any
+        // active binding
+        if (TestHttpClientProvider.testModeEnabled() && capabilitiesURL.startsWith(TestHttpClientProvider.MOCKSERVER)) {
             HTTPClient client = TestHttpClientProvider.get(capabilitiesURL);
             return client;
         }
@@ -1986,7 +1951,8 @@ public class ResourcePool {
     }
 
     /**
-     * Locates and returns a WMS {@link Layer} based on the configuration stored in WMSLayerInfo
+     * Locates and returns a WMS {@link Layer} based on the configuration stored in
+     * WMSLayerInfo
      *
      * @param info
      */
@@ -2004,12 +1970,12 @@ public class ResourcePool {
             }
         }
 
-        throw new IOException(
-                "Could not find layer " + info.getName() + " in the server capabilitiles document");
+        throw new IOException("Could not find layer " + info.getName() + " in the server capabilitiles document");
     }
 
     /**
-     * Locates and returns a WTMS {@link Layer} based on the configuration stored in WMTSLayerInfo
+     * Locates and returns a WTMS {@link Layer} based on the configuration stored in
+     * WMTSLayerInfo
      *
      * @param info
      * @throws IOException
@@ -2031,8 +1997,7 @@ public class ResourcePool {
             }
         }
 
-        throw new IOException(
-                "Could not find layer " + info.getName() + " in the server capabilitiles document");
+        throw new IOException("Could not find layer " + info.getName() + " in the server capabilitiles document");
     }
 
     /** Clears the cached resource for a web map server */
@@ -2046,12 +2011,14 @@ public class ResourcePool {
     }
 
     /**
-     * Returns a style resource, caching the result. Any associated images should also be unpacked
-     * onto the local machine. ResourcePool will watch the style for changes and invalidate the
-     * cache as needed.
+     * Returns a style resource, caching the result. Any associated images should
+     * also be unpacked onto the local machine. ResourcePool will watch the style
+     * for changes and invalidate the cache as needed.
      *
-     * <p>The resource is loaded by parsing {@link StyleInfo#getFilename()} as an SLD. The SLD is
-     * prepared for direct use by GeoTools, making use of absolute file paths where possible.
+     * <p>
+     * The resource is loaded by parsing {@link StyleInfo#getFilename()} as an SLD.
+     * The SLD is prepared for direct use by GeoTools, making use of absolute file
+     * paths where possible.
      *
      * @param info The style metadata.
      * @throws IOException Any parsing errors.
@@ -2067,27 +2034,30 @@ public class ResourcePool {
                     sldCache.put(info, sld);
 
                     final Resource styleResource = dataDir().style(info);
-                    styleResource.addListener(
-                            new ResourceListener() {
-                                @Override
-                                public void changed(ResourceNotification notify) {
-                                    sldCache.remove(info);
-                                    styleResource.removeListener(this);
-                                }
-                            });
+                    styleResource.addListener(new ResourceListener() {
+                        @Override
+                        public void changed(ResourceNotification notify) {
+                            sldCache.remove(info);
+                            styleResource.removeListener(this);
+                        }
+                    });
                 }
             }
         }
 
         return sld;
     }
+
     /**
-     * Returns the first {@link Style} in a style resource, caching the result. Any associated
-     * images should also be unpacked onto the local machine. ResourcePool will watch the style for
-     * changes and invalidate the cache as needed.
+     * Returns the first {@link Style} in a style resource, caching the result. Any
+     * associated images should also be unpacked onto the local machine.
+     * ResourcePool will watch the style for changes and invalidate the cache as
+     * needed.
      *
-     * <p>The resource is loaded by parsing {@link StyleInfo#getFilename()} as an SLD. The SLD is
-     * prepared for direct use by GeoTools, making use of absolute file paths where possible.
+     * <p>
+     * The resource is loaded by parsing {@link StyleInfo#getFilename()} as an SLD.
+     * The SLD is prepared for direct use by GeoTools, making use of absolute file
+     * paths where possible.
      *
      * @param info The style metadata.
      * @throws IOException Any parsing errors.
@@ -2101,8 +2071,7 @@ public class ResourcePool {
                     style = dataDir().parsedStyle(info);
 
                     if (style == null) {
-                        throw new ServiceException(
-                                "Could not extract a UserStyle definition from " + info.getName());
+                        throw new ServiceException("Could not extract a UserStyle definition from " + info.getName());
                     }
                     // Make sure we don't change the name of an object in sldCache
                     if (style instanceof StyleImpl) {
@@ -2113,14 +2082,13 @@ public class ResourcePool {
                     styleCache.put(info, style);
 
                     final Resource styleResource = dataDir().style(info);
-                    styleResource.addListener(
-                            new ResourceListener() {
-                                @Override
-                                public void changed(ResourceNotification notify) {
-                                    styleCache.remove(info);
-                                    styleResource.removeListener(this);
-                                }
-                            });
+                    styleResource.addListener(new ResourceListener() {
+                        @Override
+                        public void changed(ResourceNotification notify) {
+                            styleCache.remove(info);
+                            styleResource.removeListener(this);
+                        }
+                    });
                 }
             }
         }
@@ -2155,7 +2123,7 @@ public class ResourcePool {
     /**
      * Serializes a style to configuration.
      *
-     * @param info The configuration for the style.
+     * @param info  The configuration for the style.
      * @param style The style object.
      */
     public void writeStyle(StyleInfo info, Style style) throws IOException {
@@ -2163,10 +2131,11 @@ public class ResourcePool {
     }
 
     /**
-     * Serializes a style to configuration optionally formatting the style when writing it.
+     * Serializes a style to configuration optionally formatting the style when
+     * writing it.
      *
-     * @param info The configuration for the style.
-     * @param style The style object.
+     * @param info   The configuration for the style.
+     * @param style  The style object.
      * @param format Whether to format the style
      */
     public void writeStyle(StyleInfo info, Style style, boolean format) throws IOException {
@@ -2175,8 +2144,7 @@ public class ResourcePool {
             BufferedOutputStream out = new BufferedOutputStream(styleFile.out());
 
             try {
-                Styles.handler(info.getFormat())
-                        .encode(Styles.sld(style), info.getFormatVersion(), format, out);
+                Styles.handler(info.getFormat()).encode(Styles.sld(style), info.getFormatVersion(), format, out);
                 clear(info);
             } finally {
                 out.close();
@@ -2187,7 +2155,7 @@ public class ResourcePool {
     /**
      * Serializes a style to configuration.
      *
-     * @param info The configuration for the style.
+     * @param info  The configuration for the style.
      * @param style The style object.
      */
     public void writeSLD(StyleInfo info, StyledLayerDescriptor style) throws IOException {
@@ -2195,21 +2163,20 @@ public class ResourcePool {
     }
 
     /**
-     * Serializes a style to configuration optionally formatting the style when writing it.
+     * Serializes a style to configuration optionally formatting the style when
+     * writing it.
      *
-     * @param info The configuration for the style.
-     * @param style The style object.
+     * @param info   The configuration for the style.
+     * @param style  The style object.
      * @param format Whether to format the style
      */
-    public void writeSLD(StyleInfo info, StyledLayerDescriptor style, boolean format)
-            throws IOException {
+    public void writeSLD(StyleInfo info, StyledLayerDescriptor style, boolean format) throws IOException {
         synchronized (sldCache) {
             Resource styleFile = dataDir().style(info);
             BufferedOutputStream out = new BufferedOutputStream(styleFile.out());
 
             try {
-                Styles.handler(info.getFormat())
-                        .encode(style, info.getFormatVersion(), format, out);
+                Styles.handler(info.getFormat()).encode(style, info.getFormatVersion(), format, out);
                 clear(info);
             } finally {
                 out.close();
@@ -2221,7 +2188,7 @@ public class ResourcePool {
      * Writes a raw style to configuration.
      *
      * @param style The configuration for the style.
-     * @param in input stream representing the raw a style.
+     * @param in    input stream representing the raw a style.
      */
     public void writeStyle(StyleInfo style, InputStream in) throws IOException {
         synchronized (styleCache) {
@@ -2234,12 +2201,11 @@ public class ResourcePool {
     /**
      * Safe write on styleFile the passed inputStream
      *
-     * @param in the new stream to write to styleFile
+     * @param in        the new stream to write to styleFile
      * @param styleFile file to update
      * @throws IOException
      */
-    public static void writeStyle(final InputStream in, final Resource styleFile)
-            throws IOException {
+    public static void writeStyle(final InputStream in, final Resource styleFile) throws IOException {
         try (BufferedOutputStream out = new BufferedOutputStream(styleFile.out())) {
             IOUtils.copy(in, out);
             out.flush();
@@ -2249,7 +2215,7 @@ public class ResourcePool {
     /**
      * Deletes a style from the configuration.
      *
-     * @param style The configuration for the style.
+     * @param style     The configuration for the style.
      * @param purgeFile Whether to delete the file from disk.
      */
     public void deleteStyle(StyleInfo style, boolean purgeFile) throws IOException {
@@ -2269,16 +2235,8 @@ public class ResourcePool {
 
     /** Disposes all cached resources. */
     public void dispose() {
-        CacheManager cacheManager = this.cacheManager;
-        if(cacheManager != null) {
-            for(String cacheName : cacheManager.getCacheNames()) {
-                Cache cache = cacheManager.getCache(cacheName);
-                cache.clear();
-            }
-        }
+        this.cacheManager.clear();
         dataStoreCache.clear();
-        featureTypeCache.clear();
-        featureTypeAttributeCache.clear();
         hintCoverageReaderCache.clear();
         wmsCache.clear();
         wmtsCache.clear();
@@ -2287,8 +2245,8 @@ public class ResourcePool {
     }
 
     /**
-     * Base class for all the resource caches, ensures type safety and provides an easier way to
-     * handle with resource disposal
+     * Base class for all the resource caches, ensures type safety and provides an
+     * easier way to handle with resource disposal
      *
      * @author Andrea Aime
      * @param <K>
@@ -2302,14 +2260,13 @@ public class ResourcePool {
 
         public CatalogResourceCache(int hardReferences) {
             super(hardReferences);
-            super.cleaner =
-                    new ValueCleaner() {
+            super.cleaner = new ValueCleaner() {
 
-                        @Override
-                        public void clean(Object key, Object object) {
-                            dispose((K) key, (V) object);
-                        }
-                    };
+                @Override
+                public void clean(Object key, Object object) {
+                    dispose((K) key, (V) object);
+                }
+            };
         }
 
         @Override
@@ -2348,33 +2305,32 @@ public class ResourcePool {
             if (info != null) {
                 LOGGER.fine("Disposing feature type '" + info.getName() + "'/" + id);
                 fireDisposed(info, featureType);
-                if (null != featureTypeAttributeCache.remove(id)) {
-                    LOGGER.fine(
-                            "AttributeType cache cleared for feature type '"
-                                    + info.getName()
-                                    + "'/"
-                                    + id
-                                    + " as a side effect of its cache disposal");
+                cacheManager.clear();
+                if (null != cacheAsMap(FEATURE_TYPE_ATTRIBUTES_CACHE).remove(id)) {
+                    LOGGER.fine("AttributeType cache cleared for feature type '" + info.getName() + "'/" + id
+                            + " as a side effect of its cache disposal");
                 }
             }
         }
     }
+
     /**
-     * Custom CatalogResourceCache responsible for disposing of DataAccess instances (allowing the
-     * recovery of operating system resources).
+     * Custom CatalogResourceCache responsible for disposing of DataAccess instances
+     * (allowing the recovery of operating system resources).
      *
      * @see ResourcePool#dataStoreCache
      */
     @SuppressWarnings("rawtypes")
     class DataStoreCache extends CatalogResourceCache<String, DataAccess> {
         /**
-         * Ensure data access entry is removed from catalog, and ensure DataAccess dispose is called
-         * to return system resources.
+         * Ensure data access entry is removed from catalog, and ensure DataAccess
+         * dispose is called to return system resources.
          *
-         * <p>This method is used when cleaning up a weak reference and will immediately dispose of
-         * the indicated dataAccess.
+         * <p>
+         * This method is used when cleaning up a weak reference and will immediately
+         * dispose of the indicated dataAccess.
          *
-         * @param id DataStore id, or null if not known
+         * @param id         DataStore id, or null if not known
          * @param dataAccess DataAccess to dispose
          */
         protected void dispose(String id, final DataAccess dataAccess) {
@@ -2392,8 +2348,7 @@ public class ResourcePool {
                 LOGGER.fine("Dispose data access '" + name + "' " + implementation);
                 dataAccess.dispose();
             } catch (Exception e) {
-                LOGGER.warning(
-                        "Error occured disposing data access '" + name + "' " + implementation);
+                LOGGER.warning("Error occured disposing data access '" + name + "' " + implementation);
                 LOGGER.log(Level.FINE, "", e);
             }
         }
@@ -2418,8 +2373,7 @@ public class ResourcePool {
         }
     }
 
-    class CoverageHintReaderCache
-            extends CatalogResourceCache<CoverageHintReaderKey, GridCoverageReader> {
+    class CoverageHintReaderCache extends CatalogResourceCache<CoverageHintReaderKey, GridCoverageReader> {
 
         protected void dispose(CoverageHintReaderKey key, GridCoverageReader reader) {
             CoverageStoreInfo info = catalog.getCoverageStore(key.id);
@@ -2463,16 +2417,23 @@ public class ResourcePool {
 
         @Override
         public boolean equals(Object obj) {
-            if (this == obj) return true;
-            if (obj == null) return false;
-            if (getClass() != obj.getClass()) return false;
+            if (this == obj)
+                return true;
+            if (obj == null)
+                return false;
+            if (getClass() != obj.getClass())
+                return false;
             CoverageHintReaderKey other = (CoverageHintReaderKey) obj;
             if (hints == null) {
-                if (other.hints != null) return false;
-            } else if (!hints.equals(other.hints)) return false;
+                if (other.hints != null)
+                    return false;
+            } else if (!hints.equals(other.hints))
+                return false;
             if (id == null) {
-                if (other.id != null) return false;
-            } else if (!id.equals(other.id)) return false;
+                if (other.id != null)
+                    return false;
+            } else if (!id.equals(other.id))
+                return false;
             return true;
         }
     }
@@ -2502,10 +2463,7 @@ public class ResourcePool {
                 try {
                     closeable.close();
                 } catch (IOException e) {
-                    LOGGER.log(
-                            Level.FINE,
-                            "Failure while disposing the http client for a WMS store",
-                            e);
+                    LOGGER.log(Level.FINE, "Failure while disposing the http client for a WMS store", e);
                 }
             }
         }
@@ -2524,20 +2482,22 @@ public class ResourcePool {
                 try {
                     closeable.close();
                 } catch (IOException e) {
-                    LOGGER.log(
-                            Level.FINE,
-                            "Failure while disposing the http client for a WMTS store",
-                            e);
+                    LOGGER.log(Level.FINE, "Failure while disposing the http client for a WMTS store", e);
                 }
             }
         }
     }
-    /** Listens to catalog events clearing cache entires when resources are modified. */
+
+    /**
+     * Listens to catalog events clearing cache entires when resources are modified.
+     */
     public class CacheClearingListener extends CatalogVisitorAdapter implements CatalogListener {
 
-        public void handleAddEvent(CatalogAddEvent event) {}
+        public void handleAddEvent(CatalogAddEvent event) {
+        }
 
-        public void handleModifyEvent(CatalogModifyEvent event) {}
+        public void handleModifyEvent(CatalogModifyEvent event) {
+        }
 
         public void handlePostModifyEvent(CatalogPostModifyEvent event) {
             CatalogInfo source = event.getSource();
@@ -2557,7 +2517,8 @@ public class ResourcePool {
             }
         }
 
-        public void reloaded() {}
+        public void reloaded() {
+        }
 
         @Override
         public void visit(DataStoreInfo dataStore) {
@@ -2584,14 +2545,16 @@ public class ResourcePool {
             clear(style);
         }
     }
+
     /**
      * Used to clean up any outstanding data store listeners.
      *
-     * <p>The DataStore is still active as the listeners are called allowing any required clean up
-     * to occur.
+     * <p>
+     * The DataStore is still active as the listeners are called allowing any
+     * required clean up to occur.
      *
      * @param dataStoreInfo
-     * @param da Data access
+     * @param da            Data access
      */
     void fireDisposed(DataStoreInfo dataStore, DataAccess da) {
         for (Listener l : listeners) {
@@ -2644,14 +2607,16 @@ public class ResourcePool {
     }
 
     /**
-     * Flush the feature type held by the data store associated with a FeatureTypeInfo to be safe in
-     * case the underlying schema has changed.
+     * Flush the feature type held by the data store associated with a
+     * FeatureTypeInfo to be safe in case the underlying schema has changed.
      *
-     * <p>Implementation note: so far this method only works with {@link ContentDataStore} instances
-     * (i.e. all JDBC ones and others, but not all). This is to avoid calling {@link
-     * DataStore#dispose()} as other threads may be using it and has proved to result in
-     * unpredictable errors. Instead, we're calling the datastore feature type's {@link
-     * ContentState#flush()} method which forces re-loading the native type when next used.
+     * <p>
+     * Implementation note: so far this method only works with
+     * {@link ContentDataStore} instances (i.e. all JDBC ones and others, but not
+     * all). This is to avoid calling {@link DataStore#dispose()} as other threads
+     * may be using it and has proved to result in unpredictable errors. Instead,
+     * we're calling the datastore feature type's {@link ContentState#flush()}
+     * method which forces re-loading the native type when next used.
      */
     protected void flushDataStore(FeatureTypeInfo ft) {
         DataStoreInfo ds = ft.getStore();
@@ -2665,19 +2630,14 @@ public class ResourcePool {
         try {
             dataStore = getDataStore(ds);
         } catch (IOException e) {
-            LOGGER.log(
-                    Level.WARNING,
-                    "Unable to obtain data store '" + ft.getQualifiedNativeName() + "' to flush",
-                    e);
+            LOGGER.log(Level.WARNING, "Unable to obtain data store '" + ft.getQualifiedNativeName() + "' to flush", e);
             return;
         }
         final int dsFtCount = countFeatureTypesOf(ds);
         if (dsFtCount == 0) {
             // clean up cached DataAccess if no longer in use
-            LOGGER.log(
-                    Level.FINE,
-                    "Feature Type {0} cleared: Disposing DataStore {1} - {2}",
-                    new String[] {ft.getName(), ds.getName(), "Last Feature Type Disposed"});
+            LOGGER.log(Level.FINE, "Feature Type {0} cleared: Disposing DataStore {1} - {2}",
+                    new String[] { ft.getName(), ds.getName(), "Last Feature Type Disposed" });
             clear(ds);
         } else {
             if (dataStore instanceof ContentDataStore) {
@@ -2687,19 +2647,16 @@ public class ResourcePool {
                     String nativeName = ft.getNativeName();
                     if (nativeName != null) {
                         flushState(contentDataStore, nativeName);
-                        LOGGER.log(
-                                Level.FINE,
-                                "Feature Type {0} cleared from ContentDataStore {1}",
-                                new String[] {ft.getName(), ds.getName()});
+                        LOGGER.log(Level.FINE, "Feature Type {0} cleared from ContentDataStore {1}",
+                                new String[] { ft.getName(), ds.getName() });
                     }
                 } catch (Exception e) {
                     LOGGER.log(Level.WARNING, "Unable to flush '" + ft.getQualifiedNativeName(), e);
                 }
             } else {
-                LOGGER.log(
-                        Level.FINE,
+                LOGGER.log(Level.FINE,
                         "Unable to clean up cached feature type {0} in data store {1} - not a ContentDataStore",
-                        new String[] {ft.getName(), ds.getName()});
+                        new String[] { ft.getName(), ds.getName() });
             }
         }
     }
@@ -2710,8 +2667,7 @@ public class ResourcePool {
         return dsTypeCount;
     }
 
-    private void flushState(ContentDataStore contentDataStore, String nativeName)
-            throws IOException {
+    private void flushState(ContentDataStore contentDataStore, String nativeName) throws IOException {
         ContentFeatureSource featureSource;
         featureSource = contentDataStore.getFeatureSource(nativeName);
         featureSource.getState().flush();
@@ -2734,24 +2690,20 @@ public class ResourcePool {
         }
 
         // Resolve GeoServer Environment placeholders
-        final GeoServerEnvironment gsEnvironment =
-                GeoServerExtensions.bean(GeoServerEnvironment.class);
+        final GeoServerEnvironment gsEnvironment = GeoServerExtensions.bean(GeoServerEnvironment.class);
 
-        if (source.getConnectionParameters() != null
-                && !source.getConnectionParameters().isEmpty()) {
+        if (source.getConnectionParameters() != null && !source.getConnectionParameters().isEmpty()) {
             target.getConnectionParameters().clear();
 
             if (!allowEnvParametrization) {
                 target.getConnectionParameters().putAll(source.getConnectionParameters());
             } else {
                 if (source != null && source.getConnectionParameters() != null) {
-                    for (Entry<String, Serializable> param :
-                            source.getConnectionParameters().entrySet()) {
+                    for (Entry<String, Serializable> param : source.getConnectionParameters().entrySet()) {
                         String key = param.getKey();
                         Object value = param.getValue();
 
-                        if (gsEnvironment != null
-                                && GeoServerEnvironment.ALLOW_ENV_PARAMETRIZATION) {
+                        if (gsEnvironment != null && GeoServerEnvironment.ALLOW_ENV_PARAMETRIZATION) {
                             value = gsEnvironment.resolveValue(value);
                         }
 
@@ -2764,8 +2716,7 @@ public class ResourcePool {
         return target;
     }
 
-    public CoverageStoreInfo clone(
-            final CoverageStoreInfo source, boolean allowEnvParametrization) {
+    public CoverageStoreInfo clone(final CoverageStoreInfo source, boolean allowEnvParametrization) {
         CoverageStoreInfo target;
         try {
             target = (CoverageStoreInfo) SerializationUtils.clone(source);
@@ -2782,8 +2733,7 @@ public class ResourcePool {
         }
 
         // Resolve GeoServer Environment placeholders
-        final GeoServerEnvironment gsEnvironment =
-                GeoServerExtensions.bean(GeoServerEnvironment.class);
+        final GeoServerEnvironment gsEnvironment = GeoServerExtensions.bean(GeoServerEnvironment.class);
 
         if (gsEnvironment != null && GeoServerEnvironment.ALLOW_ENV_PARAMETRIZATION) {
             target.setURL((String) gsEnvironment.resolveValue(source.getURL()));
@@ -2791,15 +2741,13 @@ public class ResourcePool {
             target.setURL(source.getURL());
         }
 
-        if (source.getConnectionParameters() != null
-                && !source.getConnectionParameters().isEmpty()) {
+        if (source.getConnectionParameters() != null && !source.getConnectionParameters().isEmpty()) {
 
             if (!allowEnvParametrization) {
                 target.setURL(source.getURL());
                 target.getConnectionParameters().putAll(source.getConnectionParameters());
             } else {
-                for (Entry<String, Serializable> param :
-                        source.getConnectionParameters().entrySet()) {
+                for (Entry<String, Serializable> param : source.getConnectionParameters().entrySet()) {
                     String key = param.getKey();
                     Object value = param.getValue();
 
@@ -2835,12 +2783,10 @@ public class ResourcePool {
 
         if (allowEnvParametrization) {
             // Resolve GeoServer Environment placeholders
-            final GeoServerEnvironment gsEnvironment =
-                    GeoServerExtensions.bean(GeoServerEnvironment.class);
+            final GeoServerEnvironment gsEnvironment = GeoServerExtensions.bean(GeoServerEnvironment.class);
 
             if (gsEnvironment != null && GeoServerEnvironment.ALLOW_ENV_PARAMETRIZATION) {
-                target.setCapabilitiesURL(
-                        (String) gsEnvironment.resolveValue(source.getCapabilitiesURL()));
+                target.setCapabilitiesURL((String) gsEnvironment.resolveValue(source.getCapabilitiesURL()));
                 target.setUsername((String) gsEnvironment.resolveValue(source.getUsername()));
                 target.setPassword((String) gsEnvironment.resolveValue(source.getPassword()));
             }
@@ -2869,12 +2815,10 @@ public class ResourcePool {
 
         if (allowEnvParametrization) {
             // Resolve GeoServer Environment placeholders
-            final GeoServerEnvironment gsEnvironment =
-                    GeoServerExtensions.bean(GeoServerEnvironment.class);
+            final GeoServerEnvironment gsEnvironment = GeoServerExtensions.bean(GeoServerEnvironment.class);
 
             if (gsEnvironment != null && GeoServerEnvironment.ALLOW_ENV_PARAMETRIZATION) {
-                target.setCapabilitiesURL(
-                        (String) gsEnvironment.resolveValue(source.getCapabilitiesURL()));
+                target.setCapabilitiesURL((String) gsEnvironment.resolveValue(source.getCapabilitiesURL()));
                 target.setUsername((String) gsEnvironment.resolveValue(source.getUsername()));
                 target.setPassword((String) gsEnvironment.resolveValue(source.getPassword()));
             }
@@ -2912,10 +2856,11 @@ public class ResourcePool {
     }
 
     /**
-     * Retrieve the proper {@link CoverageInfo} object from the specified {@link CoverageStoreInfo}
-     * using the specified coverageName (which may be the native one in some cases). In case of null
-     * coverageName being specified, we assume we are dealing with a single coverageStore <-> single
-     * coverage relation so we will take the first coverage available on that store.
+     * Retrieve the proper {@link CoverageInfo} object from the specified
+     * {@link CoverageStoreInfo} using the specified coverageName (which may be the
+     * native one in some cases). In case of null coverageName being specified, we
+     * assume we are dealing with a single coverageStore <-> single coverage
+     * relation so we will take the first coverage available on that store.
      *
      * @param storeInfo the storeInfo to be used to access the catalog
      */
@@ -2945,21 +2890,19 @@ public class ResourcePool {
     }
 
     /**
-     * The catalog repository, used to gather store references by name by some GeoTools stores like
-     * pre-generalized or image mosaic
+     * The catalog repository, used to gather store references by name by some
+     * GeoTools stores like pre-generalized or image mosaic
      *
      * @return
      */
     public CatalogRepository getRepository() {
         return repository;
     }
-    
-    public static class ResourcePoolRemovalListener implements RemovalListener<Object, Object>{
+
+    public static class ResourcePoolRemovalListener implements RemovalListener<Object, Object> {
 
         @Override
         public void onRemoval(@Nullable Object key, @Nullable Object value, @NonNull RemovalCause cause) {
-            
         }
-        
     }
 }

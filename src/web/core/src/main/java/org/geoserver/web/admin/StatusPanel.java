@@ -31,12 +31,7 @@ import org.geoserver.config.GeoServerInfo;
 import org.geoserver.config.JAIInfo;
 import org.geoserver.web.util.MapModel;
 import org.geoserver.web.wicket.ParamResourceModel;
-import org.geotools.data.DataAccess;
-import org.geotools.data.DataStore;
-import org.geotools.data.LockingManager;
 import org.geotools.util.logging.Logging;
-import org.opengis.feature.Feature;
-import org.opengis.feature.type.FeatureType;
 import org.opengis.filter.Filter;
 
 public class StatusPanel extends Panel {
@@ -73,7 +68,8 @@ public class StatusPanel extends Panel {
 
     private static final String KEY_COVERAGEACCESS_MAX_POOL_SIZE = "coverage_thread_maxpoolsize";
 
-    private static final String KEY_COVERAGEACCESS_KEEP_ALIVE_TIME = "coverage_thread_keepalivetime";
+    private static final String KEY_COVERAGEACCESS_KEEP_ALIVE_TIME =
+            "coverage_thread_keepalivetime";
 
     private static final String KEY_UPDATE_SEQUENCE = "update_sequence";
 
@@ -107,80 +103,107 @@ public class StatusPanel extends Panel {
         add(new Label("jai.memory.threshold", new MapModel(values, KEY_JAI_MEM_THRESHOLD)));
         add(new Label("jai.tile.threads", new MapModel(values, KEY_JAI_TILE_THREADS)));
         add(new Label("jai.tile.priority", new MapModel(values, KEY_JAI_TILE_THREAD_PRIORITY)));
-        add(new Label("coverage.corepoolsize", new MapModel(values, KEY_COVERAGEACCESS_CORE_POOL_SIZE)));
-        add(new Label("coverage.maxpoolsize", new MapModel(values, KEY_COVERAGEACCESS_MAX_POOL_SIZE)));
-        add(new Label("coverage.keepalivetime", new MapModel(values, KEY_COVERAGEACCESS_KEEP_ALIVE_TIME)));
+        add(
+                new Label(
+                        "coverage.corepoolsize",
+                        new MapModel(values, KEY_COVERAGEACCESS_CORE_POOL_SIZE)));
+        add(
+                new Label(
+                        "coverage.maxpoolsize",
+                        new MapModel(values, KEY_COVERAGEACCESS_MAX_POOL_SIZE)));
+        add(
+                new Label(
+                        "coverage.keepalivetime",
+                        new MapModel(values, KEY_COVERAGEACCESS_KEEP_ALIVE_TIME)));
         add(new Label("updateSequence", new MapModel(values, KEY_UPDATE_SEQUENCE)));
         add(new Label("renderer", new MapModel(values, KEY_JAVA_RENDERER)));
         // serialization error here
-        add(new Link("free.locks") {
-            private static final long serialVersionUID = -2889353495319211391L;
+        add(
+                new Link("free.locks") {
+                    private static final long serialVersionUID = -2889353495319211391L;
 
-            public void onClick() {
-                // TODO: see GEOS-2130
-                updateModel();
-            }
-        });
-        add(new Link("free.memory") {
-            private static final long serialVersionUID = 3695369177295089346L;
+                    public void onClick() {
+                        // TODO: see GEOS-2130
+                        updateModel();
+                    }
+                });
+        add(
+                new Link("free.memory") {
+                    private static final long serialVersionUID = 3695369177295089346L;
 
-            public void onClick() {
-                System.gc();
-                System.runFinalization();
-                updateModel();
-            }
-        });
+                    public void onClick() {
+                        System.gc();
+                        System.runFinalization();
+                        updateModel();
+                    }
+                });
 
-        add(new Link("free.memory.jai") {
-            private static final long serialVersionUID = -3556725607958589003L;
+        add(
+                new Link("free.memory.jai") {
+                    private static final long serialVersionUID = -3556725607958589003L;
 
-            public void onClick() {
-                TileCache jaiCache = parent.getGeoServer().getGlobal().getJAI().getTileCache();
-                final long capacityBefore = jaiCache.getMemoryCapacity();
-                jaiCache.flush();
-                jaiCache.setMemoryCapacity(0); // to be sure we realease all tiles
-                System.gc();
-                System.runFinalization();
-                jaiCache.setMemoryCapacity(capacityBefore);
-                updateModel();
-            }
-        });
+                    public void onClick() {
+                        TileCache jaiCache =
+                                parent.getGeoServer().getGlobal().getJAI().getTileCache();
+                        final long capacityBefore = jaiCache.getMemoryCapacity();
+                        jaiCache.flush();
+                        jaiCache.setMemoryCapacity(0); // to be sure we realease all tiles
+                        System.gc();
+                        System.runFinalization();
+                        jaiCache.setMemoryCapacity(capacityBefore);
+                        updateModel();
+                    }
+                });
 
         int fontCount = GraphicsEnvironment.getLocalGraphicsEnvironment().getAllFonts().length;
-        add(new Label("fontCount", new ParamResourceModel("StatusPage.fontCount", this, fontCount)));
+        add(
+                new Label(
+                        "fontCount",
+                        new ParamResourceModel("StatusPage.fontCount", this, fontCount)));
         add(new BookmarkablePageLink("show.fonts", JVMFontsPage.class));
 
-        add(new AjaxLink("clear.resourceCache") {
-            private static final long serialVersionUID = 2663650174059497376L;
+        add(
+                new AjaxLink("clear.resourceCache") {
+                    private static final long serialVersionUID = 2663650174059497376L;
 
-            @Override
-            public void onClick(AjaxRequestTarget target) {
-                try {
-                    parent.getGeoServer().reset();
-                    info(getLocalizer().getString("resourceCacheClearedSuccessfully", this));
-                } catch (Throwable t) {
-                    LOGGER.log(Level.SEVERE, "Error resetting resource caches", t);
-                    error(t);
-                }
-                parent.addFeedbackPanels(target);
-            }
-        });
+                    @Override
+                    public void onClick(AjaxRequestTarget target) {
+                        try {
+                            parent.getGeoServer().reset();
+                            info(
+                                    getLocalizer()
+                                            .getString("resourceCacheClearedSuccessfully", this));
+                        } catch (Throwable t) {
+                            LOGGER.log(Level.SEVERE, "Error resetting resource caches", t);
+                            error(t);
+                        }
+                        parent.addFeedbackPanels(target);
+                    }
+                });
 
-        add(new AjaxLink("reload.catalogConfig") {
-            private static final long serialVersionUID = -7476556423889306321L;
+        add(
+                new AjaxLink("reload.catalogConfig") {
+                    private static final long serialVersionUID = -7476556423889306321L;
 
-            @Override
-            public void onClick(AjaxRequestTarget target) {
-                try {
-                    parent.getGeoServer().reload();
-                    info(getLocalizer().getString("catalogConfigReloadedSuccessfully", StatusPanel.this));
-                } catch (Throwable t) {
-                    LOGGER.log(Level.SEVERE, "An error occurred while reloading the catalog", t);
-                    error(t);
-                }
-                parent.addFeedbackPanels(target);
-            }
-        });
+                    @Override
+                    public void onClick(AjaxRequestTarget target) {
+                        try {
+                            parent.getGeoServer().reload();
+                            info(
+                                    getLocalizer()
+                                            .getString(
+                                                    "catalogConfigReloadedSuccessfully",
+                                                    StatusPanel.this));
+                        } catch (Throwable t) {
+                            LOGGER.log(
+                                    Level.SEVERE,
+                                    "An error occurred while reloading the catalog",
+                                    t);
+                            error(t);
+                        }
+                        parent.addFeedbackPanels(target);
+                    }
+                });
     }
 
     private void updateModel() {
@@ -188,8 +211,14 @@ public class StatusPanel extends Panel {
         values.put(KEY_LOCKS, Long.toString(getLockCount()));
         values.put(KEY_CONNECTIONS, Long.toString(getConnectionCount()));
         values.put(KEY_MEMORY, formatUsedMemory());
-        values.put(KEY_JVM_VERSION, System.getProperty("java.vendor") + ": " + System.getProperty("java.version") + " ("
-                + System.getProperty("java.vm.name") + ")");
+        values.put(
+                KEY_JVM_VERSION,
+                System.getProperty("java.vendor")
+                        + ": "
+                        + System.getProperty("java.version")
+                        + " ("
+                        + System.getProperty("java.vm.name")
+                        + ")");
 
         values.put(KEY_JAI_AVAILABLE, Boolean.toString(isNativeJAIAvailable()));
         values.put(KEY_JAI_IMAGEIO_AVAILABLE, Boolean.toString(PackageUtil.isCodecLibAvailable()));
@@ -202,17 +231,29 @@ public class StatusPanel extends Panel {
 
         values.put(KEY_JAI_MAX_MEM, formatMemory(jaiCache.getMemoryCapacity()));
         if (jaiCache instanceof CacheDiagnostics) {
-            values.put(KEY_JAI_MEM_USAGE, formatMemory(((CacheDiagnostics) jaiCache).getCacheMemoryUsed()));
+            values.put(
+                    KEY_JAI_MEM_USAGE,
+                    formatMemory(((CacheDiagnostics) jaiCache).getCacheMemoryUsed()));
         } else {
             values.put(KEY_JAI_MEM_USAGE, "-");
         }
-        values.put(KEY_JAI_MEM_THRESHOLD, Integer.toString((int) (100.0f * jaiCache.getMemoryThreshold())) + "%");
+        values.put(
+                KEY_JAI_MEM_THRESHOLD,
+                Integer.toString((int) (100.0f * jaiCache.getMemoryThreshold())) + "%");
         values.put(KEY_JAI_TILE_THREADS, Integer.toString(jai.getTileScheduler().getParallelism()));
-        values.put(KEY_JAI_TILE_THREAD_PRIORITY, Integer.toString(jai.getTileScheduler().getPriority()));
+        values.put(
+                KEY_JAI_TILE_THREAD_PRIORITY,
+                Integer.toString(jai.getTileScheduler().getPriority()));
 
-        values.put(KEY_COVERAGEACCESS_CORE_POOL_SIZE, Integer.toString(coverageAccess.getCorePoolSize()));
-        values.put(KEY_COVERAGEACCESS_MAX_POOL_SIZE, Integer.toString(coverageAccess.getMaxPoolSize()));
-        values.put(KEY_COVERAGEACCESS_KEEP_ALIVE_TIME, Integer.toString(coverageAccess.getKeepAliveTime()));
+        values.put(
+                KEY_COVERAGEACCESS_CORE_POOL_SIZE,
+                Integer.toString(coverageAccess.getCorePoolSize()));
+        values.put(
+                KEY_COVERAGEACCESS_MAX_POOL_SIZE,
+                Integer.toString(coverageAccess.getMaxPoolSize()));
+        values.put(
+                KEY_COVERAGEACCESS_KEEP_ALIVE_TIME,
+                Integer.toString(coverageAccess.getKeepAliveTime()));
 
         values.put(KEY_UPDATE_SEQUENCE, Long.toString(geoServerInfo.getUpdateSequence()));
         values.put(KEY_JAVA_RENDERER, checkRenderer());
@@ -220,7 +261,8 @@ public class StatusPanel extends Panel {
 
     /** Retrieves the GeoServer data directory */
     private String getDataDirectory() {
-        GeoServerDataDirectory dd = parent.getGeoServerApplication().getBeanOfType(GeoServerDataDirectory.class);
+        GeoServerDataDirectory dd =
+                parent.getGeoServerApplication().getBeanOfType(GeoServerDataDirectory.class);
         return dd.root().getAbsolutePath();
     }
 
@@ -229,8 +271,12 @@ public class StatusPanel extends Panel {
             // static access to sun.java2d.pipe.RenderingEngine gives a warning that cannot
             // be
             // suppressed
-            String renderer = Class.forName("sun.java2d.pipe.RenderingEngine").getMethod("getInstance").invoke(null)
-                    .getClass().getName();
+            String renderer =
+                    Class.forName("sun.java2d.pipe.RenderingEngine")
+                            .getMethod("getInstance")
+                            .invoke(null)
+                            .getClass()
+                            .getName();
             return renderer;
         } catch (Throwable e) {
             return "Unknown";
@@ -281,31 +327,32 @@ public class StatusPanel extends Panel {
     private synchronized int getLockCount() {
         int count = 0;
         // we can't actually *count* locks right now?
-//        try (CloseableIterator<DataStoreInfo> i = getDataStores()){
-//            while (i.hasNext()) {
-//                DataStoreInfo meta = (DataStoreInfo) i.next();
-//
-//                if (!meta.isEnabled()) {
-//                    // Don't count locks from disabled datastores.
-//                    continue;
-//                }
-//
-//                 try {
-//                 DataAccess store = meta.getDataStore(null);
-//                 if (store instanceof DataStore) {
-//                    LockingManager lockingManager = ((DataStore) store).getLockingManager();
-//                    if (lockingManager != null) {
-//                        // we can't actually *count* locks right now?
-//                        count += lockingManager.getLockSet().size();
-//                    }
-//                 }
-//                 } catch (IllegalStateException notAvailable) {
-//                      continue;
-//                 } catch (Throwable huh) {
-//                    continue;
-//                 }
-//            }
-//        }
+        //        try (CloseableIterator<DataStoreInfo> i = getDataStores()){
+        //            while (i.hasNext()) {
+        //                DataStoreInfo meta = (DataStoreInfo) i.next();
+        //
+        //                if (!meta.isEnabled()) {
+        //                    // Don't count locks from disabled datastores.
+        //                    continue;
+        //                }
+        //
+        //                 try {
+        //                 DataAccess store = meta.getDataStore(null);
+        //                 if (store instanceof DataStore) {
+        //                    LockingManager lockingManager = ((DataStore)
+        // store).getLockingManager();
+        //                    if (lockingManager != null) {
+        //                        // we can't actually *count* locks right now?
+        //                        count += lockingManager.getLockSet().size();
+        //                    }
+        //                 }
+        //                 } catch (IllegalStateException notAvailable) {
+        //                      continue;
+        //                 } catch (Throwable huh) {
+        //                    continue;
+        //                 }
+        //            }
+        //        }
         return count;
     }
 
@@ -320,25 +367,26 @@ public class StatusPanel extends Panel {
         // providing some sort of health reporting, better just count the number of
         // enabled datastores in a more efficient way, given the throughput of this loop
         // is about 500/s, which leads to page timeouts and stale background jobs
-        
-//        try (CloseableIterator<DataStoreInfo> i = getDataStores()) {
-//            while (i.hasNext()) {
-//                DataStoreInfo meta = i.next();
-//                if (!meta.isEnabled()) {
-//                    // Don't count connections from disabled datastores.
-//                    continue;
-//                }
-//                try {
-//                    DataAccess<? extends FeatureType, ? extends Feature> dataStore = meta.getDataStore(null);
-//                    dataStore.dispose();
-//                } catch (Throwable notAvailable) {
-//                    // TODO: Logging.
-//                    continue;
-//                }
-//
-//                count += 1;
-//            }
-//        }
+
+        //        try (CloseableIterator<DataStoreInfo> i = getDataStores()) {
+        //            while (i.hasNext()) {
+        //                DataStoreInfo meta = i.next();
+        //                if (!meta.isEnabled()) {
+        //                    // Don't count connections from disabled datastores.
+        //                    continue;
+        //                }
+        //                try {
+        //                    DataAccess<? extends FeatureType, ? extends Feature> dataStore =
+        // meta.getDataStore(null);
+        //                    dataStore.dispose();
+        //                } catch (Throwable notAvailable) {
+        //                    // TODO: Logging.
+        //                    continue;
+        //                }
+        //
+        //                count += 1;
+        //            }
+        //        }
         System.err.printf("StatusPanel.getConnectionCount(): %,d (%s)%n", count, sw.stop());
         return count;
     }

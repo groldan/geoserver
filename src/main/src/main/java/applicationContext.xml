@@ -187,15 +187,16 @@
       <constructor-arg ref="entityResolverProvider"/>
   </bean>
   
-  <bean id="resourcePoolCacheManager" class="org.springframework.cache.caffeine.CaffeineCacheManager">
+  <bean id="resourcePoolCacheManager" class="org.geoserver.catalog.ResourcePoolCacheManager">
     <!-- CacheManager for ResourcePool. It ought to be non persistent and should not serialize entries. Caffeine is perfect. -->
-    <property name="cacheSpecification" value="softValues,recordStats"/>
-    <property name="allowNullValues" value="false"/>
-    <property name="cacheNames">
-      <set>
-          <value>ResourcePool.DataStore</value>
-          <value>ResourcePool.CRS</value>
-      </set>
+    <property name="cacheSpecs">
+      <map>
+          <entry key="CRSs" value="softValues,recordStats"/>
+          <entry key="DataStores" value="softValues,recordStats"/>
+          <entry key="FeatureTypes" value="maximumSize=100,recordStats"/>
+          <entry key="FeatureTypesWithoutProjectionPolicy" value="maximumSize=100,recordStats"/>
+          <entry key="FeatureTypeAttributes" value="maximumSize=100,recordStats"/>
+      </map>
     </property>
   </bean>
   <bean id="resourcePool" class="org.geoserver.catalog.ResourcePool">
