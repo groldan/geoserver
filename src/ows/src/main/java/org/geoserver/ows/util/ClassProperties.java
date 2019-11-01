@@ -64,7 +64,7 @@ public class ClassProperties {
     public List<String> properties() {
         ArrayList<String> properties = new ArrayList<String>();
         for (String key : getters.keySet()) {
-            if (key.equals("resource")) { // ??? WHY ???
+            if (key.equalsIgnoreCase("resource")) { // ??? WHY ???
                 properties.add(0, key);
             } else {
                 properties.add(key);
