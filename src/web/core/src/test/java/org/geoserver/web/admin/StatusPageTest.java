@@ -13,6 +13,7 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.startsWith;
 import static org.junit.Assert.*;
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.wicket.Component;
@@ -190,7 +191,7 @@ public class StatusPageTest extends GeoServerWicketTestSupport {
     }
 
     /** Extra tab definition that will be added to GeoServer status page. */
-    public static final class ExtraTabDefinition implements StatusPage.TabDefinition {
+    public static final class ExtraTabDefinition implements StatusPage.TabDefinition, Serializable {
 
         @Override
         public String getTitleKey() {
