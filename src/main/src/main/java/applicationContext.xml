@@ -191,13 +191,17 @@
     <!-- CacheManager for ResourcePool. It ought to be non persistent and should not serialize entries. Caffeine is perfect. -->
     <property name="cacheSpecs">
       <map>
-          <entry key="CRSs" value="-1"/>
           <entry key="DataStores" value="-1"/>
           <entry key="DataStoreFactories" value="-1"/>
           <entry key="FeatureTypes" value="100"/>
           <entry key="FeatureTypes_NoProjectionPolicy" value="100"/>
           <entry key="FeatureTypeAttributes" value="100"/>
           <entry key="FeatureTypeAttributes_NoProjectionPolicy" value="100"/>
+          <entry key="WMS_Clients" value="-1"/>
+          <entry key="WMTS_Clients" value="-1"/>
+          <entry key="CoordinateReferenceSystems" value="-1"/>
+          <entry key="Styles" value="-1"/>
+          <entry key="StyledLayerDescriptors" value="-1"/>
       </map>
     </property>
   </bean>
