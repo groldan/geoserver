@@ -9,14 +9,18 @@ import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -68,8 +72,8 @@ class CatalogInfoLookup<T extends CatalogInfo> {
         this.clazz = clazz;
         final boolean unique = true;
         final boolean hierarchical = isHierarchyRoot(clazz);
-        this.idIndex = addIndex("id", String.class, unique, hierarchical, CatalogInfo::getId);
-        this.nameIndex = addIndex("name", Name.class, unique, hierarchical, nameMapper);
+        this.idIndex = addIndex("id", String.class, unique, hierarchical, false, CatalogInfo::getId);
+        this.nameIndex = addIndex("name", Name.class, unique, hierarchical, true, nameMapper);
     }
 
     private boolean isHierarchyRoot(Class<T> clazz) {
@@ -82,13 +86,13 @@ class CatalogInfoLookup<T extends CatalogInfo> {
     }
 
     public <K> Index<K, T> addIndex(String propertyName, Class<K> propertyType, boolean unique, boolean hierarchical,
-            Function<T, K> mapper) {
+            boolean sorted, Function<T, K> mapper) {
 
         Objects.requireNonNull(propertyName);
         Objects.requireNonNull(propertyType);
         Objects.requireNonNull(mapper);
 
-        Index<K, T> index = Index.create(propertyName, propertyType, this.clazz, unique, hierarchical, mapper);
+        Index<K, T> index = Index.create(propertyName, propertyType, this.clazz, unique, hierarchical, sorted, mapper);
         indexes.put(propertyName, index);
         return index;
     }
@@ -356,17 +360,25 @@ class CatalogInfoLookup<T extends CatalogInfo> {
 
             <T extends CatalogInfo> void forEeach(Class<T> clazz, Predicate<T> predicate, Consumer<T> action);
 
-            V remove(K key);
+            V remove(K key, V value);
 
             <U extends CatalogInfo> U get(Class<U> clazz, K key);
 
             <U extends CatalogInfo> U findFirst(Class<U> clazz, Predicate<U> predicate);
 
             <U extends CatalogInfo> Stream<U> stream(Class<U> clazz, Predicate<U> predicate);
+
+            List<V> getAll(K key);
         }
 
         protected static final class SingleClassValueProvider<K, V extends CatalogInfo> implements ValueProvider<K, V> {
-            private ConcurrentHashMap<K, V> map = new ConcurrentHashMap<>();
+            private ConcurrentMap<K, V> map;
+            private boolean sorted;
+
+            public SingleClassValueProvider(boolean sorted) {
+                this.sorted = sorted;
+                this.map = sorted ? new ConcurrentSkipListMap<>() : new ConcurrentHashMap<>();
+            }
 
             public @Override void put(K key, V value) {
                 map.put(key, value);
@@ -378,12 +390,16 @@ class CatalogInfoLookup<T extends CatalogInfo> {
                     if (predicate.test(v))
                         action.accept(v);
                 };
-                map.forEachValue(1, (Consumer<? super V>) filterAndCall);
+                if (sorted) {
+                    ((ConcurrentSkipListMap<K, T>) map).forEach((k, v) -> filterAndCall.accept(v));
+                } else {
+                    ((ConcurrentHashMap<K, T>) map).forEachValue(1, filterAndCall);
+                }
             }
 
             @Override
-            public V remove(K key) {
-                throw new UnsupportedOperationException("implement!");
+            public V remove(K key, V value) {
+                return map.remove(key);
             }
 
             @Override
@@ -391,44 +407,99 @@ class CatalogInfoLookup<T extends CatalogInfo> {
                 return clazz.cast(map.get(key));
             }
 
+            @SuppressWarnings("unchecked")
             @Override
             public <U extends CatalogInfo> U findFirst(Class<U> clazz, Predicate<U> predicate) {
-                Function<V, V> searchFunction = v -> predicate.test((U) v) ? v : null;
-                V value = map.searchValues(1, searchFunction);
-                return clazz.cast(value);
+                Function<U, U> searchFunction = v -> predicate.test(v) ? v : null;
+                if (sorted) {
+                    for (V v : map.values()) {
+                        if (predicate.test(clazz.cast(v))) {
+                            return clazz.cast(v);
+                        }
+                    }
+                } else {
+                    return ((ConcurrentHashMap<K, U>) map).searchValues(1, searchFunction);
+                }
+                return null;
             }
 
             @Override
             public <U extends CatalogInfo> Stream<U> stream(Class<U> clazz, Predicate<U> predicate) {
                 return map.values().stream().map(clazz::cast).filter(predicate);
             }
+
+            @Override
+            public List<V> getAll(K key) {
+                V v = map.get(key);
+                return v == null ? Collections.emptyList() : Collections.singletonList(v);
+            }
         }
 
         protected static final class SingleClassMultivalueProvider<K, V extends CatalogInfo>
                 implements ValueProvider<K, V> {
 
-            private ConcurrentHashMap<K, ConcurrentHashMap<String, V>> maps = new ConcurrentHashMap<>();
+            private ConcurrentHashMap<K, Object> multivaluedMap = new ConcurrentHashMap<>();
 
+            @SuppressWarnings("unchecked")
             @Override
             public void put(K key, V value) {
-                ConcurrentMap<String, V> idMap = maps.computeIfAbsent(key, k -> new ConcurrentHashMap<>());
-                idMap.put(value.getId(), value);
+                multivaluedMap.compute(key, (k, currVal) -> {
+                    if (currVal == null) {
+                        return value;
+                    }
+                    List<V> list;
+                    if (currVal instanceof List) {
+                        list = (List<V>) currVal;
+                    } else {
+                        list = new ArrayList<>();
+                        list.add((V) currVal);
+                    }
+                    list.add(value);
+                    return list;
+                });
             }
 
             @SuppressWarnings("unchecked")
             @Override
             public <T extends CatalogInfo> void forEeach(Class<T> clazz, Predicate<T> predicate, Consumer<T> action) {
-                maps.forEachValue(1, map -> {
-                    map.forEachValue(1, v -> {
+                multivaluedMap.forEachValue(1, v -> {
+                    if (v instanceof List) {
+                        ((List<V>) v).forEach(o -> {
+                            if (predicate.test((T) v))
+                                action.accept((T) v);
+                        });
+                    } else {
                         if (predicate.test((T) v))
                             action.accept((T) v);
-                    });
+                    }
                 });
             }
 
+            @SuppressWarnings("unchecked")
             @Override
-            public V remove(K key) {
-                throw new UnsupportedOperationException("implement!");
+            public V remove(K key, V value) {
+                final AtomicReference<V> removed = new AtomicReference<>();
+                multivaluedMap.compute(key, (k, currVal) -> {
+                    if (currVal == null) {
+                        return null;
+                    }
+                    if (currVal instanceof List) {
+                        List<V> list = (List<V>) currVal;
+                        for (Iterator<V> i = list.iterator(); i.hasNext();) {
+                            V v = i.next();
+                            if (v.getId().equals(value.getId())) {
+                                i.remove();
+                                removed.set((V) v);
+                                break;
+                            }
+                        }
+                        return list.isEmpty() ? null : list;
+                    }
+                    // not a list, the single actual value, return null to remove the mapping
+                    removed.set((V) currVal);
+                    return null;
+                });
+                return removed.get();
             }
 
             @Override
@@ -436,35 +507,56 @@ class CatalogInfoLookup<T extends CatalogInfo> {
                 throw new UnsupportedOperationException("implement!");
             }
 
+            @SuppressWarnings("unchecked")
+            public @Override List<V> getAll(K key) {
+                Object v = multivaluedMap.get(key);
+                return v == null ? Collections.emptyList() : //
+                        v instanceof List ? new ArrayList<>((List<V>) v) : Collections.singletonList((V) v);
+            }
+
+            @SuppressWarnings("unchecked")
             @Override
             public <U extends CatalogInfo> U findFirst(Class<U> clazz, Predicate<U> predicate) {
-                final Function<V, V> searchFunction = v -> predicate.test((U) v) ? v : null;
-                for (ConcurrentHashMap<String, V> idMap : maps.values()) {
-                    V value = idMap.searchValues(1, searchFunction);
-                    if (value != null) {
-                        return (U) value;
+                return multivaluedMap.searchValues(1, v -> {
+                    U ret = null;
+                    if (v instanceof List) {
+                        for (U u : ((List<U>) v)) {
+                            if (predicate.test(u)) {
+                                ret = u;
+                            }
+                        }
+                    } else if (predicate.test((U) v)) {
+                        ret = (U) v;
                     }
-                }
-                return null;
+                    return ret;
+                });
             }
 
             @Override
             public <U extends CatalogInfo> Stream<U> stream(Class<U> clazz, Predicate<U> predicate) {
-                Stream<U> stream = Stream.empty();
-                for (ConcurrentHashMap<String, V> idMap : maps.values()) {
-                    stream = Stream.concat(stream, idMap.values().stream().map(clazz::cast).filter(predicate));
-                }
-                return stream;
+                @SuppressWarnings("unchecked")
+                Stream<List<U>> s = multivaluedMap.values().stream().map(o -> {
+                    return o instanceof List ? (List<U>) o : Collections.singletonList((U) o);
+                });
+                // flatten the lists
+                Stream<U> flattened = s.flatMap(Collection::stream);
+                return flattened.filter(predicate);
             }
+
         }
 
         protected static final class HierarchyValueProvider<K, V extends CatalogInfo> implements ValueProvider<K, V> {
-            private ConcurrentMap<Class<?>, SingleClassValueProvider<K, V>> maps = new ConcurrentHashMap<>();
+            private final ConcurrentMap<Class<?>, SingleClassValueProvider<K, V>> maps = new ConcurrentHashMap<>();
+            private final boolean sorted;
+
+            HierarchyValueProvider(boolean sorted) {
+                this.sorted = sorted;
+            }
 
             public @Override void put(K key, V value) {
                 Class<Object> intfc = ClassMappings.fromImpl(value.getClass()).getInterface();
                 SingleClassValueProvider<K, V> typeValues;
-                typeValues = maps.computeIfAbsent(intfc, type -> new SingleClassValueProvider<>());
+                typeValues = maps.computeIfAbsent(intfc, type -> new SingleClassValueProvider<>(sorted));
                 typeValues.put(key, value);
             }
 
@@ -477,14 +569,27 @@ class CatalogInfoLookup<T extends CatalogInfo> {
             }
 
             @Override
-            public V remove(K key) {
-                throw new UnsupportedOperationException("implement!");
+            public V remove(K key, V value) {
+                V removed = null;
+                for (SingleClassValueProvider<K, V> p : maps.values()) {
+                    removed = p.remove(key, value);
+                    if (removed != null) {
+                        break;
+                    }
+                }
+                return removed;
+            }
+
+            @Override
+            public List<V> getAll(K key) {
+                V v = get(null, key);
+                return v == null ? Collections.emptyList() : Collections.singletonList(v);
             }
 
             @Override
             public <U extends CatalogInfo> U get(Class<U> clazz, K key) {
                 for (Entry<Class<?>, SingleClassValueProvider<K, V>> e : maps.entrySet()) {
-                    if (clazz.isAssignableFrom(e.getKey())) {
+                    if (clazz == null || clazz.isAssignableFrom(e.getKey())) {
                         U found = e.getValue().get(clazz, key);
                         if (found != null) {
                             return found;
@@ -541,8 +646,15 @@ class CatalogInfoLookup<T extends CatalogInfo> {
             }
 
             @Override
-            public V remove(K key) {
-                throw new UnsupportedOperationException("implement!");
+            public V remove(K key, V value) {
+                V removed = null;
+                for (SingleClassMultivalueProvider<K, V> p : maps.values()) {
+                    removed = p.remove(key, value);
+                    if (removed != null) {
+                        break;
+                    }
+                }
+                return removed;
             }
 
             @Override
@@ -556,6 +668,25 @@ class CatalogInfoLookup<T extends CatalogInfo> {
                     }
                 }
                 return null;
+            }
+
+            @Override
+            public List<V> getAll(K key) {
+                List<V> res = Collections.emptyList();
+                for (SingleClassMultivalueProvider<K, V> e : maps.values()) {
+                    List<V> found = e.getAll(key);
+                    if (!found.isEmpty()) {
+                        if (res.isEmpty()) {
+                            res = found;
+                        } else {
+                            if (!(res instanceof ArrayList)) {
+                                res = new ArrayList<>(res);
+                            }
+                            res.addAll(found);
+                        }
+                    }
+                }
+                return res;
             }
 
             @Override
@@ -594,10 +725,14 @@ class CatalogInfoLookup<T extends CatalogInfo> {
          * @param mapper       function to obtain the index key for a specific value
          */
         public static <K, V extends CatalogInfo> Index<K, V> create(String name, Class<K> propertyType,
-                Class<V> valueType, boolean unique, boolean hierarchical, Function<V, K> mapper) {
+                Class<V> valueType, boolean unique, boolean hierarchical, boolean sorted, Function<V, K> mapper) {
 
-            ValueProvider<K, V> valueProvider = hierarchical ? new HierarchyValueProvider<>()
-                    : new SingleClassValueProvider<>();
+            ValueProvider<K, V> valueProvider;
+            if (hierarchical) {
+                valueProvider = unique ? new HierarchyValueProvider<>(sorted) : new HierarchyMultivalueProvider<>();
+            } else {
+                valueProvider = unique ? new SingleClassValueProvider<>(sorted) : new SingleClassMultivalueProvider<>();
+            }
             Index<K, V> index;
             if (unique) {
                 index = new UniqueIndex<>(name, propertyType, valueType, mapper, valueProvider);
@@ -610,9 +745,9 @@ class CatalogInfoLookup<T extends CatalogInfo> {
         public void replace(final T oldValue, final T newValue) {
             final K oldKey = mapper.apply(oldValue);
             final K newKey = mapper.apply(newValue);
-            Preconditions.checkArgument(!(newValue instanceof Proxy));
-            valueProvider.remove(oldKey);
-            valueProvider.put(newKey, newValue);
+            T value = ModificationProxy.unwrap(newValue);
+            valueProvider.remove(oldKey, oldValue);
+            valueProvider.put(newKey, value);
         }
 
         public void put(T resolvedValue) {
@@ -623,7 +758,7 @@ class CatalogInfoLookup<T extends CatalogInfo> {
 
         public void remove(T info) {
             K key = mapper.apply(info);
-            valueProvider.remove(key);
+            valueProvider.remove(key, info);
         }
 
         public void forEach(Consumer<T> target) {
@@ -650,11 +785,16 @@ class CatalogInfoLookup<T extends CatalogInfo> {
             return mapper.apply(value);
         }
 
-        public void remap(K oldKey) {
-            T value = valueProvider.remove(oldKey);
-            if (value != null) {
-                valueProvider.put(mapKey(value), value);
+        public void remap(K oldKey, T value) {
+            if(value != null) {
+                valueProvider.remove(oldKey, value);
+                K newKey = mapKey(value);
+                valueProvider.put(newKey, value);
             }
+        }
+
+        public List<T> getAll(K key) {
+            return valueProvider.getAll(key);
         }
     }
 

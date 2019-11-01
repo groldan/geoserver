@@ -353,6 +353,10 @@ final class IsolatedCatalogFacade implements CatalogFacade {
 
     @Override
     public NamespaceInfo getNamespaceByURI(String uri) {
+        if(Dispatcher.REQUEST.get() == null) {
+            return facade.getNamespaceByURI(uri);
+        }
+                
         NamespaceInfo localNamespace = getLocalNamespace();
         if (localNamespace != null && Objects.equals(localNamespace.getURI(), uri)) {
             // local workspace namespace URI is equal to the provided URI

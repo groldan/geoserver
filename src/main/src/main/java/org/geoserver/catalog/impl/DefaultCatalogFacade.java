@@ -5,7 +5,7 @@
  */
 package org.geoserver.catalog.impl;
 
-import com.google.common.collect.Iterables;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.Ordering;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -37,6 +37,8 @@ import org.geoserver.catalog.ResourceInfo;
 import org.geoserver.catalog.StoreInfo;
 import org.geoserver.catalog.StyleInfo;
 import org.geoserver.catalog.WorkspaceInfo;
+import org.geoserver.catalog.impl.CatalogInfoLookup.Index;
+import org.geoserver.catalog.impl.CatalogInfoLookup.Index.SingleClassMultivalueProvider;
 import org.geoserver.catalog.util.CloseableIterator;
 import org.geoserver.catalog.util.CloseableIteratorAdapter;
 import org.geoserver.ows.util.OwsUtils;
@@ -101,7 +103,10 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
             Name newName = RESOURCE_NAME_MAPPER.apply(proxiedValue);
             if (!oldName.equals(newName)) {
                 Index<Name, LayerInfo> names = super.getNames();
-                names.remap(oldName);
+                LayerInfo layer = names.get(LayerInfo.class, oldName);
+                if(layer != null) {
+                    names.remap(oldName, layer);
+                }
 //                LayerInfo value = names.remove(actualValue);
 //                // handle case of feature type without a corresponding layer
 //                if (value != null) {
@@ -285,7 +290,7 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
         beforeSaved(resource, propertyNames, oldValues, newValues);
         resources.update(resource);
         layers.update(resource);
-        
+
         commitProxy(resource);
         afterSaved(resource, propertyNames, oldValues, newValues);
     }
@@ -653,9 +658,7 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
 
     @Override
     public List<NamespaceInfo> getNamespacesByURI(String uri) {
-        Predicate<NamespaceInfo> predicate = ns -> ns.getURI().equals(uri);
-        List<NamespaceInfo> found = namespaces.stream(NamespaceInfo.class, predicate, "uri")
-                .collect(Collectors.toList());
+        List<NamespaceInfo> found = namespaces.getIndex("uri").getAll(uri);
         return ModificationProxy.createList(found, NamespaceInfo.class);
     }
 
@@ -846,10 +849,10 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
         // JD creation checks are done here b/c when xstream depersists
         // some members may be left null
 
-        if(defaultStores == null) {
+        if (defaultStores == null) {
             defaultStores = new ConcurrentHashMap<>();
         }
-        
+
         // workspaces
         if (workspaces == null) {
             workspaces = new CatalogInfoLookup<>(WorkspaceInfo.class, WORKSPACE_NAME_MAPPER);
@@ -861,7 +864,7 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
         // namespaces
         if (namespaces == null) {
             namespaces = new CatalogInfoLookup<>(NamespaceInfo.class, NAMESPACE_NAME_MAPPER);
-            namespaces.addIndex("uri", String.class, false, false, NamespaceInfo::getURI);
+            namespaces.addIndex("uri", String.class, false, false, false, NamespaceInfo::getURI);
         }
         for (NamespaceInfo ns : namespaces.values()) {
             resolve(ns);
@@ -869,7 +872,7 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
 
         // stores
         if (stores == null) {
-            stores = new CatalogInfoLookup<>(StoreInfo.class,STORE_NAME_MAPPER);
+            stores = new CatalogInfoLookup<>(StoreInfo.class, STORE_NAME_MAPPER);
         }
         for (Object o : stores.values()) {
             resolve((StoreInfoImpl) o);
@@ -877,7 +880,7 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
 
         // styles
         if (styles == null) {
-            styles = new CatalogInfoLookup<>(StyleInfo.class,STYLE_NAME_MAPPER);
+            styles = new CatalogInfoLookup<>(StyleInfo.class, STYLE_NAME_MAPPER);
         }
         for (StyleInfo s : styles.values()) {
             resolve(s);
@@ -885,7 +888,7 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
 
         // resources
         if (resources == null) {
-            resources = new CatalogInfoLookup<>(ResourceInfo.class,RESOURCE_NAME_MAPPER);
+            resources = new CatalogInfoLookup<>(ResourceInfo.class, RESOURCE_NAME_MAPPER);
         }
         for (Object o : resources.values()) {
             resolve((ResourceInfo) o);
@@ -1033,17 +1036,17 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
             }
         }
 
-        Iterable<T> iterable = iterable(of, filter, sortOrder);
+        Stream<T> stream = stream(of, filter, sortOrder);
 
         if (offset != null && offset.intValue() > 0) {
-            iterable = Iterables.skip(iterable, offset.intValue());
+            stream = stream.skip(offset.longValue());
         }
 
         if (count != null && count.intValue() >= 0) {
-            iterable = Iterables.limit(iterable, count.intValue());
+            stream = stream.limit(count.longValue());
         }
 
-        Iterator<T> iterator = iterable.iterator();
+        Iterator<T> iterator = stream.iterator();
 
         return new CloseableIteratorAdapter<T>(iterator);
     }
@@ -1060,15 +1063,15 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
 
     private <T extends CatalogInfo> Stream<T> stream(final Class<T> of, final Filter filter,
             final SortBy[] sortByList) {
-        Stream<T> all = lookupFor(of).stream(of, toPredicate(filter));
-        if (null != sortByList) {
+        Stream<T> all = lookupFor(of).stream(of, toPredicate(filter), "name");
+        if (null != sortByList && sortByList.length > 0) {
             for (int i = sortByList.length - 1; i >= 0; i--) {
                 SortBy sortBy = sortByList[i];
                 Ordering<Object> ordering = Ordering.from(comparator(sortBy));
                 if (SortOrder.DESCENDING.equals(sortBy.getSortOrder())) {
                     ordering = ordering.reverse();
                 }
-                all = all.sorted(ordering);
+                all = all.parallel().sorted(ordering);
             }
         }
         all = all.map(t -> ModificationProxy.create(t, of));
@@ -1096,7 +1099,8 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
             return (CatalogInfoLookup<T>) layerGroups;
         }
         if (PublishedInfo.class.isAssignableFrom(type)) {
-            return (CatalogInfoLookup<T>) CatalogInfoLookup.combineAsImmutable(PublishedInfo.class, layers, layerGroups);
+            return (CatalogInfoLookup<T>) CatalogInfoLookup.combineAsImmutable(PublishedInfo.class, layers,
+                    layerGroups);
         }
         if (StyleInfo.class.isAssignableFrom(type)) {
             return (CatalogInfoLookup<T>) styles;
