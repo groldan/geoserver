@@ -68,6 +68,7 @@ import org.geoserver.platform.GeoServerResourceLoader;
 import org.geoserver.platform.ServiceException;
 import org.geoserver.platform.resource.Files;
 import org.geoserver.platform.resource.Resource;
+import org.geoserver.platform.resource.Resource.Lock;
 import org.geoserver.platform.resource.ResourceListener;
 import org.geoserver.platform.resource.ResourceNotification;
 import org.geoserver.platform.resource.Resources;
@@ -144,6 +145,7 @@ import org.springframework.cache.Cache.ValueRetrievalException;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheConfig;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationContext;
 import org.vfny.geoserver.global.GeoServerFeatureLocking;
@@ -194,7 +196,7 @@ public class ResourcePool {
     public static final String WMTS_CLIENTS_CACHE = "WMTS_Clients";
     public static final String CRS_CACHE = "CoordinateReferenceSystems";
     public static final String STYLES_CACHE = "Styles";
-    public static final String SLD_CACHE = "StyledLayerDescriptors";
+    public static final String STYLEDLAYERDESCRIPTORS_CACHE = "StyledLayerDescriptors";
 
     /**
      * OGC "cilyndrical earth" model, we'll use it to translate meters to degrees
@@ -257,9 +259,6 @@ public class ResourcePool {
     protected ResourcePool() {
         System.err.println("### created resource pool " + this + " #####");
         hintCoverageReaderCache = createHintCoverageReaderCache();
-        sldCache = createSldCache();
-        styleCache = createStyleCache();
-
         listeners = new CopyOnWriteArrayList<Listener>();
     }
 
@@ -462,8 +461,8 @@ public class ResourcePool {
      * <p>
      * The concrete Map implementation is determined by {@link #createSldCache()}
      */
-    public Map<StyleInfo, StyledLayerDescriptor> getSldCache() {
-        return cacheManager.asMap(SLD_CACHE);
+    public Map<String, StyledLayerDescriptor> getSldCache() {
+        return cacheManager.asMap(STYLEDLAYERDESCRIPTORS_CACHE);
     }
 
     /**
@@ -472,12 +471,8 @@ public class ResourcePool {
      * <p>
      * The concrete Map implementation is determined by {@link #createStyleCache()}
      */
-    public Map<StyleInfo, Style> getStyleCache() {
+    public Map<String, Style> getStyleCache() {
         return cacheManager.asMap(STYLES_CACHE);
-    }
-
-    protected Map<StyleInfo, Style> createStyleCache() {
-        return new HashMap<StyleInfo, Style>();
     }
 
     /**
@@ -1980,14 +1975,15 @@ public class ResourcePool {
      */
     @Cacheable(key = "#info.id", //
             sync = true, //
-            cacheNames = SLD_CACHE)
+            cacheNames = STYLEDLAYERDESCRIPTORS_CACHE)
     public StyledLayerDescriptor getSld(final StyleInfo info) throws IOException {
-        StyledLayerDescriptor sld = dataDir().parsedSld(info);
+        final StyledLayerDescriptor sld = dataDir().parsedSld(info);
         final Resource styleResource = dataDir().style(info);
         styleResource.addListener(new ResourceListener() {
-            @Override
-            public void changed(ResourceNotification notify) {
-                getSldCache().remove(info.getId());
+            final String id = info.getId();
+
+            public @Override void changed(ResourceNotification notify) {
+                getCacheManager().getCache(STYLEDLAYERDESCRIPTORS_CACHE).evict(id);
                 styleResource.removeListener(this);
             }
         });
@@ -2008,37 +2004,29 @@ public class ResourcePool {
      * @param info The style metadata.
      * @throws IOException Any parsing errors.
      */
+    @Cacheable(key = "#info.id", //
+            sync = true, //
+            cacheNames = STYLES_CACHE)
     public Style getStyle(final StyleInfo info) throws IOException {
-        Style style = styleCache.get(info);
-        if (style == null) {
-            synchronized (styleCache) {
-                style = styleCache.get(info);
-                if (style == null) {
-                    style = dataDir().parsedStyle(info);
-
-                    if (style == null) {
-                        throw new ServiceException("Could not extract a UserStyle definition from " + info.getName());
-                    }
-                    // Make sure we don't change the name of an object in sldCache
-                    if (style instanceof StyleImpl) {
-                        style = (Style) ((StyleImpl) style).clone();
-                    }
-                    // remove this when wms works off style info
-                    style.setName(info.getName());
-                    styleCache.put(info, style);
-
-                    final Resource styleResource = dataDir().style(info);
-                    styleResource.addListener(new ResourceListener() {
-                        @Override
-                        public void changed(ResourceNotification notify) {
-                            styleCache.remove(info);
-                            styleResource.removeListener(this);
-                        }
-                    });
-                }
-            }
+        Style style = dataDir().parsedStyle(info);
+        if (style == null) {// REVISIT: by the contract of parsedStyle it can't return null
+            throw new ServiceException("Could not extract a UserStyle definition from " + info.getName());
         }
+        // Make sure we don't change the name of an object in sldCache
+        if (style instanceof StyleImpl) {
+            style = (Style) ((StyleImpl) style).clone();
+        }
+        // remove this when wms works off style info
+        style.setName(info.getName());
+        final Resource styleResource = dataDir().style(info);
+        styleResource.addListener(new ResourceListener() {
+            final String id = info.getId();
 
+            public @Override void changed(ResourceNotification notify) {
+                getCacheManager().getCache(STYLES_CACHE).evict(id);
+                styleResource.removeListener(this);
+            }
+        });
         return style;
     }
 
@@ -2047,9 +2035,9 @@ public class ResourcePool {
      *
      * @param info The style metadata.
      */
+    @CacheEvict(key = "#info.id", cacheNames = { STYLEDLAYERDESCRIPTORS_CACHE, STYLES_CACHE })
     public void clear(StyleInfo info) {
-        styleCache.remove(info);
-        sldCache.remove(info);
+        //
     }
 
     /**
@@ -2072,6 +2060,7 @@ public class ResourcePool {
      * @param info  The configuration for the style.
      * @param style The style object.
      */
+    @CacheEvict(key = "#style.id", cacheNames = { STYLEDLAYERDESCRIPTORS_CACHE, STYLES_CACHE })
     public void writeStyle(StyleInfo info, Style style) throws IOException {
         writeStyle(info, style, false);
     }
@@ -2084,17 +2073,14 @@ public class ResourcePool {
      * @param style  The style object.
      * @param format Whether to format the style
      */
+    @CacheEvict(key = "#style.id", cacheNames = { STYLEDLAYERDESCRIPTORS_CACHE, STYLES_CACHE })
     public void writeStyle(StyleInfo info, Style style, boolean format) throws IOException {
-        synchronized (styleCache) {
-            Resource styleFile = dataDir().style(info);
-            BufferedOutputStream out = new BufferedOutputStream(styleFile.out());
-
-            try {
-                Styles.handler(info.getFormat()).encode(Styles.sld(style), info.getFormatVersion(), format, out);
-                clear(info);
-            } finally {
-                out.close();
-            }
+        Resource styleFile = dataDir().style(info);
+        Lock lock = styleFile.lock();
+        try (BufferedOutputStream out = new BufferedOutputStream(styleFile.out())) {
+            Styles.handler(info.getFormat()).encode(Styles.sld(style), info.getFormatVersion(), format, out);
+        } finally {
+            lock.release();
         }
     }
 
@@ -2104,6 +2090,7 @@ public class ResourcePool {
      * @param info  The configuration for the style.
      * @param style The style object.
      */
+    @CacheEvict(key = "#style.id", cacheNames = { STYLEDLAYERDESCRIPTORS_CACHE, STYLES_CACHE })
     public void writeSLD(StyleInfo info, StyledLayerDescriptor style) throws IOException {
         writeSLD(info, style, false);
     }
@@ -2116,17 +2103,14 @@ public class ResourcePool {
      * @param style  The style object.
      * @param format Whether to format the style
      */
+    @CacheEvict(key = "#style.id", cacheNames = { STYLEDLAYERDESCRIPTORS_CACHE, STYLES_CACHE })
     public void writeSLD(StyleInfo info, StyledLayerDescriptor style, boolean format) throws IOException {
-        synchronized (sldCache) {
-            Resource styleFile = dataDir().style(info);
-            BufferedOutputStream out = new BufferedOutputStream(styleFile.out());
-
-            try {
-                Styles.handler(info.getFormat()).encode(style, info.getFormatVersion(), format, out);
-                clear(info);
-            } finally {
-                out.close();
-            }
+        Resource styleFile = dataDir().style(info);
+        Lock lock = styleFile.lock();
+        try (BufferedOutputStream out = new BufferedOutputStream(styleFile.out())) {
+            Styles.handler(info.getFormat()).encode(style, info.getFormatVersion(), format, out);
+        } finally {
+            lock.release();
         }
     }
 
@@ -2136,12 +2120,10 @@ public class ResourcePool {
      * @param style The configuration for the style.
      * @param in    input stream representing the raw a style.
      */
+    @CacheEvict(key = "#style.id", cacheNames = { STYLEDLAYERDESCRIPTORS_CACHE, STYLES_CACHE })
     public void writeStyle(StyleInfo style, InputStream in) throws IOException {
-        synchronized (styleCache) {
-            Resource styleFile = dataDir().style(style);
-            writeStyle(in, styleFile);
-            clear(style);
-        }
+        Resource styleFile = dataDir().style(style);
+        writeStyle(in, styleFile);
     }
 
     /**
@@ -2152,9 +2134,12 @@ public class ResourcePool {
      * @throws IOException
      */
     public static void writeStyle(final InputStream in, final Resource styleFile) throws IOException {
+        Lock lock = styleFile.lock();
         try (BufferedOutputStream out = new BufferedOutputStream(styleFile.out())) {
             IOUtils.copy(in, out);
             out.flush();
+        } finally {
+            lock.release();
         }
     }
 
@@ -2164,14 +2149,10 @@ public class ResourcePool {
      * @param style     The configuration for the style.
      * @param purgeFile Whether to delete the file from disk.
      */
+    @CacheEvict(key = "#style.id", cacheNames = { STYLEDLAYERDESCRIPTORS_CACHE, STYLES_CACHE })
     public void deleteStyle(StyleInfo style, boolean purgeFile) throws IOException {
-        synchronized (styleCache) {
-            if (purgeFile) {
-                File styleFile = Resources.file(dataDir().style(style));
-                if (styleFile != null && styleFile.exists()) {
-                    styleFile.delete();
-                }
-            }
+        if (purgeFile) {
+            dataDir().style(style).delete();
         }
     }
 
@@ -2183,7 +2164,6 @@ public class ResourcePool {
     public void dispose() {
         this.cacheManager.clear();
         hintCoverageReaderCache.clear();
-        styleCache.clear();
         listeners.clear();
     }
 
