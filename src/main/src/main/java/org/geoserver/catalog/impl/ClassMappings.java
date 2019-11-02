@@ -341,11 +341,15 @@ public enum ClassMappings {
         return null;
     }
 
+    // cache values(), under high load its cost can be quite considerable
+    private static final ClassMappings[] CACHED_VALUES = ClassMappings.values();
+
     public static ClassMappings fromImpl(Class<?> clazz) {
         if (ServiceInfo.class.isAssignableFrom(clazz)) {
             return SERVICE;
         }
-        for (ClassMappings cm : values()) {
+        for (int i = 0; i < CACHED_VALUES.length; i++) {
+            ClassMappings cm = CACHED_VALUES[i];
             if (clazz == cm.getImpl()) return cm;
         }
         return null;

@@ -139,7 +139,8 @@ public class DefaultTileLayerCatalog implements TileLayerCatalog {
         this.xstreamProvider = xstreamProvider;
         this.serializer = newXStream();
         // automatically reload configuration on change
-//        resourceLoader.get(baseDirectory).addListener(this::handleBaseDirectoryResourceEvent);
+        //
+        // resourceLoader.get(baseDirectory).addListener(this::handleBaseDirectoryResourceEvent);
     }
 
     private XStream newXStream() {
@@ -233,20 +234,21 @@ public class DefaultTileLayerCatalog implements TileLayerCatalog {
         ExtensionFilter xmlFilter = new Resources.ExtensionFilter("XML");
         // do not thrash the filesystem if there are several cores by using the common
         // pool
-//        ForkJoinPool pool =
-//                new ForkJoinPool(
-//                        INITIALIZATION_PARALLELISM, INITIALLIZATION_THREAD_FACTORY, null, false);
-//        try {
-//            pool.submit(
-//                            () ->
-//                                    baseDir.list()
-//                                            .parallelStream()
-//                                            .filter(r -> xmlFilter.accept(r))
-//                                            .forEach(this::initializationLoad))
-//                    .join();
-//        } finally {
-//            pool.shutdownNow();
-//        }
+        //        ForkJoinPool pool =
+        //                new ForkJoinPool(
+        //                        INITIALIZATION_PARALLELISM, INITIALLIZATION_THREAD_FACTORY, null,
+        // false);
+        //        try {
+        //            pool.submit(
+        //                            () ->
+        //                                    baseDir.list()
+        //                                            .parallelStream()
+        //                                            .filter(r -> xmlFilter.accept(r))
+        //                                            .forEach(this::initializationLoad))
+        //                    .join();
+        //        } finally {
+        //            pool.shutdownNow();
+        //        }
         LOGGER.info(String.format("Loaded %,d tile layers in %s", layersById.size(), sw.stop()));
         this.initialized = true;
     }

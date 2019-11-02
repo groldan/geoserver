@@ -5,6 +5,7 @@
  */
 package org.geoserver.ows.util;
 
+import com.google.common.collect.AbstractIterator;
 import java.util.AbstractMap;
 import java.util.AbstractSet;
 import java.util.Collection;
@@ -14,8 +15,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
-
-import com.google.common.collect.AbstractIterator;
 
 /**
  * Map decorator which makes String keys case-insensitive.
@@ -118,8 +117,7 @@ public class CaseInsensitiveMap<K, V> implements Map<K, V> {
     /**
      * Wraps a map in case insensitive one.
      *
-     * <p>
-     * If the instance is already a case insensitive map it is returned as is.
+     * <p>If the instance is already a case insensitive map it is returned as is.
      */
     public static <K, V> Map<K, V> wrap(Map<K, V> other) {
         if (other instanceof CaseInsensitiveMap) {
@@ -172,7 +170,7 @@ public class CaseInsensitiveMap<K, V> implements Map<K, V> {
 
         private int mapHashCode(Map<?, ?> map) {
             int h = 17;
-            for (Iterator<?> i = map.entrySet().iterator(); i.hasNext();) {
+            for (Iterator<?> i = map.entrySet().iterator(); i.hasNext(); ) {
                 Entry<?, ?> e = (Entry<?, ?>) i.next();
                 h += hashCode(e.getKey()) + hashCode(e.getValue());
             }
@@ -181,7 +179,7 @@ public class CaseInsensitiveMap<K, V> implements Map<K, V> {
 
         private int collectionHashCode(Collection<?> value) {
             int h = 1;
-            for (Iterator<?> it = value.iterator(); it.hasNext();) {
+            for (Iterator<?> it = value.iterator(); it.hasNext(); ) {
                 h = 31 * h + hashCode(it.next());
             }
             return h;
@@ -189,7 +187,9 @@ public class CaseInsensitiveMap<K, V> implements Map<K, V> {
 
         @SuppressWarnings("unchecked")
         public static <K> CaseInsensitiveKey<K> of(Object key) {
-            return (key instanceof CaseInsensitiveKey) ? (CaseInsensitiveKey<K>) key : new CaseInsensitiveKey<>(key);
+            return (key instanceof CaseInsensitiveKey)
+                    ? (CaseInsensitiveKey<K>) key
+                    : new CaseInsensitiveKey<>(key);
         }
 
         public K value() {
@@ -230,8 +230,8 @@ public class CaseInsensitiveMap<K, V> implements Map<K, V> {
 
         public @Override Iterator<K> iterator() {
             return new AbstractIterator<K>() {
-                final Iterator<CaseInsensitiveKey<K>> delegate = CaseInsensitiveMap.this.caseInsensitiveDelegate
-                        .keySet().iterator();
+                final Iterator<CaseInsensitiveKey<K>> delegate =
+                        CaseInsensitiveMap.this.caseInsensitiveDelegate.keySet().iterator();
 
                 protected @Override K computeNext() {
                     if (delegate.hasNext()) {
@@ -260,17 +260,17 @@ public class CaseInsensitiveMap<K, V> implements Map<K, V> {
         }
 
         public @Override void forEach(Consumer<? super K> action) {
-            CaseInsensitiveMap.this.caseInsensitiveDelegate.keySet().forEach(k -> action.accept(k.value()));
+            CaseInsensitiveMap.this
+                    .caseInsensitiveDelegate
+                    .keySet()
+                    .forEach(k -> action.accept(k.value()));
         }
 
         public @Override boolean equals(Object o) {
-            if (!(o instanceof Set))
-                return false;
-            if (o == this)
-                return true;
+            if (!(o instanceof Set)) return false;
+            if (o == this) return true;
             Collection<?> c = (Collection<?>) o;
-            if (c.size() != size())
-                return false;
+            if (c.size() != size()) return false;
             try {
                 return containsAll(c);
             } catch (ClassCastException unused) {
@@ -281,8 +281,13 @@ public class CaseInsensitiveMap<K, V> implements Map<K, V> {
         }
 
         public @Override int hashCode() {
-            int h = CaseInsensitiveMap.this.caseInsensitiveDelegate.keySet().stream()
-                    .mapToInt(CaseInsensitiveKey::hashCode).sum();
+            int h =
+                    CaseInsensitiveMap.this
+                            .caseInsensitiveDelegate
+                            .keySet()
+                            .stream()
+                            .mapToInt(CaseInsensitiveKey::hashCode)
+                            .sum();
             return h;
         }
     }
@@ -291,8 +296,8 @@ public class CaseInsensitiveMap<K, V> implements Map<K, V> {
 
         public @Override Iterator<Map.Entry<K, V>> iterator() {
             return new AbstractIterator<Map.Entry<K, V>>() {
-                private final Iterator<Entry<CaseInsensitiveKey<K>, V>> subject = CaseInsensitiveMap.this.caseInsensitiveDelegate
-                        .entrySet().iterator();
+                private final Iterator<Entry<CaseInsensitiveKey<K>, V>> subject =
+                        CaseInsensitiveMap.this.caseInsensitiveDelegate.entrySet().iterator();
 
                 protected @Override Entry<K, V> computeNext() {
                     if (subject.hasNext()) {
@@ -338,7 +343,10 @@ public class CaseInsensitiveMap<K, V> implements Map<K, V> {
         }
 
         public @Override void forEach(Consumer<? super Map.Entry<K, V>> action) {
-            CaseInsensitiveMap.this.caseInsensitiveDelegate.entrySet().forEach(e -> action.accept(toOuterEntry(e)));
+            CaseInsensitiveMap.this
+                    .caseInsensitiveDelegate
+                    .entrySet()
+                    .forEach(e -> action.accept(toOuterEntry(e)));
         }
     }
 }
