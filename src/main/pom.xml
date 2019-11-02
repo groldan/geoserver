@@ -21,6 +21,11 @@
  
  <dependencies>
   <dependency>
+      <groupId>org.apache.lucene</groupId>
+      <artifactId>lucene-core</artifactId>
+      <version>8.2.0</version>
+  </dependency>
+  <dependency>
    <groupId>org.geoserver</groupId>
    <artifactId>gs-ows</artifactId>
   </dependency>

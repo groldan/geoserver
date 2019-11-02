@@ -260,7 +260,7 @@ public class CatalogPropertyAccessor implements PropertyAccessor {
 
     private static Map<Class<?>, Set<String>> FULL_TEXT_PROPERTIES = Maps.newHashMap();
 
-    private static Set<String> fullTextProperties(Info obj) {
+    static Set<String> fullTextProperties(Info obj) {
         Set<String> props = ImmutableSet.of();
         if (obj != null) {
             Class<?> clazz = ModificationProxy.unwrap(obj).getClass();
