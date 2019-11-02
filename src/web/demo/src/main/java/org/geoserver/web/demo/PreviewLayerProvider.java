@@ -11,11 +11,9 @@ import com.google.common.base.Function;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
-import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.apache.wicket.extensions.markup.html.repeater.util.SortParam;
@@ -41,15 +39,13 @@ public class PreviewLayerProvider extends GeoServerDataProvider<PreviewLayer> {
 
     public static final long DEFAULT_CACHE_TIME = 1;
 
-    public static final String KEY_SIZE = "key.size";
+    public static final String KEY_LAYERS_SIZE = "layers.size";
+    public static final String KEY_LAYERS_FULL_SIZE = "layers.fullsize";
 
-    public static final String KEY_FULL_SIZE = "key.fullsize";
+    public static final String KEY_LAYERGROUPS_SIZE = "groups.size";
+    public static final String KEY_LAYERGROUPS_FULL_SIZE = "groups.fullsize";
 
     private final Cache<String, Integer> cache;
-
-    private SizeCallable sizeCaller;
-
-    private FullSizeCallable fullSizeCaller;
 
     public PreviewLayerProvider() {
         super();
@@ -58,10 +54,6 @@ public class PreviewLayerProvider extends GeoServerDataProvider<PreviewLayer> {
         CacheBuilder<Object, Object> builder = CacheBuilder.newBuilder();
 
         cache = builder.expireAfterWrite(DEFAULT_CACHE_TIME, TimeUnit.SECONDS).build();
-        // Callable which internally calls the size method
-        sizeCaller = new SizeCallable();
-        // Callable which internally calls the fullSize() method
-        fullSizeCaller = new FullSizeCallable();
     }
 
     public static final Property<PreviewLayer> TYPE =
@@ -118,51 +110,118 @@ public class PreviewLayerProvider extends GeoServerDataProvider<PreviewLayer> {
 
     @Override
     public long size() {
+        Integer size;
         try {
+            String lkey = KEY_LAYERS_SIZE;
+            String gkey = KEY_LAYERGROUPS_SIZE;
             if (getKeywords() != null && getKeywords().length > 0) {
                 // Use a unique key for different queries
-                return cache.get(KEY_SIZE + "." + String.join(",", getKeywords()), sizeCaller);
+                lkey += "." + String.join(",", getKeywords());
+                lkey += "." + String.join(",", getKeywords());
             }
-            return cache.get(KEY_SIZE, sizeCaller);
+            Integer lsize = cache.get(lkey, () -> layersSize());
+            Integer gsize = cache.get(gkey, () -> layerGroupsSize());
+            size = lsize.intValue() + gsize.intValue();
         } catch (ExecutionException e) {
             throw new RuntimeException(e);
         }
+        return size;
     }
 
     private int sizeInternal() {
+        long s = System.currentTimeMillis();
         Filter filter = getFilter();
-        int result = getCatalog().count(PublishedInfo.class, filter);
+        int result = getCatalog().count(PublishedInfo.class, filter); // 1000022;//
+        System.err.printf(
+                "%s.sizeInternal(): %,dms%n",
+                getClass().getSimpleName(), System.currentTimeMillis() - s);
+        return result;
+    }
+
+    private int layersSize() {
+        long s = System.currentTimeMillis();
+        Filter filter = getLayerFilter();
+        int result = getCatalog().count(LayerInfo.class, filter);
+        System.err.printf(
+                "%s.layersSize(): %,dms%n",
+                getClass().getSimpleName(), System.currentTimeMillis() - s);
+        return result;
+    }
+
+    private int layerGroupsSize() {
+        long s = System.currentTimeMillis();
+        Filter filter = getLayerGroupFilter();
+        int result = getCatalog().count(LayerGroupInfo.class, filter);
+        System.err.printf(
+                "%s.layerGroupsSize(): %,dms%n",
+                getClass().getSimpleName(), System.currentTimeMillis() - s);
         return result;
     }
 
     @Override
     public int fullSize() {
+        long s = System.currentTimeMillis();
+        Integer size;
         try {
-            return cache.get(KEY_FULL_SIZE, fullSizeCaller);
+            Integer layers = cache.get(KEY_LAYERS_FULL_SIZE, () -> layersFullSize());
+            Integer groups = cache.get(KEY_LAYERGROUPS_FULL_SIZE, () -> layerGroupsFullSize());
+            size = layers.intValue() + groups.intValue();
         } catch (ExecutionException e) {
             throw new RuntimeException(e);
         }
+        System.err.printf(
+                "%s.fullSize(): %,dms%n",
+                getClass().getSimpleName(), System.currentTimeMillis() - s);
+        return size;
     }
 
     private int fullSizeInternal() {
+        long s = System.currentTimeMillis();
         Filter filter = Predicates.acceptAll();
-        return getCatalog().count(PublishedInfo.class, filter);
+        int count = getCatalog().count(PublishedInfo.class, filter);
+        System.err.printf(
+                "%s.fullSizeInternal(): %,dms%n",
+                getClass().getSimpleName(), System.currentTimeMillis() - s);
+        return count;
+    }
+
+    private int layersFullSize() {
+        long s = System.currentTimeMillis();
+        Filter filter = Predicates.acceptAll();
+        int count = getCatalog().count(LayerInfo.class, filter);
+        System.err.printf(
+                "%s.layersFullSize(): %,dms%n",
+                getClass().getSimpleName(), System.currentTimeMillis() - s);
+        return count;
+    }
+
+    private int layerGroupsFullSize() {
+        long s = System.currentTimeMillis();
+        Filter filter = Predicates.acceptAll();
+        int count = getCatalog().count(LayerGroupInfo.class, filter);
+        System.err.printf(
+                "%s.layerGroupsFullSize(): %,dms%n",
+                getClass().getSimpleName(), System.currentTimeMillis() - s);
+        return count;
     }
 
     @Override
     public Iterator<PreviewLayer> iterator(final long first, final long count) {
+        long s = System.currentTimeMillis();
         Iterator<PreviewLayer> iterator = filteredItems(first, count);
         if (iterator instanceof CloseableIterator) {
             // don't know how to force wicket to close the iterator, lets return
             // a copy. Shouldn't be much overhead as we're paging
             try {
-                return Lists.newArrayList(iterator).iterator();
+                iterator = Lists.newArrayList(iterator).iterator();
             } finally {
                 CloseableIteratorAdapter.close(iterator);
             }
-        } else {
-            return iterator;
         }
+        System.err.printf(
+                "%s.iterator(): %,dms%n",
+                getClass().getSimpleName(), System.currentTimeMillis() - s);
+        return iterator;
     }
 
     /**
@@ -189,6 +248,7 @@ public class PreviewLayerProvider extends GeoServerDataProvider<PreviewLayer> {
         }
 
         Filter filter = getFilter();
+
         CloseableIterator<PublishedInfo> pi =
                 catalog.list(PublishedInfo.class, filter, (int) first, (int) count, sortOrder);
 
@@ -210,15 +270,23 @@ public class PreviewLayerProvider extends GeoServerDataProvider<PreviewLayer> {
 
     @Override
     protected Filter getFilter() {
-        Filter filter = super.getFilter();
-
         // need to get only advertised and enabled layers
         Filter isLayerInfo = Predicates.isInstanceOf(LayerInfo.class);
         Filter isLayerGroupInfo = Predicates.isInstanceOf(LayerGroupInfo.class);
 
-        Filter enabledFilter = Predicates.equal("resource.enabled", true);
-        Filter storeEnabledFilter = Predicates.equal("resource.store.enabled", true);
-        Filter advertisedFilter = Predicates.equal("resource.advertised", true);
+        // Filter for the Layers
+        Filter layerFilter = Predicates.and(isLayerInfo, getLayerFilter());
+        // Filter for the LayerGroups
+        Filter layerGroupFilter = Predicates.and(isLayerGroupInfo, getLayerGroupFilter());
+        // Or filter for merging them
+        Filter orFilter = Predicates.or(layerFilter, layerGroupFilter);
+        // And between the new filter and the initial filter
+        System.err.println(orFilter);
+        return orFilter;
+    }
+
+    private Filter getLayerGroupFilter() {
+        Filter fullTextSearchFilter = super.getFilter();
         Filter enabledLayerGroup = Predicates.equal("enabled", true);
         Filter advertisedLayerGroup = Predicates.equal("advertised", true);
         // return only layer groups that are not containers
@@ -228,44 +296,24 @@ public class PreviewLayerProvider extends GeoServerDataProvider<PreviewLayer> {
                         Predicates.equal("mode", LayerGroupInfo.Mode.NAMED),
                         Predicates.equal("mode", LayerGroupInfo.Mode.OPAQUE_CONTAINER),
                         Predicates.equal("mode", LayerGroupInfo.Mode.SINGLE));
-
-        // Filter for the Layers
-        Filter layerFilter =
-                Predicates.and(isLayerInfo, enabledFilter, storeEnabledFilter, advertisedFilter);
         // Filter for the LayerGroups
         Filter layerGroupFilter =
-                Predicates.and(
-                        isLayerGroupInfo,
-                        nonContainerGroup,
-                        enabledLayerGroup,
-                        advertisedLayerGroup);
-        // Or filter for merging them
-        Filter orFilter = Predicates.or(layerFilter, layerGroupFilter);
+                Predicates.and(nonContainerGroup, enabledLayerGroup, advertisedLayerGroup);
         // And between the new filter and the initial filter
-        return Predicates.and(filter, orFilter);
+        return Predicates.and(layerGroupFilter, fullTextSearchFilter);
     }
 
-    /**
-     * Inner class which calls the sizeInternal() method
-     *
-     * @author Nicpla Lagomarsini geosolutions
-     */
-    class SizeCallable implements Callable<Integer>, Serializable {
-        @Override
-        public Integer call() throws Exception {
-            return sizeInternal();
-        }
-    }
-
-    /**
-     * Inner class which calls the fullsizeInternal() method
-     *
-     * @author Nicpla Lagomarsini geosolutions
-     */
-    class FullSizeCallable implements Callable<Integer>, Serializable {
-        @Override
-        public Integer call() throws Exception {
-            return fullSizeInternal();
-        }
+    private Filter getLayerFilter() {
+        Filter fullTextSearchFilter = super.getFilter();
+        // need to get only advertised and enabled layers
+        Filter enabledFilter = Predicates.equal("resource.enabled", true);
+        Filter storeEnabledFilter = Predicates.equal("resource.store.enabled", true);
+        Filter advertisedFilter = Predicates.equal("resource.advertised", true);
+        // Filter for the Layers
+        Filter layerFilter =
+                Predicates.and(
+                        enabledFilter, storeEnabledFilter, advertisedFilter, fullTextSearchFilter);
+        // And between the new filter and the initial filter
+        return layerFilter;
     }
 }
