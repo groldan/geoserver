@@ -9,7 +9,6 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
 import org.geoserver.catalog.MetadataMap;
 import org.junit.After;
 import org.junit.Before;

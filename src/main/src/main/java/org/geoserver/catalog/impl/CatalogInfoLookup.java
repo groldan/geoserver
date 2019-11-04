@@ -4,6 +4,9 @@
  */
 package org.geoserver.catalog.impl;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Stopwatch;
+import com.google.common.reflect.ClassPath.ResourceInfo;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
@@ -28,9 +31,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
 import javax.annotation.Nullable;
-
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CatalogInfo;
 import org.geoserver.catalog.StoreInfo;
@@ -38,19 +39,12 @@ import org.geoserver.ows.util.OwsUtils;
 import org.geotools.util.logging.Logging;
 import org.opengis.feature.type.Name;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Stopwatch;
-import com.google.common.reflect.ClassPath.ResourceInfo;
-
 /**
- * A support index for {@link DefaultCatalogFacade}, can perform fast lookups of
- * {@link CatalogInfo} objects by id or by "name", where the name is defined by
- * a a user provided mapping function.
+ * A support index for {@link DefaultCatalogFacade}, can perform fast lookups of {@link CatalogInfo}
+ * objects by id or by "name", where the name is defined by a a user provided mapping function.
  *
- * <p>
- * The lookups by predicate have been tested and optimized for performance, in
- * particular the current for loops turned out to be significantly faster than
- * building and returning streams
+ * <p>The lookups by predicate have been tested and optimized for performance, in particular the
+ * current for loops turned out to be significantly faster than building and returning streams
  *
  * @param <T>
  */
@@ -74,13 +68,13 @@ class CatalogInfoLookup<T extends CatalogInfo> {
         final boolean unique = true;
         final boolean hierarchical = isHierarchyRoot(clazz);
         this.indexes = new HashMap<>();
-        this.idIndex = addIndex("id", String.class, unique, hierarchical, false, CatalogInfo::getId);
+        this.idIndex =
+                addIndex("id", String.class, unique, hierarchical, false, CatalogInfo::getId);
         this.nameIndex = addIndex("name", Name.class, unique, hierarchical, true, nameMapper);
     }
 
     /**
-     * Protected constructor for subclassing at #combineAsImmutable, does not
-     * initialize any index
+     * Protected constructor for subclassing at #combineAsImmutable, does not initialize any index
      *
      * @param clazz
      */
@@ -100,14 +94,27 @@ class CatalogInfoLookup<T extends CatalogInfo> {
         return (Predicate<C>) TRUE;
     }
 
-    public <K> Index<K, T> addIndex(String propertyName, Class<K> propertyType, boolean unique, boolean hierarchical,
-            boolean sorted, Function<T, K> mapper) {
+    public <K> Index<K, T> addIndex(
+            String propertyName,
+            Class<K> propertyType,
+            boolean unique,
+            boolean hierarchical,
+            boolean sorted,
+            Function<T, K> mapper) {
 
         Objects.requireNonNull(propertyName, "propertyName is null");
         Objects.requireNonNull(propertyType, "propertyType is null");
         Objects.requireNonNull(mapper, "mapper is null");
 
-        Index<K, T> index = Index.create(propertyName, propertyType, this.clazz, unique, hierarchical, sorted, mapper);
+        Index<K, T> index =
+                Index.create(
+                        propertyName,
+                        propertyType,
+                        this.clazz,
+                        unique,
+                        hierarchical,
+                        sorted,
+                        mapper);
         synchronized (indexes) {
             indexes.put(propertyName, index);
         }
@@ -141,9 +148,7 @@ class CatalogInfoLookup<T extends CatalogInfo> {
         this.indexes.values().forEach(index -> index.remove(resolvedValue));
     }
 
-    /**
-     * Updates the value in the name map. The new value must be a ModificationProxy
-     */
+    /** Updates the value in the name map. The new value must be a ModificationProxy */
     public void update(T proxiedValue) {
         final T actualValue = ModificationProxy.unwrap(proxiedValue);
         this.indexes.values().forEach(index -> index.replace(actualValue, proxiedValue));
@@ -156,11 +161,10 @@ class CatalogInfoLookup<T extends CatalogInfo> {
     /**
      * Looks up objects by class and matching predicate.
      *
-     * <p>
-     * This method is significantly faster than creating a stream and the applying
-     * the predicate on it. Just using this approach instead of the stream makes the
-     * overall startup of GeoServer with 20k layers go down from 50s to 44s (which
-     * is a lot, considering there is a lot of other things going on)
+     * <p>This method is significantly faster than creating a stream and the applying the predicate
+     * on it. Just using this approach instead of the stream makes the overall startup of GeoServer
+     * with 20k layers go down from 50s to 44s (which is a lot, considering there is a lot of other
+     * things going on)
      *
      * @param clazz
      * @param predicate
@@ -171,7 +175,8 @@ class CatalogInfoLookup<T extends CatalogInfo> {
         System.err.println("-------> listing " + clazz);
         ArrayList<U> result = new ArrayList<U>();
         getNames().forEach(clazz, predicate, u -> result.add(u));
-        System.err.printf("-------> listing of %s built in %s, size: %,d%n", clazz, sw.stop(), result.size());
+        System.err.printf(
+                "-------> listing of %s built in %s, size: %,d%n", clazz, sw.stop(), result.size());
         return result;
     }
 
@@ -179,7 +184,8 @@ class CatalogInfoLookup<T extends CatalogInfo> {
         return getIds().stream(clazz, predicate);
     }
 
-    public <U extends CatalogInfo> Stream<U> stream(Class<U> clazz, Predicate<U> predicate, String indexName) {
+    public <U extends CatalogInfo> Stream<U> stream(
+            Class<U> clazz, Predicate<U> predicate, String indexName) {
         return getIndex(indexName).stream(clazz, predicate);
     }
 
@@ -218,11 +224,10 @@ class CatalogInfoLookup<T extends CatalogInfo> {
     /**
      * Looks up objects by class and matching predicate.
      *
-     * <p>
-     * This method is significantly faster than creating a stream and the applying
-     * the predicate on it. Just using this approach instead of the stream makes the
-     * overall startup of GeoServer with 20k layers go down from 50s to 44s (which
-     * is a lot, considering there is a lot of other things going on)
+     * <p>This method is significantly faster than creating a stream and the applying the predicate
+     * on it. Just using this approach instead of the stream makes the overall startup of GeoServer
+     * with 20k layers go down from 50s to 44s (which is a lot, considering there is a lot of other
+     * things going on)
      *
      * @param clazz
      * @param predicate
@@ -233,8 +238,7 @@ class CatalogInfoLookup<T extends CatalogInfo> {
     }
 
     /**
-     * Sets the specified catalog into all CatalogInfo objects contained in this
-     * lookup
+     * Sets the specified catalog into all CatalogInfo objects contained in this lookup
      *
      * @param catalog
      */
@@ -257,14 +261,15 @@ class CatalogInfoLookup<T extends CatalogInfo> {
     }
 
     @SuppressWarnings("unchecked")
-    public static <T extends CatalogInfo> CatalogInfoLookup<T> combineAsImmutable(Class<T> clazz,
-            final CatalogInfoLookup<? extends CatalogInfo>... others) {
+    public static <T extends CatalogInfo> CatalogInfoLookup<T> combineAsImmutable(
+            Class<T> clazz, final CatalogInfoLookup<? extends CatalogInfo>... others) {
         Objects.requireNonNull(others);
         if (others.length == 1) {
             return (CatalogInfoLookup<T>) others[0];
         }
         return new CatalogInfoLookup<T>(clazz) {
-            private final List<CatalogInfoLookup<? extends CatalogInfo>> delegates = Arrays.asList(others);
+            private final List<CatalogInfoLookup<? extends CatalogInfo>> delegates =
+                    Arrays.asList(others);
 
             public @Override List<T> values() {
                 List<T> values = (List<T>) delegates.get(0).values();
@@ -274,7 +279,8 @@ class CatalogInfoLookup<T extends CatalogInfo> {
                 return values;
             }
 
-            public @Override <U extends CatalogInfo> List<U> list(Class<U> clazz, Predicate<U> predicate) {
+            public @Override <U extends CatalogInfo> List<U> list(
+                    Class<U> clazz, Predicate<U> predicate) {
                 List<U> list = delegates.get(0).list(clazz, predicate);
                 for (int i = 1; i < delegates.size(); i++) {
                     List<U> next = delegates.get(i).list(clazz, predicate);
@@ -283,7 +289,8 @@ class CatalogInfoLookup<T extends CatalogInfo> {
                 return list;
             }
 
-            public @Override <U extends CatalogInfo> Stream<U> stream(Class<U> clazz, Predicate<U> predicate) {
+            public @Override <U extends CatalogInfo> Stream<U> stream(
+                    Class<U> clazz, Predicate<U> predicate) {
                 Stream<U> stream = delegates.get(0).stream(clazz, predicate);
                 for (int i = 1; i < delegates.size(); i++) {
                     Stream<U> next = delegates.get(i).stream(clazz, predicate);
@@ -292,8 +299,8 @@ class CatalogInfoLookup<T extends CatalogInfo> {
                 return stream;
             }
 
-            public @Override <U extends CatalogInfo> Stream<U> stream(Class<U> clazz, Predicate<U> predicate,
-                    String indexName) {
+            public @Override <U extends CatalogInfo> Stream<U> stream(
+                    Class<U> clazz, Predicate<U> predicate, String indexName) {
                 Stream<U> stream = delegates.get(0).stream(clazz, predicate, indexName);
                 for (int i = 1; i < delegates.size(); i++) {
                     Stream<U> next = delegates.get(i).stream(clazz, predicate, indexName);
@@ -302,7 +309,8 @@ class CatalogInfoLookup<T extends CatalogInfo> {
                 return stream;
             }
 
-            public @Override <U extends CatalogInfo> int count(Class<U> clazz, Predicate<U> predicate) {
+            public @Override <U extends CatalogInfo> int count(
+                    Class<U> clazz, Predicate<U> predicate) {
                 int count = 0;
                 for (int i = 0; i < delegates.size(); i++) {
                     count += delegates.get(i).count(clazz, predicate);
@@ -330,7 +338,8 @@ class CatalogInfoLookup<T extends CatalogInfo> {
                 return null;
             }
 
-            public @Override <U extends CatalogInfo> U findFirst(Class<U> clazz, Predicate<U> predicate) {
+            public @Override <U extends CatalogInfo> U findFirst(
+                    Class<U> clazz, Predicate<U> predicate) {
                 for (int i = 0; i < delegates.size(); i++) {
                     U found = delegates.get(i).findFirst(clazz, predicate);
                     if (null != found) {
@@ -368,7 +377,11 @@ class CatalogInfoLookup<T extends CatalogInfo> {
         final ValueProvider<K, T> valueProvider;
         final Class<T> clazz;
 
-        private Index(String name, Class<K> propertyType, Class<T> clazz, Function<T, K> mapper,
+        private Index(
+                String name,
+                Class<K> propertyType,
+                Class<T> clazz,
+                Function<T, K> mapper,
                 ValueProvider<K, T> valueProvider) {
             this.name = name;
             this.clazz = clazz;
@@ -386,7 +399,8 @@ class CatalogInfoLookup<T extends CatalogInfo> {
 
             int size();
 
-            <T extends CatalogInfo> void forEeach(Class<T> clazz, Predicate<T> predicate, Consumer<T> action);
+            <T extends CatalogInfo> void forEeach(
+                    Class<T> clazz, Predicate<T> predicate, Consumer<T> action);
 
             V remove(K key, V value);
 
@@ -399,7 +413,8 @@ class CatalogInfoLookup<T extends CatalogInfo> {
             List<V> getAll(K key);
         }
 
-        protected static final class SingleClassValueProvider<K, V extends CatalogInfo> implements ValueProvider<K, V> {
+        protected static final class SingleClassValueProvider<K, V extends CatalogInfo>
+                implements ValueProvider<K, V> {
             private ConcurrentMap<K, V> map;
             private boolean sorted;
 
@@ -413,11 +428,12 @@ class CatalogInfoLookup<T extends CatalogInfo> {
             }
 
             @SuppressWarnings("unchecked")
-            public @Override <T extends CatalogInfo> void forEeach(Class<T> clazz, Predicate<T> predicate, Consumer<T> action) {
-                Consumer<T> filterAndCall = v -> {
-                    if (predicate.test(v))
-                        action.accept(v);
-                };
+            public @Override <T extends CatalogInfo> void forEeach(
+                    Class<T> clazz, Predicate<T> predicate, Consumer<T> action) {
+                Consumer<T> filterAndCall =
+                        v -> {
+                            if (predicate.test(v)) action.accept(v);
+                        };
                 if (sorted) {
                     ((ConcurrentSkipListMap<K, T>) map).forEach((k, v) -> filterAndCall.accept(v));
                 } else {
@@ -434,7 +450,8 @@ class CatalogInfoLookup<T extends CatalogInfo> {
             }
 
             @SuppressWarnings("unchecked")
-            public @Override <U extends CatalogInfo> U findFirst(Class<U> clazz, Predicate<U> predicate) {
+            public @Override <U extends CatalogInfo> U findFirst(
+                    Class<U> clazz, Predicate<U> predicate) {
                 Function<U, U> searchFunction = v -> predicate.test(v) ? v : null;
                 if (sorted) {
                     for (V v : map.values()) {
@@ -448,7 +465,8 @@ class CatalogInfoLookup<T extends CatalogInfo> {
                 return null;
             }
 
-            public @Override <U extends CatalogInfo> Stream<U> stream(Class<U> clazz, Predicate<U> predicate) {
+            public @Override <U extends CatalogInfo> Stream<U> stream(
+                    Class<U> clazz, Predicate<U> predicate) {
                 return map.values().stream().map(clazz::cast).filter(predicate);
             }
 
@@ -469,61 +487,68 @@ class CatalogInfoLookup<T extends CatalogInfo> {
 
             @SuppressWarnings("unchecked")
             public @Override void put(K key, V value) {
-                multivaluedMap.compute(key, (k, currVal) -> {
-                    if (currVal == null) {
-                        return value;
-                    }
-                    List<V> list;
-                    if (currVal instanceof List) {
-                        list = (List<V>) currVal;
-                    } else {
-                        list = new ArrayList<>();
-                        list.add((V) currVal);
-                    }
-                    list.add(value);
-                    return list;
-                });
+                multivaluedMap.compute(
+                        key,
+                        (k, currVal) -> {
+                            if (currVal == null) {
+                                return value;
+                            }
+                            List<V> list;
+                            if (currVal instanceof List) {
+                                list = (List<V>) currVal;
+                            } else {
+                                list = new ArrayList<>();
+                                list.add((V) currVal);
+                            }
+                            list.add(value);
+                            return list;
+                        });
             }
 
             @SuppressWarnings("unchecked")
-            public @Override <T extends CatalogInfo> void forEeach(Class<T> clazz, Predicate<T> predicate, Consumer<T> action) {
-                multivaluedMap.forEachValue(1, v -> {
-                    if (v instanceof List) {
-                        ((List<V>) v).forEach(o -> {
-                            if (predicate.test((T) v))
-                                action.accept((T) v);
+            public @Override <T extends CatalogInfo> void forEeach(
+                    Class<T> clazz, Predicate<T> predicate, Consumer<T> action) {
+                multivaluedMap.forEachValue(
+                        1,
+                        v -> {
+                            if (v instanceof List) {
+                                ((List<V>) v)
+                                        .forEach(
+                                                o -> {
+                                                    if (predicate.test((T) v)) action.accept((T) v);
+                                                });
+                            } else {
+                                if (predicate.test((T) v)) action.accept((T) v);
+                            }
                         });
-                    } else {
-                        if (predicate.test((T) v))
-                            action.accept((T) v);
-                    }
-                });
             }
 
             @SuppressWarnings("unchecked")
             public @Override V remove(K key, V value) {
                 final AtomicReference<V> removed = new AtomicReference<>();
-                multivaluedMap.compute(key, (k, currVal) -> {
-                    if (currVal == null) {
-                        return null;
-                    }
-                    if (currVal instanceof List) {
-                        List<V> list = (List<V>) currVal;
-                        for (Iterator<V> i = list.iterator(); i.hasNext();) {
-                            V v = i.next();
-                            if (v.getId().equals(value.getId())) {
-                                i.remove();
-                                removed.set((V) v);
-                                break;
+                multivaluedMap.compute(
+                        key,
+                        (k, currVal) -> {
+                            if (currVal == null) {
+                                return null;
                             }
-                        }
-                        return list.isEmpty() ? null : list;
-                    }
-                    // not a list, the single actual value, return null to remove the
-                    // mapping
-                    removed.set((V) currVal);
-                    return null;
-                });
+                            if (currVal instanceof List) {
+                                List<V> list = (List<V>) currVal;
+                                for (Iterator<V> i = list.iterator(); i.hasNext(); ) {
+                                    V v = i.next();
+                                    if (v.getId().equals(value.getId())) {
+                                        i.remove();
+                                        removed.set((V) v);
+                                        break;
+                                    }
+                                }
+                                return list.isEmpty() ? null : list;
+                            }
+                            // not a list, the single actual value, return null to remove the
+                            // mapping
+                            removed.set((V) currVal);
+                            return null;
+                        });
                 return removed.get();
             }
 
@@ -534,32 +559,47 @@ class CatalogInfoLookup<T extends CatalogInfo> {
             @SuppressWarnings("unchecked")
             public @Override List<V> getAll(K key) {
                 Object v = multivaluedMap.get(key);
-                return v == null ? Collections.emptyList() : //
-                        v instanceof List ? new ArrayList<>((List<V>) v) : Collections.singletonList((V) v);
+                return v == null
+                        ? Collections.emptyList()
+                        : //
+                        v instanceof List
+                                ? new ArrayList<>((List<V>) v)
+                                : Collections.singletonList((V) v);
             }
 
             @SuppressWarnings("unchecked")
-            public @Override <U extends CatalogInfo> U findFirst(Class<U> clazz, Predicate<U> predicate) {
-                return multivaluedMap.searchValues(1, v -> {
-                    U ret = null;
-                    if (v instanceof List) {
-                        for (U u : ((List<U>) v)) {
-                            if (predicate.test(u)) {
-                                ret = u;
+            public @Override <U extends CatalogInfo> U findFirst(
+                    Class<U> clazz, Predicate<U> predicate) {
+                return multivaluedMap.searchValues(
+                        1,
+                        v -> {
+                            U ret = null;
+                            if (v instanceof List) {
+                                for (U u : ((List<U>) v)) {
+                                    if (predicate.test(u)) {
+                                        ret = u;
+                                    }
+                                }
+                            } else if (predicate.test((U) v)) {
+                                ret = (U) v;
                             }
-                        }
-                    } else if (predicate.test((U) v)) {
-                        ret = (U) v;
-                    }
-                    return ret;
-                });
+                            return ret;
+                        });
             }
 
-            public @Override <U extends CatalogInfo> Stream<U> stream(Class<U> clazz, Predicate<U> predicate) {
+            public @Override <U extends CatalogInfo> Stream<U> stream(
+                    Class<U> clazz, Predicate<U> predicate) {
                 @SuppressWarnings("unchecked")
-                Stream<List<U>> s = multivaluedMap.values().stream().map(o -> {
-                    return o instanceof List ? (List<U>) o : Collections.singletonList((U) o);
-                });
+                Stream<List<U>> s =
+                        multivaluedMap
+                                .values()
+                                .stream()
+                                .map(
+                                        o -> {
+                                            return o instanceof List
+                                                    ? (List<U>) o
+                                                    : Collections.singletonList((U) o);
+                                        });
                 // flatten the lists
                 Stream<U> flattened = s.flatMap(Collection::stream);
                 return flattened.filter(predicate);
@@ -570,8 +610,10 @@ class CatalogInfoLookup<T extends CatalogInfo> {
             }
         }
 
-        protected static final class HierarchyValueProvider<K, V extends CatalogInfo> implements ValueProvider<K, V> {
-            private final ConcurrentMap<Class<?>, SingleClassValueProvider<K, V>> maps = new ConcurrentHashMap<>();
+        protected static final class HierarchyValueProvider<K, V extends CatalogInfo>
+                implements ValueProvider<K, V> {
+            private final ConcurrentMap<Class<?>, SingleClassValueProvider<K, V>> maps =
+                    new ConcurrentHashMap<>();
             private final boolean sorted;
 
             HierarchyValueProvider(boolean sorted) {
@@ -581,15 +623,18 @@ class CatalogInfoLookup<T extends CatalogInfo> {
             public @Override void put(K key, V value) {
                 Class<Object> intfc = ClassMappings.fromImpl(value.getClass()).getInterface();
                 SingleClassValueProvider<K, V> typeValues;
-                typeValues = maps.computeIfAbsent(intfc, type -> new SingleClassValueProvider<>(sorted));
+                typeValues =
+                        maps.computeIfAbsent(intfc, type -> new SingleClassValueProvider<>(sorted));
                 typeValues.put(key, value);
             }
 
-            public @Override <T extends CatalogInfo> void forEeach(Class<T> clazz, Predicate<T> predicate, Consumer<T> action) {
-                maps.forEach((type, values) -> {
-                    if (clazz.isAssignableFrom(type))
-                        values.forEeach(clazz, predicate, action);
-                });
+            public @Override <T extends CatalogInfo> void forEeach(
+                    Class<T> clazz, Predicate<T> predicate, Consumer<T> action) {
+                maps.forEach(
+                        (type, values) -> {
+                            if (clazz.isAssignableFrom(type))
+                                values.forEeach(clazz, predicate, action);
+                        });
             }
 
             public @Override V remove(K key, V value) {
@@ -620,7 +665,8 @@ class CatalogInfoLookup<T extends CatalogInfo> {
                 return null;
             }
 
-            public @Override <U extends CatalogInfo> U findFirst(Class<U> clazz, Predicate<U> predicate) {
+            public @Override <U extends CatalogInfo> U findFirst(
+                    Class<U> clazz, Predicate<U> predicate) {
                 for (Entry<Class<?>, SingleClassValueProvider<K, V>> e : maps.entrySet()) {
                     if (clazz.isAssignableFrom(e.getKey())) {
                         U found = e.getValue().findFirst(clazz, predicate);
@@ -632,7 +678,8 @@ class CatalogInfoLookup<T extends CatalogInfo> {
                 return null;
             }
 
-            public @Override <U extends CatalogInfo> Stream<U> stream(Class<U> clazz, Predicate<U> predicate) {
+            public @Override <U extends CatalogInfo> Stream<U> stream(
+                    Class<U> clazz, Predicate<U> predicate) {
                 Stream<U> stream = Stream.empty();
                 for (Entry<Class<?>, SingleClassValueProvider<K, V>> e : maps.entrySet()) {
                     if (clazz.isAssignableFrom(e.getKey())) {
@@ -650,20 +697,23 @@ class CatalogInfoLookup<T extends CatalogInfo> {
         protected static final class HierarchyMultivalueProvider<K, V extends CatalogInfo>
                 implements ValueProvider<K, V> {
 
-            private ConcurrentMap<Class<V>, SingleClassMultivalueProvider<K, V>> maps = new ConcurrentHashMap<>();
+            private ConcurrentMap<Class<V>, SingleClassMultivalueProvider<K, V>> maps =
+                    new ConcurrentHashMap<>();
 
             public @Override void put(K key, V value) {
                 Class<V> intfc = ClassMappings.fromImpl(value.getClass()).getInterface();
-                SingleClassMultivalueProvider<K, V> typeMap = maps.computeIfAbsent(intfc,
-                        type -> new SingleClassMultivalueProvider<>());
+                SingleClassMultivalueProvider<K, V> typeMap =
+                        maps.computeIfAbsent(intfc, type -> new SingleClassMultivalueProvider<>());
                 typeMap.put(key, value);
             }
 
-            public @Override <T extends CatalogInfo> void forEeach(Class<T> clazz, Predicate<T> predicate, Consumer<T> action) {
-                maps.forEach((type, values) -> {
-                    if (clazz.isAssignableFrom(type))
-                        values.forEeach(clazz, predicate, action);
-                });
+            public @Override <T extends CatalogInfo> void forEeach(
+                    Class<T> clazz, Predicate<T> predicate, Consumer<T> action) {
+                maps.forEach(
+                        (type, values) -> {
+                            if (clazz.isAssignableFrom(type))
+                                values.forEeach(clazz, predicate, action);
+                        });
             }
 
             public @Override V remove(K key, V value) {
@@ -707,7 +757,8 @@ class CatalogInfoLookup<T extends CatalogInfo> {
                 return res;
             }
 
-            public @Override <U extends CatalogInfo> U findFirst(Class<U> clazz, Predicate<U> predicate) {
+            public @Override <U extends CatalogInfo> U findFirst(
+                    Class<U> clazz, Predicate<U> predicate) {
                 for (Entry<Class<V>, SingleClassMultivalueProvider<K, V>> e : maps.entrySet()) {
                     if (clazz.isAssignableFrom(e.getKey())) {
                         U found = e.getValue().findFirst(clazz, predicate);
@@ -719,7 +770,8 @@ class CatalogInfoLookup<T extends CatalogInfo> {
                 return null;
             }
 
-            public @Override <U extends CatalogInfo> Stream<U> stream(Class<U> clazz, Predicate<U> predicate) {
+            public @Override <U extends CatalogInfo> Stream<U> stream(
+                    Class<U> clazz, Predicate<U> predicate) {
                 Stream<U> stream = Stream.empty();
                 for (Entry<Class<V>, SingleClassMultivalueProvider<K, V>> e : maps.entrySet()) {
                     if (clazz.isAssignableFrom(e.getKey())) {
@@ -735,22 +787,33 @@ class CatalogInfoLookup<T extends CatalogInfo> {
         }
 
         /**
-         * @param name         index name
+         * @param name index name
          * @param propertyType the index property type
-         * @param unique       whether the index is unique or not
-         * @param hierarchical whether the index works across a class hierarchy (e.g.
-         *                     ResourceInfo and its descendants) or a single class (e.g.
-         *                     NamespaceInfo)
-         * @param mapper       function to obtain the index key for a specific value
+         * @param unique whether the index is unique or not
+         * @param hierarchical whether the index works across a class hierarchy (e.g. ResourceInfo
+         *     and its descendants) or a single class (e.g. NamespaceInfo)
+         * @param mapper function to obtain the index key for a specific value
          */
-        public static <K, V extends CatalogInfo> Index<K, V> create(String name, Class<K> propertyType,
-                Class<V> valueType, boolean unique, boolean hierarchical, boolean sorted, Function<V, K> mapper) {
+        public static <K, V extends CatalogInfo> Index<K, V> create(
+                String name,
+                Class<K> propertyType,
+                Class<V> valueType,
+                boolean unique,
+                boolean hierarchical,
+                boolean sorted,
+                Function<V, K> mapper) {
 
             ValueProvider<K, V> valueProvider;
             if (hierarchical) {
-                valueProvider = unique ? new HierarchyValueProvider<>(sorted) : new HierarchyMultivalueProvider<>();
+                valueProvider =
+                        unique
+                                ? new HierarchyValueProvider<>(sorted)
+                                : new HierarchyMultivalueProvider<>();
             } else {
-                valueProvider = unique ? new SingleClassValueProvider<>(sorted) : new SingleClassMultivalueProvider<>();
+                valueProvider =
+                        unique
+                                ? new SingleClassValueProvider<>(sorted)
+                                : new SingleClassMultivalueProvider<>();
             }
             Index<K, V> index = new Index<>(name, propertyType, valueType, mapper, valueProvider);
             return index;
@@ -779,7 +842,8 @@ class CatalogInfoLookup<T extends CatalogInfo> {
             valueProvider.forEeach(clazz, v -> true, target);
         }
 
-        public <U extends CatalogInfo> void forEach(Class<U> clazz, Predicate<U> predicate, Consumer<U> action) {
+        public <U extends CatalogInfo> void forEach(
+                Class<U> clazz, Predicate<U> predicate, Consumer<U> action) {
             valueProvider.forEeach(clazz, predicate, action);
         }
 

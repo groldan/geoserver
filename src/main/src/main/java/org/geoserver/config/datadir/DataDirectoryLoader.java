@@ -142,6 +142,7 @@ public class DataDirectoryLoader {
                 invokeAll(new LayerGroupsLoader(context, layergroups));
             }
 
+            context.commit();
             context.persister().setUnwrapNulls(true);
             catalog.resolve();
 
