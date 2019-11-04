@@ -898,7 +898,12 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
         if (MapInfo.class.isAssignableFrom(of)) {
             return (int) maps.stream().filter(toPredicate(filter)).count();
         }
-        return lookupManager.count(of, filter);
+        try {
+            return lookupManager.count(of, filter);
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
     }
 
     /**

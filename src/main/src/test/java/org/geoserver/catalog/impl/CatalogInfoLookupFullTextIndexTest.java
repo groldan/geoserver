@@ -33,14 +33,15 @@ public class CatalogInfoLookupFullTextIndexTest {
         index.close();
     }
 
-    public @Test void testOpenClose() throws IOException {
+    public @Test void testOpenClose() throws IOException, InterruptedException {
         index.open();
+        assertTrue(index.isOpen());
         index.open();
         index.close();
         index.close();
     }
 
-    public @Test void testWorkspace() throws IOException {
+    public @Test void testWorkspace() throws IOException, InterruptedException {
         index.open();
         WorkspaceInfoImpl ws1 = newWorkspace("workspace1");
         WorkspaceInfoImpl ws2 = newWorkspace("workspace2");
@@ -48,7 +49,7 @@ public class CatalogInfoLookupFullTextIndexTest {
         index.add(ws1);
         index.add(ws2);
         index.commit();
-        
+        Thread.sleep(100);
         List<?> resultIds = index.search("*workspace*").collect(Collectors.toList());
         assertEquals(2, resultIds.size());
         assertTrue(resultIds.contains(ws1.getId()));

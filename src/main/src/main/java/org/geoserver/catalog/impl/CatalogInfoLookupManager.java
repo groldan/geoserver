@@ -38,6 +38,7 @@ import org.opengis.feature.type.Name;
 import org.opengis.filter.Filter;
 import org.opengis.filter.PropertyIsLike;
 import org.opengis.filter.expression.Expression;
+import org.opengis.filter.expression.PropertyName;
 
 import com.google.common.base.Stopwatch;
 
@@ -185,12 +186,7 @@ public class CatalogInfoLookupManager {
         @SuppressWarnings("unchecked")
         CatalogInfoLookup<T> container = lookupFor((Class<T>) resolvedValue.getClass());
         container.add(info);
-        try {
-            this.fullTextIndex.add(info);
-        } catch (IOException e) {
-            e.printStackTrace();
-            throw new RuntimeException(e);
-        }
+        this.fullTextIndex.add(info);
     }
 
     public <T extends CatalogInfo> void update(T info) {
@@ -219,26 +215,38 @@ public class CatalogInfoLookupManager {
         }
     }
 
-    public <T extends CatalogInfo> int count(Class<T> type, Filter filter) {
+    public <T extends CatalogInfo> int count(final Class<T> type, final Filter filter) throws IOException {
         Objects.requireNonNull(type, "type is null, use CatalogInfo.class instead");
         Objects.requireNonNull(filter, "filter is null, use Filter.INCLUDE instead");
         int count;
         Stopwatch sw = Stopwatch.createStarted();
         if (filter == Filter.INCLUDE) {
             count = lookupFor(type).size();
-            System.err.printf("CatalogInfoLookupManager.count(): lookupFor().size() count: %s, type: %s, filter: %s%n", sw.stop(), type.getSimpleName(), filter);
-        }else {
-            final boolean hasFullTextSearch = Filters.propertyNames(filter).contains(Predicates.ANY_TEXT);
+        } else {
+            final Set<PropertyName> propertyNames = Filters.propertyNames(filter);
+            final boolean hasFullTextSearch = propertyNames.contains(Predicates.ANY_TEXT);
             if (hasFullTextSearch) {
-                try {
-                    count = (int) stream(type, filter).count();
-                    System.err.printf("CatalogInfoLookupManager.count(): stream count: %s, type: %s, filter: %s%n", sw.stop(), type.getSimpleName(), filter);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
+                Set<String> terms = new HashSet<>();
+                final Filter postFilter = replaceFullTextFilter(filter, terms);
+                final boolean filterFullySupportedByTextIndex = postFilter == Filter.INCLUDE;
+                if (filterFullySupportedByTextIndex) {
+                    count = fullTextIndex.hitCount(type, terms);
+                    System.err.printf("CatalogInfoLookupManager.fullTextIndex.hitCount(): %s, type: %s, filter: %s%n",
+                            sw.stop(), type.getSimpleName(), filter);
+                } else {
+                    try {
+                        count = (int) stream(type, filter).count();
+                        System.err.printf(
+                                "CatalogInfoLookupManager.stream().count(): stream: %s, type: %s, filter: %s%n",
+                                sw.stop(), type.getSimpleName(), filter);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
                 }
             } else {
                 count = lookupFor(type).count(type, toPredicate(filter));
-                System.err.printf("CatalogInfoLookupManager.count(): lookupFor count: %s, type: %s, filter: %s%n", sw.stop(), type.getSimpleName(), filter);
+                System.err.printf("CatalogInfoLookupManager.lookupFor().count(): %s, type: %s, filter: %s%n", sw.stop(),
+                        type.getSimpleName(), filter);
             }
         }
         return count;
@@ -284,10 +292,10 @@ public class CatalogInfoLookupManager {
     }
 
     private Filter replaceFullTextFilter(Filter filter, Set<String> terms) {
-        FullTextExtractFilterVisitor visitor = new FullTextExtractFilterVisitor();
-        Filter duplicate = (Filter) filter.accept(visitor, terms);
+        FullTextExtractFilterVisitor removeFullTextFilter = new FullTextExtractFilterVisitor();
+        Filter textFilterRemoved = (Filter) filter.accept(removeFullTextFilter, terms);
         SimplifyingFilterVisitor simplify = new SimplifyingFilterVisitor();
-        Filter simplified = (Filter) duplicate.accept(simplify, null);
+        Filter simplified = (Filter) textFilterRemoved.accept(simplify, null);
         return simplified;
     }
 
