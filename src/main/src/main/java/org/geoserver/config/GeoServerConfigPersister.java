@@ -604,11 +604,11 @@ public class GeoServerConfigPersister
 
     private void persist(Object o, Resource r) throws IOException {
         try {
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
             synchronized (xp) {
-                ByteArrayOutputStream bos = new ByteArrayOutputStream();
                 xp.save(o, bos);
-                r.setContents(bos.toByteArray());
             }
+            r.setContents(bos.toByteArray());
             LOGGER.fine("Persisted " + o.getClass().getName() + " to " + r.path());
         } catch (Exception e) {
             // catch any exceptions and send them back as CatalogExeptions

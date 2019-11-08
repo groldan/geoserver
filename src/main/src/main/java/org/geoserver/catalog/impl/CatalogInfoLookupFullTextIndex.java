@@ -2,6 +2,7 @@ package org.geoserver.catalog.impl;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.AbstractIterator;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Streams;
 import com.google.common.io.Closeables;
 import com.google.common.primitives.Ints;
@@ -90,6 +91,30 @@ public class CatalogInfoLookupFullTextIndex {
     }
 
     private static final CatalogPropertyAccessor propertyExtractor = new CatalogPropertyAccessor();
+
+    private static final Set<String> SORTABLE_PROPERTY_NAMES =
+            ImmutableSet.of(
+                    "name",
+                    "isolated",
+                    "prefix",
+                    "URI",
+                    "type",
+                    "workspace.name",
+                    "enabled",
+                    "URL",
+                    "description",
+                    "nativeName",
+                    "prefixedName",
+                    "projectionPolicy",
+                    "SRS",
+                    "title",
+                    "namespace.name",
+                    "namespace.prefix",
+                    "store.name",
+                    "nativeFormat",
+                    "resource.store.name",
+                    "resource.SRS",
+                    "resource.store.workspace.name");
 
     private static class Command {
 
@@ -374,9 +399,9 @@ public class CatalogInfoLookupFullTextIndex {
         BooleanQuery query = buildQuery(clazz, searchTerms);
         try (DirectoryReader indexReader = DirectoryReader.open(idx)) {
             IndexSearcher searcher = new IndexSearcher(indexReader);
-            //            TotalHitCountCollector hitsCollector = new TotalHitCountCollector();
-            //            searcher.search(query, hitsCollector);
-            //            int totalHits = hitsCollector.getTotalHits();
+            // TotalHitCountCollector hitsCollector = new TotalHitCountCollector();
+            // searcher.search(query, hitsCollector);
+            // int totalHits = hitsCollector.getTotalHits();
             int totalHits = searcher.count(query);
             return totalHits;
         }
@@ -469,7 +494,7 @@ public class CatalogInfoLookupFullTextIndex {
                     }
 
                     private Iterator<ScoreDoc> nextPage() {
-                        //            Stopwatch sw = Stopwatch.createStarted();
+                        // Stopwatch sw = Stopwatch.createStarted();
                         TopDocs topDocs;
                         ScoreDoc[] scoreDocs;
                         try {
@@ -480,24 +505,24 @@ public class CatalogInfoLookupFullTextIndex {
                                     searchQuery,
                                     sort);
                             // not sure how to do paging properly... revisit
-                            //                if (offset != null) {
-                            //                    int start = offset.intValue();
-                            //                    if (start == 0) {
-                            //                        start = 1;
-                            //                    }
-                            //                    if (sort == null) {
-                            //                        topDocs = searcher.search(searchQuery, start);
-                            //                    } else {
-                            //                        topDocs = searcher.search(searchQuery, start,
+                            // if (offset != null) {
+                            // int start = offset.intValue();
+                            // if (start == 0) {
+                            // start = 1;
+                            // }
+                            // if (sort == null) {
+                            // topDocs = searcher.search(searchQuery, start);
+                            // } else {
+                            // topDocs = searcher.search(searchQuery, start,
                             // sort);
-                            //                    }
-                            //                    scoreDocs = topDocs.scoreDocs;
-                            //                    if (scoreDocs == null || scoreDocs.length < start)
+                            // }
+                            // scoreDocs = topDocs.scoreDocs;
+                            // if (scoreDocs == null || scoreDocs.length < start)
                             // {
-                            //                        return Collections.emptyIterator();
-                            //                    }
-                            //                    lastScoreDoc = scoreDocs[start - 1];
-                            //                }
+                            // return Collections.emptyIterator();
+                            // }
+                            // lastScoreDoc = scoreDocs[start - 1];
+                            // }
                             if (lastScoreDoc == null) {
                                 if (sort == null) {
                                     topDocs = searcher.search(searchQuery, pageSize);
@@ -519,7 +544,7 @@ public class CatalogInfoLookupFullTextIndex {
                             e.printStackTrace();
                             throw new RuntimeException(e);
                         }
-                        //            System.err.printf("### lucene search: %s, hits: %,d ###\n",
+                        // System.err.printf("### lucene search: %s, hits: %,d ###\n",
                         // sw.stop(), topDocs.scoreDocs.length);
 
                         scoreDocs = topDocs.scoreDocs;
@@ -631,13 +656,14 @@ public class CatalogInfoLookupFullTextIndex {
 
         StringBuilder anyText = new StringBuilder();
         propertyNames.forEach(
-                p -> {
-                    Object value = propertyExtractor.getProperty(info, p);
+                propertyName -> {
+                    Object value = propertyExtractor.getProperty(info, propertyName);
                     // add the field for sorting
-                    BytesRef fieldBytes = toBytesRefForSortedField(value);
-                    Field sortingField = new SortedDocValuesField(p, fieldBytes);
-                    doc.add(sortingField);
-
+                    if (SORTABLE_PROPERTY_NAMES.contains(propertyName)) {
+                        BytesRef fieldBytes = toBytesRefForSortedField(value);
+                        Field sortingField = new SortedDocValuesField(propertyName, fieldBytes);
+                        doc.add(sortingField);
+                    }
                     // and contribute to the full text search field only if non null
                     appendAnytext(value, anyText);
                 });
@@ -685,7 +711,7 @@ public class CatalogInfoLookupFullTextIndex {
         }
         if (value instanceof CharSequence) return new BytesRef((CharSequence) value);
         if (value instanceof Boolean)
-            //            return new BytesRef(((Boolean) value).booleanValue() ? BYTES_TRUE :
+            // return new BytesRef(((Boolean) value).booleanValue() ? BYTES_TRUE :
             // BYTES_FALSE);
             return new BytesRef(Boolean.class.cast(value).booleanValue() ? "true" : "false");
         if (value instanceof Number) {
@@ -712,7 +738,7 @@ public class CatalogInfoLookupFullTextIndex {
 
             return rawVal == null ? new BytesRef(value.toString()) : new BytesRef(rawVal);
         }
-        //        System.err.printf("Value is not string nor number: %s (%s)%n", value,
+        // System.err.printf("Value is not string nor number: %s (%s)%n", value,
         // value.getClass().getName());
         return new BytesRef(value.toString());
     }

@@ -7,6 +7,7 @@ package org.geoserver.config.util;
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.converters.Converter;
 import com.thoughtworks.xstream.converters.ConverterLookup;
+import com.thoughtworks.xstream.converters.ConverterMatcher;
 import com.thoughtworks.xstream.converters.ConverterRegistry;
 import com.thoughtworks.xstream.converters.SingleValueConverter;
 import com.thoughtworks.xstream.converters.basic.BigDecimalConverter;
@@ -39,7 +40,6 @@ import com.thoughtworks.xstream.converters.extended.JavaClassConverter;
 import com.thoughtworks.xstream.converters.extended.JavaFieldConverter;
 import com.thoughtworks.xstream.converters.extended.JavaMethodConverter;
 import com.thoughtworks.xstream.converters.extended.LocaleConverter;
-import com.thoughtworks.xstream.converters.extended.LookAndFeelConverter;
 import com.thoughtworks.xstream.converters.extended.SqlDateConverter;
 import com.thoughtworks.xstream.converters.extended.SqlTimeConverter;
 import com.thoughtworks.xstream.converters.extended.SqlTimestampConverter;
@@ -54,10 +54,10 @@ import com.thoughtworks.xstream.mapper.MapperWrapper;
 import com.thoughtworks.xstream.security.ForbiddenClassException;
 import com.thoughtworks.xstream.security.NoTypePermission;
 import com.thoughtworks.xstream.security.PrimitiveTypePermission;
-import java.lang.reflect.Constructor;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -206,288 +206,58 @@ public class SecureXStream extends XStream {
      */
     @Override
     protected void setupConverters() {
+        // register the converters that don't need any context and hence can be cached
+        getCachedConverters()
+                .forEach(
+                        cm -> {
+                            if (cm instanceof Converter) {
+                                registerConverter((Converter) cm);
+                            } else if (cm instanceof SingleValueConverter) {
+                                registerConverter((SingleValueConverter) cm);
+                            } else {
+                                throw new IllegalStateException();
+                            }
+                        });
+        if (JVM.isAWTAvailable()) {
+            registerConverter(new ColorConverter());
+        }
+
+        // register the converters that need some specific instance context
         Mapper mapper = getMapper();
         ReflectionProvider reflectionProvider = getReflectionProvider();
         ClassLoaderReference classLoaderReference = getClassLoaderReference();
         ConverterLookup converterLookup = getConverterLookup();
 
+        // we really shouldn't need this one...
+        // if (JVM.isSwingAvailable()) {
+        //    registerConverter(new LookAndFeelConverter(mapper, reflectionProvider));
+        // }
         registerConverter(new ReflectionConverter(mapper, reflectionProvider), PRIORITY_VERY_LOW);
-
-        registerConverter(new NullConverter(), PRIORITY_VERY_HIGH);
-        registerConverter(new IntConverter(), PRIORITY_NORMAL);
-        registerConverter(new FloatConverter(), PRIORITY_NORMAL);
-        registerConverter(new DoubleConverter(), PRIORITY_NORMAL);
-        registerConverter(new LongConverter(), PRIORITY_NORMAL);
-        registerConverter(new ShortConverter(), PRIORITY_NORMAL);
-        registerConverter((Converter) new CharConverter(), PRIORITY_NORMAL);
-        registerConverter(new BooleanConverter(), PRIORITY_NORMAL);
-        registerConverter(new ByteConverter(), PRIORITY_NORMAL);
-
-        registerConverter(new StringConverter(), PRIORITY_NORMAL);
-        registerConverter(new StringBufferConverter(), PRIORITY_NORMAL);
-        registerConverter(new DateConverter(), PRIORITY_NORMAL);
-        registerConverter(new BitSetConverter(), PRIORITY_NORMAL);
-        registerConverter(new URIConverter(), PRIORITY_NORMAL);
-        registerConverter(new URLConverter(), PRIORITY_NORMAL);
-        registerConverter(new BigIntegerConverter(), PRIORITY_NORMAL);
-        registerConverter(new BigDecimalConverter(), PRIORITY_NORMAL);
-
-        registerConverter(new ArrayConverter(mapper), PRIORITY_NORMAL);
-        registerConverter(new CharArrayConverter(), PRIORITY_NORMAL);
-        registerConverter(new CollectionConverter(mapper), PRIORITY_NORMAL);
-        registerConverter(new MapConverter(mapper), PRIORITY_NORMAL);
-        registerConverter(new TreeMapConverter(mapper), PRIORITY_NORMAL);
-        registerConverter(new TreeSetConverter(mapper), PRIORITY_NORMAL);
-        registerConverter(new SingletonCollectionConverter(mapper), PRIORITY_NORMAL);
-        registerConverter(new SingletonMapConverter(mapper), PRIORITY_NORMAL);
-        registerConverter((Converter) new EncodedByteArrayConverter(), PRIORITY_NORMAL);
-
-        registerConverter(new FileConverter(), PRIORITY_NORMAL);
-        if (JVM.isSQLAvailable()) {
-            registerConverter(new SqlTimestampConverter(), PRIORITY_NORMAL);
-            registerConverter(new SqlTimeConverter(), PRIORITY_NORMAL);
-            registerConverter(new SqlDateConverter(), PRIORITY_NORMAL);
-        }
-        registerConverter(new JavaClassConverter(classLoaderReference), PRIORITY_NORMAL);
-        registerConverter(new JavaMethodConverter(classLoaderReference), PRIORITY_NORMAL);
-        registerConverter(new JavaFieldConverter(classLoaderReference), PRIORITY_NORMAL);
-
-        if (JVM.isAWTAvailable()) {
-            registerConverter(new ColorConverter(), PRIORITY_NORMAL);
-        }
-        if (JVM.isSwingAvailable()) {
-            registerConverter(
-                    new LookAndFeelConverter(mapper, reflectionProvider), PRIORITY_NORMAL);
-        }
-        registerConverter(new LocaleConverter(), PRIORITY_NORMAL);
-        registerConverter(new GregorianCalendarConverter(), PRIORITY_NORMAL);
-
-        // late bound converters - allows XStream to be compiled on earlier JDKs
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.extended.SubjectConverter.class,
-                PRIORITY_NORMAL,
-                new Class[] {Mapper.class},
-                new Object[] {mapper});
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.extended.ThrowableConverter.class,
-                PRIORITY_NORMAL,
-                new Class[] {ConverterLookup.class},
-                new Object[] {converterLookup});
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.extended.StackTraceElementConverter.class,
-                PRIORITY_NORMAL,
-                null,
-                null);
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.extended.CurrencyConverter.class,
-                PRIORITY_NORMAL,
-                null,
-                null);
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.extended.RegexPatternConverter.class,
-                PRIORITY_NORMAL,
-                null,
-                null);
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.extended.CharsetConverter.class,
-                PRIORITY_NORMAL,
-                null,
-                null);
-
-        // late bound converters - allows XStream to be compiled on earlier JDKs
-        if (JVM.loadClassForName("javax.xml.datatype.Duration") != null) {
-            registerConverterDynamically(
-                    com.thoughtworks.xstream.converters.extended.DurationConverter.class,
-                    PRIORITY_NORMAL,
-                    null,
-                    null);
-        }
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.enums.EnumConverter.class,
-                PRIORITY_NORMAL,
-                null,
-                null);
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.basic.StringBuilderConverter.class,
-                PRIORITY_NORMAL,
-                null,
-                null);
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.basic.UUIDConverter.class,
-                PRIORITY_NORMAL,
-                null,
-                null);
-        if (JVM.loadClassForName("javax.activation.ActivationDataFlavor") != null) {
-            registerConverterDynamically(
-                    com.thoughtworks.xstream.converters.extended.ActivationDataFlavorConverter
-                            .class,
-                    PRIORITY_NORMAL,
-                    null,
-                    null);
-        }
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.extended.PathConverter.class,
-                PRIORITY_NORMAL,
-                null,
-                null);
-
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.time.ChronologyConverter.class,
-                PRIORITY_NORMAL,
-                null,
-                null);
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.time.DurationConverter.class,
-                PRIORITY_NORMAL,
-                null,
-                null);
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.time.HijrahDateConverter.class,
-                PRIORITY_NORMAL,
-                null,
-                null);
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.time.JapaneseDateConverter.class,
-                PRIORITY_NORMAL,
-                null,
-                null);
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.time.JapaneseEraConverter.class,
-                PRIORITY_NORMAL,
-                null,
-                null);
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.time.InstantConverter.class,
-                PRIORITY_NORMAL,
-                null,
-                null);
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.time.LocalDateConverter.class,
-                PRIORITY_NORMAL,
-                null,
-                null);
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.time.LocalDateTimeConverter.class,
-                PRIORITY_NORMAL,
-                null,
-                null);
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.time.LocalTimeConverter.class,
-                PRIORITY_NORMAL,
-                null,
-                null);
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.time.MinguoDateConverter.class,
-                PRIORITY_NORMAL,
-                null,
-                null);
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.time.MonthDayConverter.class,
-                PRIORITY_NORMAL,
-                null,
-                null);
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.time.OffsetDateTimeConverter.class,
-                PRIORITY_NORMAL,
-                null,
-                null);
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.time.OffsetTimeConverter.class,
-                PRIORITY_NORMAL,
-                null,
-                null);
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.time.PeriodConverter.class,
-                PRIORITY_NORMAL,
-                null,
-                null);
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.time.SystemClockConverter.class,
-                PRIORITY_NORMAL,
-                new Class[] {Mapper.class},
-                new Object[] {mapper});
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.time.ThaiBuddhistDateConverter.class,
-                PRIORITY_NORMAL,
-                null,
-                null);
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.time.ValueRangeConverter.class,
-                PRIORITY_NORMAL,
-                new Class[] {Mapper.class},
-                new Object[] {mapper});
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.time.WeekFieldsConverter.class,
-                PRIORITY_NORMAL,
-                new Class[] {Mapper.class},
-                new Object[] {mapper});
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.time.YearConverter.class,
-                PRIORITY_NORMAL,
-                null,
-                null);
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.time.YearMonthConverter.class,
-                PRIORITY_NORMAL,
-                null,
-                null);
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.time.ZonedDateTimeConverter.class,
-                PRIORITY_NORMAL,
-                null,
-                null);
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.time.ZoneIdConverter.class,
-                PRIORITY_NORMAL,
-                null,
-                null);
-        registerConverterDynamically(
-                com.thoughtworks.xstream.converters.reflection.LambdaConverter.class,
-                PRIORITY_NORMAL,
-                new Class[] {Mapper.class, ReflectionProvider.class, ClassLoaderReference.class},
-                new Object[] {mapper, reflectionProvider, classLoaderReference});
-
-        registerConverter(new SelfStreamingInstanceChecker(converterLookup, this), PRIORITY_NORMAL);
+        registerConverter(new ArrayConverter(mapper));
+        registerConverter(new CharArrayConverter());
+        registerConverter(new CollectionConverter(mapper));
+        registerConverter(new MapConverter(mapper));
+        registerConverter(new TreeMapConverter(mapper));
+        registerConverter(new TreeSetConverter(mapper));
+        registerConverter(new SingletonCollectionConverter(mapper));
+        registerConverter(new SingletonMapConverter(mapper));
+        registerConverter(new JavaClassConverter(classLoaderReference));
+        registerConverter(new JavaMethodConverter(classLoaderReference));
+        registerConverter(new JavaFieldConverter(classLoaderReference));
+        registerConverter(
+                new com.thoughtworks.xstream.converters.extended.SubjectConverter(mapper));
+        registerConverter(
+                new com.thoughtworks.xstream.converters.extended.ThrowableConverter(
+                        converterLookup));
+        registerConverter(
+                new com.thoughtworks.xstream.converters.time.SystemClockConverter(mapper));
+        registerConverter(new com.thoughtworks.xstream.converters.time.ValueRangeConverter(mapper));
+        registerConverter(new com.thoughtworks.xstream.converters.time.WeekFieldsConverter(mapper));
+        registerConverter(
+                new com.thoughtworks.xstream.converters.reflection.LambdaConverter(
+                        mapper, reflectionProvider, classLoaderReference));
+        registerConverter(new SelfStreamingInstanceChecker(converterLookup, this));
     }
-
-    /** Straight copy of the registerConverterDynamically private method of XStream */
-    private void registerConverterDynamically(
-            String className,
-            int priority,
-            Class[] constructorParamTypes,
-            Object[] constructorParamValues) {
-        Class type;
-        try {
-            type = Class.forName(className, false, getClassLoaderReference().getReference());
-        } catch (ClassNotFoundException e) {
-            throw new com.thoughtworks.xstream.InitializationException(
-                    "Could not instantiate converter : " + className, e);
-        }
-        registerConverterDynamically(type, priority, constructorParamTypes, constructorParamValues);
-    }
-
-    private void registerConverterDynamically(
-            Class<?> type,
-            int priority,
-            Class[] constructorParamTypes,
-            Object[] constructorParamValues) {
-        try {
-            Constructor constructor = type.getConstructor(constructorParamTypes);
-            Object instance = constructor.newInstance(constructorParamValues);
-            if (instance instanceof Converter) {
-                registerConverter((Converter) instance, priority);
-            } else if (instance instanceof SingleValueConverter) {
-                registerConverter((SingleValueConverter) instance, priority);
-            }
-        } catch (Exception e) {
-            throw new com.thoughtworks.xstream.InitializationException(
-                    "Could not instantiate converter : " + type.getName(), e);
-        } catch (LinkageError e) {
-            throw new com.thoughtworks.xstream.InitializationException(
-                    "Could not instantiate converter : " + type.getName(), e);
-        }
-    }
-
     /**
      * A wrapper that adds instructions on what to do when a class was not part of the whitelist
      *
@@ -553,5 +323,76 @@ public class SecureXStream extends XStream {
         public ForbiddenClassExceptionEx(String message, Throwable cause) {
             super(message, cause);
         }
+    }
+
+    private static volatile List<ConverterMatcher> cachedConverters;
+
+    private static List<ConverterMatcher> getCachedConverters() {
+        if (cachedConverters == null) {
+            synchronized (SecureXStream.class) {
+                if (cachedConverters == null) {
+                    cachedConverters = loadCachedConverters();
+                }
+            }
+        }
+        return cachedConverters;
+    }
+
+    private static List<ConverterMatcher> loadCachedConverters() {
+        return Arrays.asList(
+                new NullConverter(),
+                new IntConverter(),
+                new FloatConverter(),
+                new DoubleConverter(),
+                new LongConverter(),
+                new ShortConverter(),
+                (Converter) new CharConverter(),
+                new BooleanConverter(),
+                new ByteConverter(),
+                new StringConverter(),
+                new StringBufferConverter(),
+                new DateConverter(),
+                new BitSetConverter(),
+                new URIConverter(),
+                new URLConverter(),
+                new BigIntegerConverter(),
+                new BigDecimalConverter(),
+                (Converter) new EncodedByteArrayConverter(),
+                new FileConverter(),
+                new SqlTimestampConverter(),
+                new SqlTimeConverter(),
+                new SqlDateConverter(),
+                new LocaleConverter(),
+                new GregorianCalendarConverter(),
+                // late bound converters - allows XStream to be compiled on earlier JDKs
+                new com.thoughtworks.xstream.converters.extended.StackTraceElementConverter(),
+                new com.thoughtworks.xstream.converters.extended.CurrencyConverter(),
+                new com.thoughtworks.xstream.converters.extended.RegexPatternConverter(),
+                new com.thoughtworks.xstream.converters.extended.CharsetConverter(),
+                new com.thoughtworks.xstream.converters.extended.DurationConverter(),
+                new com.thoughtworks.xstream.converters.enums.EnumConverter(),
+                new com.thoughtworks.xstream.converters.basic.StringBuilderConverter(),
+                new com.thoughtworks.xstream.converters.basic.UUIDConverter(),
+                new com.thoughtworks.xstream.converters.extended.ActivationDataFlavorConverter(),
+                new com.thoughtworks.xstream.converters.extended.PathConverter(),
+                new com.thoughtworks.xstream.converters.time.ChronologyConverter(),
+                new com.thoughtworks.xstream.converters.time.DurationConverter(),
+                new com.thoughtworks.xstream.converters.time.HijrahDateConverter(),
+                new com.thoughtworks.xstream.converters.time.JapaneseDateConverter(),
+                new com.thoughtworks.xstream.converters.time.JapaneseEraConverter(),
+                new com.thoughtworks.xstream.converters.time.LocalDateConverter(),
+                new com.thoughtworks.xstream.converters.time.InstantConverter(),
+                new com.thoughtworks.xstream.converters.time.LocalDateTimeConverter(),
+                new com.thoughtworks.xstream.converters.time.LocalTimeConverter(),
+                new com.thoughtworks.xstream.converters.time.MinguoDateConverter(),
+                new com.thoughtworks.xstream.converters.time.MonthDayConverter(),
+                new com.thoughtworks.xstream.converters.time.OffsetDateTimeConverter(),
+                new com.thoughtworks.xstream.converters.time.OffsetTimeConverter(),
+                new com.thoughtworks.xstream.converters.time.PeriodConverter(),
+                new com.thoughtworks.xstream.converters.time.ThaiBuddhistDateConverter(),
+                new com.thoughtworks.xstream.converters.time.YearConverter(),
+                new com.thoughtworks.xstream.converters.time.YearMonthConverter(),
+                new com.thoughtworks.xstream.converters.time.ZonedDateTimeConverter(),
+                new com.thoughtworks.xstream.converters.time.ZoneIdConverter());
     }
 }

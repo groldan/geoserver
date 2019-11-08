@@ -529,7 +529,7 @@ final class IsolatedCatalogFacade implements CatalogFacade {
                     }
 
                     public @Override Object accept(FilterVisitor visitor, Object extraData) {
-                        throw new UnsupportedOperationException(); // REVISIT
+                        return this; // throw new UnsupportedOperationException(); // REVISIT
                     }
                 };
 

@@ -6,6 +6,7 @@
 package org.geoserver.config;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.geoserver.catalog.CatalogException;
 import org.geoserver.catalog.event.CatalogAddEvent;
 import org.geoserver.catalog.event.CatalogListener;
@@ -17,7 +18,7 @@ import org.geoserver.catalog.event.CatalogRemoveEvent;
 class UpdateSequenceListener implements CatalogListener, ConfigurationListener {
 
     GeoServer geoServer;
-    boolean updating = false;
+    private AtomicBoolean updating = new AtomicBoolean(false);
 
     public UpdateSequenceListener(GeoServer geoServer) {
         this.geoServer = geoServer;
@@ -26,17 +27,16 @@ class UpdateSequenceListener implements CatalogListener, ConfigurationListener {
         geoServer.addListener(this);
     }
 
-    synchronized void incrementSequence() {
+    void incrementSequence() {
         // prevent infinite loop on configuration update
-        if (updating) return;
-
-        try {
-            updating = true;
-            GeoServerInfo gsInfo = geoServer.getGlobal();
-            gsInfo.setUpdateSequence(gsInfo.getUpdateSequence() + 1);
-            geoServer.save(gsInfo);
-        } finally {
-            updating = false;
+        if (updating.compareAndSet(false, true)) {
+            try {
+                GeoServerInfo gsInfo = geoServer.getGlobal();
+                gsInfo.setUpdateSequence(gsInfo.getUpdateSequence() + 1);
+                geoServer.save(gsInfo);
+            } finally {
+                updating.set(false);
+            }
         }
     }
 
