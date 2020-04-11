@@ -20,6 +20,7 @@
   <modules>
     <module>openapi-spec</module>
     <module>java-model</module>
+    <module>java-server-api</module>
     <module>core</module>
     <module>java-client</module>
   </modules>
