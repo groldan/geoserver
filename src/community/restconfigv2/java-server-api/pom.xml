@@ -14,6 +14,7 @@
 
   <properties>
     <openapi-spec-base-folder>${project.basedir}/../openapi-spec/src/main/resources/org/geoserver/rest/v2</openapi-spec-base-folder>
+    <springfox-version>2.8.0</springfox-version>
   </properties>
 
   <dependencies>
@@ -30,6 +31,29 @@
       <groupId>io.swagger</groupId>
       <artifactId>swagger-annotations</artifactId>
     </dependency>
+
+    <dependency>
+      <groupId>io.springfox</groupId>
+      <artifactId>springfox-swagger2</artifactId>
+      <version>${springfox-version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.springfox</groupId>
+      <artifactId>springfox-swagger-ui</artifactId>
+      <version>${springfox-version}</version>
+    </dependency>
+    <dependency>
+      <groupId>javax.xml.bind</groupId>
+      <artifactId>jaxb-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.datatype</groupId>
+      <artifactId>jackson-datatype-jsr310</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.openapitools</groupId>
+      <artifactId>jackson-databind-nullable</artifactId>
+    </dependency>
   </dependencies>
   <build>
     <plugins>
@@ -38,31 +62,14 @@
         <artifactId>openapi-generator-maven-plugin</artifactId>
         <executions>
           <execution>
-            <id>generate-catalog-model</id>
+            <id>generate-manifests-api</id>
             <goals>
               <goal>generate</goal>
             </goals>
             <configuration>
-              <generatorName>java</generatorName>
-              <inputSpec>${openapi-spec-base-folder}/catalog_model.yaml</inputSpec>
-              <configurationFile>${project.basedir}/catalog-model_config.json</configurationFile>
-              <generateApis>false</generateApis>
-              <generateSupportingFiles>false</generateSupportingFiles>
-              <generateModelTests>false</generateModelTests>
-            </configuration>
-          </execution>
-          <execution>
-            <id>generate-config-model</id>
-            <goals>
-              <goal>generate</goal>
-            </goals>
-            <configuration>
-              <generatorName>java</generatorName>
-              <inputSpec>${openapi-spec-base-folder}/config_model.yaml</inputSpec>
-              <configurationFile>${project.basedir}/config-model_config.json</configurationFile>
-              <generateApis>false</generateApis>
-              <generateSupportingFiles>false</generateSupportingFiles>
-              <generateModelTests>false</generateModelTests>
+              <generatorName>spring</generatorName>
+              <inputSpec>${openapi-spec-base-folder}/manifests_api.yaml</inputSpec>
+              <configurationFile>${project.basedir}/server-api_config.json</configurationFile>
             </configuration>
           </execution>
         </executions>

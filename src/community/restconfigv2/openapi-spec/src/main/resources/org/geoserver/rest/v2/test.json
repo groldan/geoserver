@@ -1,0 +1,17 @@
+{
+	"about": {
+		"resource": [
+			{
+				"name": "GeoTools",
+				"Build-Timestamp": "06-Jun-2019 09:18",
+				"Version": "21-SNAPSHOT",
+				"Git-Revision": "45911eb56bf9560b442b88ed01bf7f540b9f407d"
+			},
+			{
+				"name": "GeoWebCache",
+				"Version": "1.15-SNAPSHOT",
+				"Git-Revision": "e9fb27dcc5d0b1256944434a103591755c1423c1\/e9fb27dcc5d0b1256944434a103591755c1423c1"
+			}
+		]
+	}
+}
