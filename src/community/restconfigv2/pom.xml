@@ -14,6 +14,7 @@
 
   <name>V2 RESTful config API</name>
     <modules>
+      <module>openapi-spec</module>
       <module>core</module>
     </modules>
 </project>
