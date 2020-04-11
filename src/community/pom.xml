@@ -683,5 +683,11 @@
         <module>json-ld</module>
       </modules>
     </profile>
+    <profile>
+      <id>restconfigv2</id>
+      <modules>
+        <module>restconfigv2</module>
+      </modules>
+    </profile>
   </profiles>  
 </project>

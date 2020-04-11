@@ -1806,5 +1806,15 @@
       </dependency>
     </dependencies>
   </profile>
+    <profile>
+      <id>restconfigv2</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.geoserver.community</groupId>
+          <artifactId>gs-restconfigv2-core</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
 </profiles>
 </project>
