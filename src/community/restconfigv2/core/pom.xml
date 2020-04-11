@@ -10,8 +10,7 @@
 
   <artifactId>gs-restconfigv2-core</artifactId>
   <packaging>jar</packaging>
-  <version>2.18-SNAPSHOT</version>
-  <name>V2 RESTful config core module</name>
+  <name>V2 REST config core module</name>
 
   <dependencies>
     <dependency>

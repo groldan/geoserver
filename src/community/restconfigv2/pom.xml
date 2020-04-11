@@ -13,8 +13,34 @@
   <packaging>pom</packaging>
 
   <name>V2 RESTful config API</name>
-    <modules>
-      <module>openapi-spec</module>
-      <module>core</module>
-    </modules>
+  <properties>
+    <openapi-generator.version>4.2.1</openapi-generator.version>
+    <swagger-annotations-version>1.5.21</swagger-annotations-version>
+  </properties>
+  <modules>
+    <module>openapi-spec</module>
+    <module>java-model</module>
+    <module>core</module>
+    <module>java-client</module>
+  </modules>
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>io.swagger</groupId>
+        <artifactId>swagger-annotations</artifactId>
+        <version>${swagger-annotations-version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.openapitools</groupId>
+          <artifactId>openapi-generator-maven-plugin</artifactId>
+          <version>${openapi-generator.version}</version>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
 </project>

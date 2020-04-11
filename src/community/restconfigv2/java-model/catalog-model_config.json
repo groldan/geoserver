@@ -1,0 +1,23 @@
+{
+	"generatorName": "java",
+	"modelPackage": "org.geoserver.rest.v2.model.catalog",
+	"apiPackage" : "org.geoserver.rest.v2.model.catalog",
+	"invokerPackage" : "org.geoserver.rest.v2.api.client.internal",
+	"addCompileSourceRoot": "true",
+    "generateSupportingFiles" : "false",
+	"generateModels": "true",
+	"generateApis": "false",
+	"validateSpec": "true",
+	"sourceFolder" : "src",
+	"library" : "feign",
+	"feignVersion" : "10.x",
+	"dateLibrary" : "java8",
+	"useTags" : "true",
+	"useRuntimeException" : "true",
+	"useBeanValidation" : "false",
+	"performBeanValidation" : "false",
+    "generateModelTests" : "false",
+    "generateApiTests" : "false",
+    "generateApiDocumentation" : "false",
+	"generateModelDocumentation" : "false"
+}
