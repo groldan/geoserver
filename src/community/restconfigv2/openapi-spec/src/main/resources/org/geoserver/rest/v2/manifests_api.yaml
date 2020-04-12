@@ -9,91 +9,171 @@ tags:
 - name: manifests
   description: Manifests API
 paths:
-  /about/version:
+  /about/manifest:
+    parameters:
+      - $ref: '#/components/parameters/manifest'
+      - $ref: '#/components/parameters/from'
+      - $ref: '#/components/parameters/to'
+      - $ref: '#/components/parameters/key'
+      - $ref: '#/components/parameters/value'
     get:
-      description: 'This endpoint shows only the details for the high-level components:
-        GeoServer, GeoTools, and GeoWebCache. Use the "Accept:" header to specify
-        format or append an extension to the endpoint (example "/about/manifest.xml"
-        for XML).'
+      description: > 
+        Retrieve details on all loaded JARs. 
+        All the GeoServer manifest JARs are marked with the property GeoServerModule and classified by type,
+        so you can use filtering capabilities to search for a set of manifests using regular expressions 
+        (see the manifest parameter) or a type category (see the key and value parameter).
+        The available types are core, extension, or community. 
+        To filter modules by a particular type, append a request with `key=GeoServerModule&value={type}`
+      operationId: getManifest
+      tags:
+      - manifests
+      responses:
+        '200':
+          $ref: '#/components/responses/ManifestEntryList'
+  /about/version:
+    parameters:
+      - $ref: '#/components/parameters/manifest'
+      - $ref: '#/components/parameters/from'
+      - $ref: '#/components/parameters/to'
+      - $ref: '#/components/parameters/key'
+      - $ref: '#/components/parameters/value'
+    get:
+      description: 'List the details for the high-level components: GeoServer, GeoTools, and GeoWebCache.'
       operationId: getComponentVersions
       tags:
       - manifests
-      parameters:
-      - name: manifest
-        in: query
-        description: The manifest parameter is used to filter over resulting resource (manifest) names attribute using Java regular expressions.
-        required: false
-        schema:
-          type: string
-      - name: key
-        in: query
-        description: Only return manifest entries with this key in their properties. It can be optionally combined with the value parameter.
-        required: false
-        schema:
-          type: string
-      - name: value
-        in: query
-        description: Only return manifest entries that have this value for the provided key parameter.
-        required: false
-        schema:
-          type: string
       responses:
         '200':
-          $ref: '#/components/responses/VersionResponse'
+          $ref: '#/components/responses/ManifestEntryList'
+  /about/status:
+    get:
+      description: 'List of status details for all installed and configured modules. Status details always include human readable name, and module name. Optional details include version, availability, status message, and links to documentation.'
+      operationId: getModulesStatus
+      tags:
+      - manifests
+      responses:
+        '200':
+          $ref: '#/components/responses/ModuleStatusList'
+  /about/status/{module}:
+    get:
+      description: 'Report the status of the requested module'
+      operationId: getModuleStatus
+      tags:
+      - manifests
+      parameters:
+        - name: module
+          in: path
+          description: Name of the module to return the status for
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/ModuleStatus'
 components:
   securitySchemes:
     basicAuth:
       type: http
       description: HTTP Basic Authentication. Works over `HTTP` and `HTTPS`
       scheme: basic
+  parameters:
+    manifest:
+      name: manifest
+      in: query
+      description: Used to filter over resulting resource (manifest) names attribute using Java regular expressions.
+      required: false
+      schema:
+        type: string
+    from:
+      name: from
+      in: query
+      description: Filter resources having the name between "from" and "to" parameters.
+      required: false
+      schema:
+        type: string
+    to:
+      name: to
+      in: query
+      description: Filter resources having the name between "from" and "to" parameters.
+      required: false
+      schema:
+        type: string
+    key:
+      name: key
+      in: query
+      description: Only return manifest entries with this key in their properties. It can be optionally combined with the value parameter.
+      required: false
+      schema:
+        type: string
+    value:
+      name: value
+      in: query
+      description: Only return manifest entries that have this value for the provided key parameter.
+      required: false
+      schema:
+        type: string
   responses:
-    VersionResponse:
-      description: Main components version
+    ManifestEntryList:
+      description: List of manifest entries
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/VersionResponse'
+            type: array
+            items:
+              $ref: '#/components/schemas/ManifestEntry'
+    ModuleStatus:
+      description: List of manifest entries
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ModuleStatus'
+    ModuleStatusList:
+      description: List of manifest entries
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/ModuleStatus'
   schemas:
-    VersionResponse:
+    ManifestEntry:
       type: object
       properties:
-        about:
+        name:
+          type: string
+        entries:
           type: object
-          properties:
-            resource:
-              type: array
-              items:
-                $ref: '#/components/schemas/ComponentVersion'
-      example: 
-            {
-              "about": {
-                "resource": [
-                  {
-                    "name": "GeoTools",
-                    "Build-Timestamp": "06-Jun-2019 09:18",
-                    "Version": "21-SNAPSHOT",
-                    "Git-Revision": "45911eb56bf9560b442b88ed01bf7f540b9f407d"
-                  },
-                  {
-                    "name": "GeoWebCache",
-                    "Version": "1.15-SNAPSHOT",
-                    "Git-Revision": "e9fb27dcc5d0b1256944434a103591755c1423c1"
-                  }
-                ]
-              }
-            }
-    ComponentVersion:
+          additionalProperties:
+            type: string
+      example:
+        name: GeoTools
+        Build-Timestamp: 06-Jun-2019 09:18
+        Git-Revision: 5911eb56bf9560b442b88ed01bf7f540b9f407d
+        Version: 21-SNAPSHOT
+
+    ModuleStatus:
       type: object
+      description: Details of installed and configured modules. Status details always include human readable name, 
+                   and module name. Optional details include version, availability, status message, and links to documentation.
       properties:
-        '@name':
+        name:
           type: string
-          example: GeoTools
-        Build-Timestamp:
+          description: Human readable name (from GeoServer documentation), or as defined in the extension pom.xml, ie. <name>ArcSDE DataStore Extensions</name>
+        module:
           type: string
-          example: 06-Jun-2019 09:18
-        Git-Revision:
+          description: Module identifier based on artifact bundle. For example, gs-main, gs-oracle.
+        component:
           type: string
-          example: 5911eb56bf9560b442b88ed01bf7f540b9f407d
-        Version:
+          description: Optional component identifier within module. For example, rendering-engine.
+        version:
           type: string
-          example: 21-SNAPSHOT
+          description: Human readable version, ie. for geotools it would be 15-SNAPSHOT
+        message:
+          type: string
+          description: Optional status message such as what Java rendering engine is in use, or the library path if the module/driver is unavailable
+        enabled:
+          type: boolean
+          description: Returns whether the module is enabled in the current GeoServer configuration.
+        available:
+          type: boolean
+          description: Returns whether the module is available to GeoServer

@@ -1811,7 +1811,7 @@
       <dependencies>
         <dependency>
           <groupId>org.geoserver.community</groupId>
-          <artifactId>gs-restconfigv2-core</artifactId>
+          <artifactId>gs-restconfigv2-server-api</artifactId>
           <version>${project.version}</version>
         </dependency>
       </dependencies>
