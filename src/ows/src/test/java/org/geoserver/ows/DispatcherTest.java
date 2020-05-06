@@ -15,7 +15,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Method;
 import java.net.URL;
@@ -25,11 +24,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import javax.mail.internet.InternetHeaders;
 import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMultipart;
-import javax.servlet.ServletInputStream;
 import javax.servlet.http.HttpServletResponse;
 import junit.framework.TestCase;
 import org.custommonkey.xmlunit.XMLUnit;
-import org.geoserver.ows.TestDispatcherCallback.Status;
 import org.geoserver.platform.Operation;
 import org.geoserver.platform.Service;
 import org.geoserver.test.CodeExpectingHttpServletResponse;
@@ -250,36 +247,7 @@ public class DispatcherTest extends TestCase {
 
         final String body =
                 "<Hello service=\"hello\" message=\"Hello world!\" version=\"1.0.0\" />";
-        MockHttpServletRequest request =
-                new MockHttpServletRequest() {
-                    String encoding;
-
-                    public int getServerPort() {
-                        return 8080;
-                    }
-
-                    public String getCharacterEncoding() {
-                        return encoding;
-                    }
-
-                    public void setCharacterEncoding(String encoding) {
-                        this.encoding = encoding;
-                    }
-
-                    public ServletInputStream getInputStream() {
-                        final ServletInputStream stream = super.getInputStream();
-                        return new ServletInputStream() {
-                            public int read() throws IOException {
-                                return stream.read();
-                            }
-
-                            public int available() {
-                                return body.length();
-                            }
-                        };
-                    }
-                };
-
+        MockHttpServletRequest request = new MockHttpServletRequest();
         request.setScheme("http");
         request.setServerName("localhost");
         request.setContextPath("/geoserver");
@@ -306,36 +274,7 @@ public class DispatcherTest extends TestCase {
         final String body =
                 "<Hello service=\"hello\" message=\"Hello world!\" version=\"1.0.0\" />";
 
-        MockHttpServletRequest request =
-                new MockHttpServletRequest() {
-                    String encoding;
-
-                    public int getServerPort() {
-                        return 8080;
-                    }
-
-                    public String getCharacterEncoding() {
-                        return encoding;
-                    }
-
-                    public void setCharacterEncoding(String encoding) {
-                        this.encoding = encoding;
-                    }
-
-                    public ServletInputStream getInputStream() {
-                        final ServletInputStream stream = super.getInputStream();
-                        return new ServletInputStream() {
-                            public int read() throws IOException {
-                                return stream.read();
-                            }
-
-                            public int available() {
-                                return body.length();
-                            }
-                        };
-                    }
-                };
-
+        MockHttpServletRequest request = new MockHttpServletRequest();
         request.setScheme("http");
         request.setServerName("localhost");
         request.setContextPath("/geoserver");
