@@ -237,7 +237,6 @@ public class FileSystemResourceStore implements ResourceStore {
                                         tracer);
                             }
                         }
-                        super.finalize();
                     }
                 };
             } catch (FileNotFoundException e) {
