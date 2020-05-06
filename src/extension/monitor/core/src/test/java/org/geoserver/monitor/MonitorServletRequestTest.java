@@ -8,7 +8,6 @@ package org.geoserver.monitor;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
-
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -16,7 +15,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.concurrent.atomic.AtomicBoolean;
-import javax.servlet.ServletInputStream;
 import org.apache.commons.io.IOUtils;
 import org.geoserver.monitor.MonitorServletRequest.MonitorInputStream;
 import org.junit.Test;
@@ -33,14 +31,7 @@ public class MonitorServletRequestTest {
 
         public javax.servlet.ServletInputStream getInputStream() {
             checkCalled();
-            final ByteArrayInputStream bis = new ByteArrayInputStream(BUFFER);
-            return new ServletInputStream() {
-
-                @Override
-                public int read() throws IOException {
-                    return bis.read();
-                }
-            };
+            return new DelegatingServletInputStream(new ByteArrayInputStream(BUFFER));
         }
 
         @Override

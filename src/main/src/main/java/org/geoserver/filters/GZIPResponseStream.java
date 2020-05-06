@@ -7,6 +7,7 @@ package org.geoserver.filters;
 import java.io.IOException;
 import java.util.zip.GZIPOutputStream;
 import javax.servlet.ServletOutputStream;
+import javax.servlet.WriteListener;
 import javax.servlet.http.HttpServletResponse;
 
 /**
@@ -27,7 +28,15 @@ public class GZIPResponseStream extends ServletOutputStream {
         gzipstream = new GZIPOutputStream(delegateStream, 4096, true);
     }
 
-    public void close() throws IOException {
+    public @Override boolean isReady() {
+        return delegateStream.isReady();
+    }
+
+    public @Override void setWriteListener(WriteListener writeListener) {
+        delegateStream.setWriteListener(writeListener);
+    }
+
+    public @Override void close() throws IOException {
         if (closed) {
             throw new IOException("This output stream has already been closed");
         }
@@ -35,24 +44,24 @@ public class GZIPResponseStream extends ServletOutputStream {
         closed = true;
     }
 
-    public void flush() throws IOException {
+    public @Override void flush() throws IOException {
         if (!closed) {
             gzipstream.flush();
         }
     }
 
-    public void write(int b) throws IOException {
+    public @Override void write(int b) throws IOException {
         if (closed) {
             throw new IOException("Cannot write to a closed output stream");
         }
         gzipstream.write((byte) b);
     }
 
-    public void write(byte b[]) throws IOException {
+    public @Override void write(byte b[]) throws IOException {
         write(b, 0, b.length);
     }
 
-    public void write(byte b[], int off, int len) throws IOException {
+    public @Override void write(byte b[], int off, int len) throws IOException {
         if (closed) {
             throw new IOException("Cannot write to a closed output stream");
         }

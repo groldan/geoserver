@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.servlet.ServletOutputStream;
+import javax.servlet.WriteListener;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletResponseWrapper;
@@ -115,18 +116,24 @@ public class GwcServiceProxy {
 
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream(4096);
 
-        @Override
-        public void write(int b) throws IOException {
+        public @Override void write(int b) throws IOException {
             outputStream.write(b);
         }
 
-        @Override
-        public void write(byte b[], int off, int len) throws IOException {
+        public @Override void write(byte b[], int off, int len) throws IOException {
             outputStream.write(b, off, len);
         }
 
         public byte[] getBytes() {
             return outputStream.toByteArray();
+        }
+
+        public @Override boolean isReady() {
+            return true;
+        }
+
+        public @Override void setWriteListener(WriteListener writeListener) {
+            // no-op
         }
     }
 }

@@ -25,7 +25,6 @@ import java.util.logging.Logger;
 import javax.servlet.Filter;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
-import javax.servlet.ServletInputStream;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -463,7 +462,7 @@ public abstract class GeoServerAbstractTestSupport extends OneTimeSetupTest {
      * @param path The path for the request and optional the query string.
      */
     protected MockHttpServletRequest createRequest(String path) {
-        MockHttpServletRequest request = new GeoServerMockHttpServletRequest();
+        MockHttpServletRequest request = new MockHttpServletRequest();
 
         request.setScheme("http");
         request.setServerName("localhost");
@@ -1233,102 +1232,5 @@ public abstract class GeoServerAbstractTestSupport extends OneTimeSetupTest {
                 new CodeExpectingHttpServletResponse(new MockHttpServletResponse());
         dispatch(request, response);
         assertEquals(code, response.getErrorCode());
-    }
-
-    public static class GeoServerMockHttpServletRequest extends MockHttpServletRequest {
-        private byte[] myBody;
-
-        public GeoServerMockHttpServletRequest() {
-            super();
-        }
-
-        public GeoServerMockHttpServletRequest(String method, String requestURI) {
-            super(method, requestURI);
-        }
-
-        @Override
-        public void setContent(byte[] body) {
-            myBody = body;
-        }
-
-        public ServletInputStream getInputStream() {
-            return new GeoServerDelegatingServletInputStream(myBody);
-        }
-
-        @Override
-        public String toString() {
-            return "GeoServerMockHttpServletRequest " + getMethod() + " " + getRequestURI();
-        }
-    }
-
-    private static class GeoServerDelegatingServletInputStream extends ServletInputStream {
-        private byte[] myBody;
-        private int myOffset = 0;
-        private int myMark = -1;
-
-        public GeoServerDelegatingServletInputStream(byte[] body) {
-            myBody = body;
-        }
-
-        public int available() {
-            return myBody.length - myOffset;
-        }
-
-        public void close() {}
-
-        public void mark(int readLimit) {
-            myMark = myOffset;
-        }
-
-        public void reset() {
-            if (myMark < 0 || myMark >= myBody.length) {
-                throw new IllegalStateException("Can't reset when no mark was set.");
-            }
-
-            myOffset = myMark;
-        }
-
-        public boolean markSupported() {
-            return true;
-        }
-
-        public int read() {
-            byte[] b = new byte[1];
-            return read(b, 0, 1) == -1 ? -1 : b[0];
-        }
-
-        public int read(byte[] b) {
-            return read(b, 0, b.length);
-        }
-
-        public int read(byte[] b, int offset, int length) {
-            int realOffset = offset + myOffset;
-            int i;
-
-            if (realOffset >= myBody.length) {
-                return -1;
-            }
-            for (i = 0; (i < length) && (i + myOffset < myBody.length); i++) {
-                b[offset + i] = myBody[myOffset + i];
-            }
-
-            myOffset += i;
-
-            return i;
-        }
-
-        public int readLine(byte[] b, int offset, int length) {
-            int realOffset = offset + myOffset;
-            int i;
-
-            for (i = 0; (i < length) && (i + myOffset < myBody.length); i++) {
-                b[offset + i] = myBody[myOffset + i];
-                if (myBody[myOffset + i] == '\n') break;
-            }
-
-            myOffset += i;
-
-            return i;
-        }
     }
 }

@@ -13,6 +13,7 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.servlet.ServletOutputStream;
+import javax.servlet.WriteListener;
 import javax.servlet.http.HttpServletResponse;
 
 /**
@@ -36,23 +37,33 @@ public class AlternativesResponseStream extends ServletOutputStream {
         this.contentLength = contentLength;
     }
 
-    public void close() throws IOException {
+    public @Override boolean isReady() {
+        return isDirty() ? myStream.isReady() : false;
+    }
+
+    public @Override void setWriteListener(WriteListener writeListener) {
+        if (isDirty()) {
+            myStream.setWriteListener(writeListener);
+        }
+    }
+
+    public @Override void close() throws IOException {
         if (isDirty()) getStream().close();
     }
 
-    public void flush() throws IOException {
+    public @Override void flush() throws IOException {
         if (isDirty()) getStream().flush();
     }
 
-    public void write(int b) throws IOException {
+    public @Override void write(int b) throws IOException {
         getStream().write(b);
     }
 
-    public void write(byte b[]) throws IOException {
+    public @Override void write(byte b[]) throws IOException {
         getStream().write(b);
     }
 
-    public void write(byte b[], int off, int len) throws IOException {
+    public @Override void write(byte b[], int off, int len) throws IOException {
         getStream().write(b, off, len);
     }
 

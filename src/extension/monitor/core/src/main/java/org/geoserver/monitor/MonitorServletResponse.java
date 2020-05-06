@@ -8,6 +8,7 @@ package org.geoserver.monitor;
 import java.io.IOException;
 import java.io.OutputStream;
 import javax.servlet.ServletOutputStream;
+import javax.servlet.WriteListener;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletResponseWrapper;
 
@@ -92,6 +93,16 @@ public class MonitorServletResponse extends HttpServletResponseWrapper {
         @Override
         public void close() throws IOException {
             delegate.close();
+        }
+
+        @Override
+        public boolean isReady() {
+            return true;
+        }
+
+        @Override
+        public void setWriteListener(WriteListener writeListener) {
+            // no-op
         }
     }
 }

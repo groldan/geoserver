@@ -8,6 +8,7 @@ package org.geoserver.filters;
 import java.io.IOException;
 import java.io.OutputStream;
 import javax.servlet.ServletOutputStream;
+import javax.servlet.WriteListener;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletResponseWrapper;
 
@@ -68,6 +69,16 @@ class FlushSafeResponse extends HttpServletResponseWrapper implements HttpServle
         public void close() throws IOException {
             closed = true;
             delegate.close();
+        }
+
+        @Override
+        public boolean isReady() {
+            return true;
+        }
+
+        @Override
+        public void setWriteListener(WriteListener writeListener) {
+            // no-op, not being used for async writes anyway
         }
     }
 }

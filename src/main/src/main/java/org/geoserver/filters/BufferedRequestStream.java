@@ -7,7 +7,7 @@ package org.geoserver.filters;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
+import javax.servlet.ReadListener;
 import javax.servlet.ServletInputStream;
 
 /**
@@ -16,7 +16,7 @@ import javax.servlet.ServletInputStream;
  * @author David Winslow <dwinslow@openplans.org>
  */
 public class BufferedRequestStream extends ServletInputStream {
-    InputStream myInputStream;
+    ByteArrayInputStream myInputStream;
 
     public BufferedRequestStream(byte[] buff) throws IOException {
         myInputStream = new ByteArrayInputStream(buff);
@@ -25,7 +25,7 @@ public class BufferedRequestStream extends ServletInputStream {
         myInputStream.reset();
     }
 
-    public int readLine(byte[] b, int off, int len) throws IOException {
+    public @Override int readLine(byte[] b, int off, int len) throws IOException {
         int read;
         int index = off;
         int end = off + len;
@@ -41,11 +41,23 @@ public class BufferedRequestStream extends ServletInputStream {
         return index - off;
     }
 
-    public int read() throws IOException {
+    public @Override int read() throws IOException {
         return myInputStream.read();
     }
 
-    public int available() throws IOException {
+    public @Override int available() throws IOException {
         return myInputStream.available();
+    }
+
+    public @Override boolean isFinished() {
+        return myInputStream.available() > 0;
+    }
+
+    public @Override boolean isReady() {
+        return true;
+    }
+
+    public @Override void setReadListener(ReadListener readListener) {
+        // no-op, this it not being used for async reads anyway
     }
 }

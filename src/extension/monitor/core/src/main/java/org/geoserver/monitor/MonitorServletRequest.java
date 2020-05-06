@@ -9,6 +9,7 @@ import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import javax.servlet.ReadListener;
 import javax.servlet.ServletInputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
@@ -170,6 +171,21 @@ public class MonitorServletRequest extends HttpServletRequestWrapper {
         public void dispose() {
             buffer = null;
             delegate = null;
+        }
+
+        @Override
+        public boolean isFinished() {
+            return delegate.isFinished();
+        }
+
+        @Override
+        public boolean isReady() {
+            return delegate.isReady();
+        }
+
+        @Override
+        public void setReadListener(ReadListener readListener) {
+            delegate.setReadListener(readListener);
         }
     }
 }

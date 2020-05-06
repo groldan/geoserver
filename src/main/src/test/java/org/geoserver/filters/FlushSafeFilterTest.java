@@ -12,6 +12,7 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import org.junit.Test;
+import org.springframework.mock.web.DelegatingServletOutputStream;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockFilterConfig;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -56,30 +57,22 @@ public class FlushSafeFilterTest {
                     @Override
                     public ServletOutputStream getOutputStream() {
                         if (os == null) {
-                            final ServletOutputStream wrapped = super.getOutputStream();
                             os =
-                                    new ServletOutputStream() {
+                                    new DelegatingServletOutputStream(super.getOutputStream()) {
                                         boolean closed;
 
-                                        @Override
-                                        public void write(int b) throws IOException {
-                                            wrapped.write(b);
-                                        }
-
-                                        @Override
-                                        public void close() throws IOException {
+                                        public @Override void close() throws IOException {
                                             closed = true;
-                                            wrapped.close();
+                                            super.close();
                                         }
 
-                                        @Override
-                                        public void flush() throws IOException {
+                                        public @Override void flush() throws IOException {
                                             if (closed) {
                                                 // we should never reach this code
                                                 throw new RuntimeException(
                                                         "Aaarg, I'm already closed, your JVM shall die now!");
                                             }
-                                            wrapped.flush();
+                                            super.flush();
                                         }
                                     };
                         }
