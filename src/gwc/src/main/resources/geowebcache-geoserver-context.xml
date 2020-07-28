@@ -12,58 +12,11 @@
     </description>
     <constructor-arg ref="catalog"/>
   </bean>
-  
-  <bean id="GeoSeverTileLayerCatalog" class="org.geoserver.gwc.layer.DefaultTileLayerCatalog">
-    <constructor-arg ref="resourceLoader" />
-    <constructor-arg ref="gwcXmlConfig" />
-  </bean>
-
-  <bean id="gwcGeoServervConfigPersister" class="org.geoserver.gwc.config.GWCConfigPersister">
-    <constructor-arg ref="xstreamPersisterFactory" />
-    <constructor-arg ref="resourceLoader">
-      <description>
-        GeoServer's resource loader to locate the root configuration
-        directory where to store gwc-gs.xml
-      </description>
-    </constructor-arg>
-  </bean>
-
-  <bean id="gwcInitializer" class="org.geoserver.gwc.config.GWCInitializer">
-    <constructor-arg ref="gwcGeoServervConfigPersister" />
-    <constructor-arg ref="rawCatalog" />
-  </bean>
 
   <bean id="gwcCatalogConfiguration" class="org.geoserver.gwc.layer.CatalogConfiguration">
     <constructor-arg ref="rawCatalog" />
     <constructor-arg ref="GeoSeverTileLayerCatalog" />
     <constructor-arg ref="gwcGridSetBroker" />
-  </bean>
-
-  <bean id="gwcFacade" class="org.geoserver.gwc.GWC" depends-on="geoWebCacheExtensions">
-    <constructor-arg ref="gwcGeoServervConfigPersister" />
-    <constructor-arg ref="gwcStorageBroker" />
-    <constructor-arg ref="gwcTLDispatcher" />
-    <constructor-arg ref="gwcGridSetBroker" />
-    <constructor-arg ref="gwcTileBreeder" />
-    <constructor-arg ref="DiskQuotaStore" />
-    <constructor-arg ref="DiskQuotaMonitor" />
-    <constructor-arg ref="dispatcher" />
-    <constructor-arg ref="catalog" />
-  </bean>
-
-  <bean id="gwcWMSExtendedCapabilitiesProvider" class="org.geoserver.gwc.wms.CachingExtendedCapabilitiesProvider">
-    <description>
-      When "direct WMS integration" is enabled, contributes the WMS-C internal DTD declarations and TileSet definitions to the WMS
-      capabilities document generator
-    </description>
-    <constructor-arg ref="gwcFacade" />
-  </bean>
-
-  <bean id="gwcTransactionListener" class="org.geoserver.gwc.GWCTransactionListener">
-    <description>
-      Listens to WFS transactions and truncates GWC layer caches based on each transaction's affected bounds
-    </description>
-    <constructor-arg ref="gwcFacade" />
   </bean>
 
   <bean id="gwcServiceDispatcherMapping" class="org.geoserver.ows.OWSHandlerMapping">

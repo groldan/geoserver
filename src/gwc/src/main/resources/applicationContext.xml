@@ -16,8 +16,8 @@
     <constructor-arg index="1" value="GeoWeb Cache"/>
   </bean>
   
-  <import resource="geowebcache-geoserver-context.xml" />
   <import resource="geowebcache-servlet.xml" />
+  <import resource="geowebcache-geoserver-context.xml" />
 
   <bean id="GWCLifeCycleHandler" class="org.geoserver.gwc.config.GWCLifeCycleHandler" depends-on="gwcFacade">
     <description>Reloads the GWC config when GeoServer is called for a reload</description>
@@ -43,10 +43,17 @@
   </bean>
 
   <bean id="gwcWMSExtendedCapabilitiesProvider" class="org.geoserver.gwc.wms.CachingExtendedCapabilitiesProvider">
+    <description>
+      When "direct WMS integration" is enabled, contributes the WMS-C internal DTD declarations and TileSet definitions to the WMS
+      capabilities document generator
+    </description>
     <constructor-arg ref="gwcFacade" />
   </bean>
 
   <bean id="gwcTransactionListener" class="org.geoserver.gwc.GWCTransactionListener">
+    <description>
+      Listens to WFS transactions and truncates GWC layer caches based on each transaction's affected bounds
+    </description>
     <constructor-arg ref="gwcFacade" />
   </bean>
   <bean id="gwcGeoServervConfigPersister" class="org.geoserver.gwc.config.GWCConfigPersister">
@@ -57,6 +64,11 @@
         directory where to store gwc-gs.xml
       </description>
     </constructor-arg>
+  </bean>
+  
+  <bean id="GeoSeverTileLayerCatalog" class="org.geoserver.gwc.layer.DefaultTileLayerCatalog">
+    <constructor-arg ref="resourceLoader" />
+    <constructor-arg ref="gwcXmlConfig" />
   </bean>
 
   <bean id="gwcInitializer" class="org.geoserver.gwc.config.GWCInitializer">
