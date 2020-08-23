@@ -50,7 +50,7 @@ public class JMSObjectMessageCreator implements MessageCreator {
     }
 
     @Override
-    public Message createMessage(Session session) throws JMSException {
+    public ObjectMessage createMessage(Session session) throws JMSException {
 
         ObjectMessage message;
         try {

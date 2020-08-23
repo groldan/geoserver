@@ -11,7 +11,6 @@ import java.util.Properties;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import javax.jms.JMSException;
-import javax.jms.Message;
 import javax.jms.ObjectMessage;
 import javax.jms.Session;
 import org.geoserver.cluster.JMSApplicationListener;
@@ -33,7 +32,7 @@ import org.springframework.jms.listener.SessionAwareMessageListener;
  * @author Carlo Cancellieri - carlo.cancellieri@geo-solutions.it
  */
 public class JMSQueueListener extends JMSApplicationListener
-        implements SessionAwareMessageListener<Message> {
+        implements SessionAwareMessageListener<ObjectMessage> {
 
     private static final java.util.logging.Logger LOGGER =
             Logging.getLogger(JMSQueueListener.class);
@@ -48,7 +47,7 @@ public class JMSQueueListener extends JMSApplicationListener
     private AtomicLong consumedEvents = new AtomicLong();
 
     @Override
-    public void onMessage(Message message, Session session) throws JMSException {
+    public void onMessage(ObjectMessage message, Session session) throws JMSException {
 
         if (LOGGER.isLoggable(Level.FINE)) {
             LOGGER.fine("Incoming message event for session: " + session.toString());
@@ -126,45 +125,42 @@ public class JMSQueueListener extends JMSApplicationListener
         }
 
         // USING INCOMING MESSAGE
-        if (message instanceof ObjectMessage) {
+        final ObjectMessage objMessage = (ObjectMessage) (message);
+        final Serializable obj = objMessage.getObject();
 
-            final ObjectMessage objMessage = (ObjectMessage) (message);
-            final Serializable obj = objMessage.getObject();
-
-            try {
-                // lookup the SPI handler, search is performed using the
-                // name
-                final JMSEventHandler<Serializable, Object> handler =
-                        jmsManager.getHandlerByClassName(generatorClass);
-                if (handler == null) {
-                    throw new JMSException(
-                            "Unable to find SPI named \'"
-                                    + generatorClass
-                                    + "\', be shure to load that SPI into your context.");
-                }
-
-                final Enumeration<String> keys = message.getPropertyNames();
-                final Properties options = new Properties();
-                while (keys.hasMoreElements()) {
-                    String key = keys.nextElement();
-                    options.put(key, message.getObjectProperty(key));
-                }
-                handler.setProperties(options);
-
-                // try to synchronize object locally
-                if (!handler.synchronize(handler.deserialize(obj))) {
-                    throw new JMSException(
-                            "Unable to synchronize message locally.\n SPI: " + generatorClass);
-                }
-
-            } catch (Exception e) {
-                final JMSException jmsE = new JMSException(e.getLocalizedMessage());
-                jmsE.initCause(e);
-                throw jmsE;
-            } finally {
-                this.consumedEvents.incrementAndGet();
+        try {
+            // lookup the SPI handler, search is performed using the
+            // name
+            final JMSEventHandler<Serializable, Object> handler =
+                    jmsManager.getHandlerByClassName(generatorClass);
+            if (handler == null) {
+                throw new JMSException(
+                        "Unable to find SPI named \'"
+                                + generatorClass
+                                + "\', be shure to load that SPI into your context.");
             }
-        } else throw new JMSException("Unrecognized message type for catalog incoming event");
+
+            final Enumeration<String> keys = message.getPropertyNames();
+            final Properties options = new Properties();
+            while (keys.hasMoreElements()) {
+                String key = keys.nextElement();
+                options.put(key, message.getObjectProperty(key));
+            }
+            handler.setProperties(options);
+
+            // try to synchronize object locally
+            if (!handler.synchronize(handler.deserialize(obj))) {
+                throw new JMSException(
+                        "Unable to synchronize message locally.\n SPI: " + generatorClass);
+            }
+
+        } catch (Exception e) {
+            final JMSException jmsE = new JMSException(e.getLocalizedMessage());
+            jmsE.initCause(e);
+            throw jmsE;
+        } finally {
+            this.consumedEvents.incrementAndGet();
+        }
     }
 
     // /**
