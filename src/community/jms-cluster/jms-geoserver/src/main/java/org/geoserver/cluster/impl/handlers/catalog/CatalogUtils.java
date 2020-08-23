@@ -28,6 +28,7 @@ import org.geoserver.catalog.StoreInfo;
 import org.geoserver.catalog.StyleInfo;
 import org.geoserver.catalog.WMSLayerInfo;
 import org.geoserver.catalog.WMSStoreInfo;
+import org.geoserver.catalog.WMTSLayerInfo;
 import org.geoserver.catalog.WorkspaceInfo;
 import org.geoserver.catalog.impl.ModificationProxy;
 import org.geoserver.catalog.impl.StoreInfoImpl;
@@ -367,7 +368,8 @@ public abstract class CatalogUtils {
         } else if (info instanceof WMSLayerInfo) {
             // wmslayer
             return localizeWMSLayer((WMSLayerInfo) info, catalog);
-
+        } else if (info instanceof WMTSLayerInfo) {
+            return localizeWMTSLayer((WMTSLayerInfo) info, catalog);
         } else {
             throw new IllegalArgumentException(
                     "Unable to provide localization for the passed instance");
@@ -395,8 +397,33 @@ public abstract class CatalogUtils {
         final StoreInfo store = localizeStore(info.getStore(), catalog);
         createdObject.setStore(store);
 
-        //		WMSLayerObject.setAttributes(localizeAttributes(...)); TODO(should be already
-        // serialized)
+        // WMSLayerObject.setAttributes(localizeAttributes(...)); TODO(should be already serialized)
+
+        final CatalogBuilder builder = new CatalogBuilder(catalog);
+        builder.attach(createdObject);
+        return createdObject;
+    }
+
+    public static WMTSLayerInfo localizeWMTSLayer(final WMTSLayerInfo info, final Catalog catalog)
+            throws IllegalAccessException, InvocationTargetException {
+        if (info == null || catalog == null)
+            throw new NullPointerException("Arguments may never be null");
+
+        final WMTSLayerInfo localObject =
+                catalog.getResourceByName(info.getNamespace(), info.getName(), WMTSLayerInfo.class);
+        if (localObject != null) {
+            return localObject;
+        }
+
+        final WMTSLayerInfo createdObject = catalog.getFactory().createWMTSLayer();
+
+        // let's using the created object (see getGridCoverageReader)
+        BeanUtils.copyProperties(createdObject, info);
+
+        createdObject.setNamespace(localizeNamespace(info.getNamespace(), catalog));
+
+        final StoreInfo store = localizeStore(info.getStore(), catalog);
+        createdObject.setStore(store);
 
         final CatalogBuilder builder = new CatalogBuilder(catalog);
         builder.attach(createdObject);
