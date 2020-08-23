@@ -157,7 +157,14 @@ public class JMSGeoServerHandler extends JMSConfigurationHandler<JMSGlobalModify
 
         final WorkspaceInfo workspace = info.getWorkspace();
         if (workspace != null) {
-            info.setWorkspace(CatalogUtils.localizeWorkspace(workspace, geoServer.getCatalog()));
+            WorkspaceInfo localizedWorkspace =
+                    CatalogUtils.localizeWorkspace(workspace, geoServer.getCatalog(), false);
+            if (localizedWorkspace == null) {
+                throw new IllegalStateException(
+                        "Unable to update global SettingsInfo, Workspace does not exist: "
+                                + workspace.getId());
+            }
+            info.setWorkspace(localizedWorkspace);
         }
 
         final ContactInfo contact = info.getContact();

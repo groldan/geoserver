@@ -25,6 +25,8 @@ import org.geoserver.catalog.StoreInfo;
 import org.geoserver.catalog.StyleInfo;
 import org.geoserver.catalog.WMSLayerInfo;
 import org.geoserver.catalog.WMSStoreInfo;
+import org.geoserver.catalog.WMTSLayerInfo;
+import org.geoserver.catalog.WMTSStoreInfo;
 import org.geoserver.catalog.WorkspaceInfo;
 import org.geoserver.catalog.event.CatalogEvent;
 import org.geoserver.catalog.event.CatalogModifyEvent;
@@ -92,22 +94,11 @@ public class JMSCatalogModifyEventHandler extends JMSCatalogEventHandler {
 
         final CatalogInfo info = modifyEv.getSource();
 
-        // check if name is changed
-        String name = getOldName(catalog, modifyEv);
-
         if (info instanceof LayerGroupInfo) {
-
-            // check if name is changed
-            if (name == null) {
-                // name is unchanged
-                name = ((LayerGroupInfo) info).getName();
-            }
-
-            final LayerGroupInfo localObject = catalog.getLayerGroupByName(name);
+            final LayerGroupInfo localObject = catalog.getLayerGroup(info.getId());
 
             if (localObject == null) {
-                throw new CatalogException(
-                        "Unable to locate " + info + " named: " + name + " locally.");
+                throw new CatalogException("Unable to locate " + info + " locally.");
             }
 
             BeanUtils.smartUpdate(
@@ -115,18 +106,10 @@ public class JMSCatalogModifyEventHandler extends JMSCatalogEventHandler {
             catalog.save(localObject);
 
         } else if (info instanceof LayerInfo) {
-
-            // check if name is changed
-            if (name == null) {
-                // name is unchanged
-                name = ((LayerInfo) info).getName();
-            }
-
-            final LayerInfo localObject = catalog.getLayerByName(name);
+            final LayerInfo localObject = catalog.getLayer(info.getId());
 
             if (localObject == null) {
-                throw new CatalogException(
-                        "Unable to locate " + info + " named: " + name + " locally.");
+                throw new CatalogException("Unable to locate " + info + " locally.");
             }
 
             BeanUtils.smartUpdate(
@@ -134,18 +117,10 @@ public class JMSCatalogModifyEventHandler extends JMSCatalogEventHandler {
             catalog.save(localObject);
 
         } else if (info instanceof MapInfo) {
-
-            // check if name is changed
-            if (name == null) {
-                // name is unchanged
-                name = ((MapInfo) info).getName();
-            }
-
-            final MapInfo localObject = catalog.getMapByName(name);
+            final MapInfo localObject = catalog.getMap(info.getId());
 
             if (localObject == null) {
-                throw new CatalogException(
-                        "Unable to locate " + info + " named: " + name + " locally.");
+                throw new CatalogException("Unable to locate " + info + " locally.");
             }
 
             BeanUtils.smartUpdate(
@@ -153,20 +128,10 @@ public class JMSCatalogModifyEventHandler extends JMSCatalogEventHandler {
             catalog.save(localObject);
 
         } else if (info instanceof NamespaceInfo) {
-
-            final String uri;
-            final Object uriObj = getOldValue(catalog, modifyEv, "uRI");
-            if (uriObj != null) {
-                uri = uriObj.toString();
-            } else {
-                // uri is unchanged
-                uri = ((NamespaceInfo) info).getURI();
-            }
-            final NamespaceInfo localObject = catalog.getNamespaceByURI(uri);
+            final NamespaceInfo localObject = catalog.getNamespace(info.getId());
 
             if (localObject == null) {
-                throw new CatalogException(
-                        "Unable to locate " + info + " uri: " + uri + " locally.");
+                throw new CatalogException("Unable to locate " + info + " locally.");
             }
 
             BeanUtils.smartUpdate(
@@ -174,37 +139,22 @@ public class JMSCatalogModifyEventHandler extends JMSCatalogEventHandler {
             catalog.save(localObject);
 
         } else if (info instanceof StoreInfo) {
-
-            // check if name is changed
-            if (name == null) {
-                // name is unchanged
-                name = ((StoreInfo) info).getName();
-            }
-            // check if workspace is changed
-            final WorkspaceInfo workspace;
-            final Object objWorkpsace = getOldValue(catalog, modifyEv, "workspace");
-            if (objWorkpsace != null) {
-                workspace = (WorkspaceInfo) objWorkpsace;
-            } else {
-                // workspace is unchanged
-                workspace = ((StoreInfo) info).getWorkspace();
-            }
-
             final StoreInfo localObject;
             if (info instanceof CoverageStoreInfo) {
-                localObject = catalog.getStoreByName(workspace, name, CoverageStoreInfo.class);
+                localObject = catalog.getCoverageStore(info.getId());
             } else if (info instanceof DataStoreInfo) {
-                localObject = catalog.getStoreByName(workspace, name, DataStoreInfo.class);
+                localObject = catalog.getDataStore(info.getId());
             } else if (info instanceof WMSStoreInfo) {
-                localObject = catalog.getStoreByName(workspace, name, WMSStoreInfo.class);
+                localObject = catalog.getStore(info.getId(), WMSStoreInfo.class);
+            } else if (info instanceof WMTSStoreInfo) {
+                localObject = catalog.getStore(info.getId(), WMTSStoreInfo.class);
             } else {
                 throw new IllegalArgumentException(
                         "Unable to provide localization for the passed instance");
             }
 
             if (localObject == null) {
-                throw new CatalogException(
-                        "Unable to locate " + info + " named: " + name + " locally.");
+                throw new CatalogException("Unable to locate " + info + " locally.");
             }
 
             BeanUtils.smartUpdate(
@@ -212,38 +162,25 @@ public class JMSCatalogModifyEventHandler extends JMSCatalogEventHandler {
             catalog.save(localObject);
 
         } else if (info instanceof ResourceInfo) {
-
-            // check if name is changed
-            if (name == null) {
-                // name is unchanged
-                name = ((ResourceInfo) info).getName();
-            }
-            // check if namespace is changed
-            final NamespaceInfo namespace;
-            final Object objWorkpsace = getOldValue(catalog, modifyEv, "namespace");
-            if (objWorkpsace != null) {
-                namespace = (NamespaceInfo) objWorkpsace;
-            } else {
-                // workspace is unchanged
-                namespace = ((ResourceInfo) info).getNamespace();
-            }
             final ResourceInfo localObject;
             if (info instanceof CoverageInfo) {
                 // coverage
-                localObject = catalog.getCoverageByName(namespace, name);
+                localObject = catalog.getCoverage(info.getId());
             } else if (info instanceof FeatureTypeInfo) {
                 // feature
-                localObject = catalog.getFeatureTypeByName(namespace, name);
+                localObject = catalog.getFeatureType(info.getId());
             } else if (info instanceof WMSLayerInfo) {
                 // wmslayer
-                localObject = catalog.getResourceByName(namespace, name, WMSLayerInfo.class);
+                localObject = catalog.getResource(info.getId(), WMSLayerInfo.class);
+            } else if (info instanceof WMTSLayerInfo) {
+                // wmtslayer
+                localObject = catalog.getResource(info.getId(), WMTSLayerInfo.class);
             } else {
                 throw new IllegalArgumentException(
                         "Unable to provide localization for the passed instance");
             }
             if (localObject == null) {
-                throw new CatalogException(
-                        "Unable to locate " + info + " named: " + name + " locally.");
+                throw new CatalogException("Unable to locate " + info + " locally.");
             }
 
             BeanUtils.smartUpdate(
@@ -251,22 +188,16 @@ public class JMSCatalogModifyEventHandler extends JMSCatalogEventHandler {
             catalog.save(localObject);
 
         } else if (info instanceof StyleInfo) {
-
-            // check if name is changed
-            if (name == null) {
-                // name is unchanged
-                name = ((StyleInfo) info).getName();
-            }
-
-            final StyleInfo localObject = catalog.getStyleByName(name);
+            final StyleInfo localObject = catalog.getStyle(info.getId());
 
             if (localObject == null) {
-                throw new CatalogException(
-                        "Unable to locate " + info + " named: " + name + " locally.");
+                throw new CatalogException("Unable to locate " + info + " locally.");
             }
 
             BeanUtils.smartUpdate(
                     localObject, modifyEv.getPropertyNames(), modifyEv.getNewValues());
+            // update the style in the catalog
+            catalog.save(localObject);
 
             // let's if the style file was provided
             if (modifyEv instanceof StyleModifyEvent) {
@@ -274,7 +205,7 @@ public class JMSCatalogModifyEventHandler extends JMSCatalogEventHandler {
                 byte[] fileContent = styleModifyEvent.getFile();
                 if (fileContent != null && fileContent.length != 0) {
                     // update the style file using the old style
-                    StyleInfo oldStyle = catalog.getStyleByName(name);
+                    StyleInfo oldStyle = catalog.getStyle(info.getId());
                     try {
                         catalog.getResourcePool()
                                 .writeStyle(oldStyle, new ByteArrayInputStream(fileContent));
@@ -287,22 +218,11 @@ public class JMSCatalogModifyEventHandler extends JMSCatalogEventHandler {
                 }
             }
 
-            // update the style in the catalog
-            catalog.save(localObject);
-
         } else if (info instanceof WorkspaceInfo) {
-
-            // check if name is changed
-            if (name == null) {
-                // name is unchanged
-                name = ((WorkspaceInfo) info).getName();
-            }
-
-            final WorkspaceInfo localObject = catalog.getWorkspaceByName(name);
+            final WorkspaceInfo localObject = catalog.getWorkspace(info.getId());
 
             if (localObject == null) {
-                throw new CatalogException(
-                        "Unable to locate " + info + " named: " + name + " locally.");
+                throw new CatalogException("Unable to locate " + info + " locally.");
             }
 
             BeanUtils.smartUpdate(
@@ -344,48 +264,6 @@ public class JMSCatalogModifyEventHandler extends JMSCatalogEventHandler {
                 LOGGER.warning("info - ID: " + info.getId() + " toString: " + info.toString());
             }
             throw new IllegalArgumentException("Bad incoming object: " + info.toString());
-        }
-    }
-
-    /**
-     * get the local old name for the passed CatalogInfo event
-     *
-     * @param catalog the catalog
-     * @param ev the modify event
-     * @return a String representing the old name or null if name is not changed or not exists at
-     *     all
-     */
-    private static String getOldName(final Catalog catalog, final CatalogModifyEvent ev) {
-        // try to get the old value for the name
-        final Object name = getOldValue(catalog, ev, "name");
-        // check return and return a string representation of the name or null
-        return name != null ? name.toString() : null;
-    }
-
-    /**
-     * get the old property for the passed CatalogInfo event
-     *
-     * @param catalog the catalog
-     * @param ev the modify event
-     * @param oldProp the name of the old property to search for
-     * @return an Object representing the old value of the passed property or null if name is not
-     *     changed or not exists at all
-     */
-    private static Object getOldValue(
-            final Catalog catalog, final CatalogModifyEvent ev, final String oldProp) {
-        final CatalogInfo service = ev.getSource();
-        if (service == null) {
-            throw new IllegalArgumentException("passed service is null");
-        }
-        // check if name is changed
-        final List<String> props = ev.getPropertyNames();
-        final int index = props.indexOf(oldProp);
-        if (index != -1) {
-            final List<Object> oldValues = ev.getOldValues();
-            // search the Service using the old name
-            return oldValues.get(index);
-        } else {
-            return null;
         }
     }
 }

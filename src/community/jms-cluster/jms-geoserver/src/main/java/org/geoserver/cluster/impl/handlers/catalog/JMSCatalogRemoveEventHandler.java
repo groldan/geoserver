@@ -77,74 +77,89 @@ public class JMSCatalogRemoveEventHandler extends JMSCatalogEventHandler {
         if (info instanceof LayerGroupInfo) {
 
             final LayerGroupInfo deserObject =
-                    CatalogUtils.localizeLayerGroup((LayerGroupInfo) info, catalog);
-            catalog.remove(deserObject);
+                    CatalogUtils.localizeLayerGroup((LayerGroupInfo) info, catalog, false);
+            if (deserObject != null) {
+                catalog.remove(deserObject);
+            }
             // catalog.save(CatalogUtils.getProxy(deserObject));
             // info=CatalogUtils.localizeLayerGroup((LayerGroupInfo) info,
             // catalog);
 
         } else if (info instanceof LayerInfo) {
 
-            final LayerInfo layer = CatalogUtils.localizeLayer((LayerInfo) info, catalog);
-            catalog.remove(layer);
+            final LayerInfo layer = CatalogUtils.localizeLayer((LayerInfo) info, catalog, false);
+            if (layer != null) {
+                catalog.remove(layer);
+            }
             // catalog.save(CatalogUtils.getProxy(layer));
             // info=CatalogUtils.localizeLayer((LayerInfo) info, catalog);
 
         } else if (info instanceof MapInfo) {
 
-            final MapInfo localObject = CatalogUtils.localizeMapInfo((MapInfo) info, catalog);
-            catalog.remove(localObject);
+            final MapInfo localObject =
+                    CatalogUtils.localizeMapInfo((MapInfo) info, catalog, false);
+            if (localObject != null) {
+                catalog.remove(localObject);
+            }
             // catalog.save(CatalogUtils.getProxy(localObject));
             // info= CatalogUtils.localizeMapInfo((MapInfo) info,catalog);
 
         } else if (info instanceof NamespaceInfo) {
 
             final NamespaceInfo namespace =
-                    CatalogUtils.localizeNamespace((NamespaceInfo) info, catalog);
-            catalog.remove(namespace);
+                    CatalogUtils.localizeNamespace((NamespaceInfo) info, catalog, false);
+            if (namespace != null) {
+                catalog.remove(namespace);
+            }
             // catalog.save(CatalogUtils.getProxy(namespace));
             // info =CatalogUtils.localizeNamespace((NamespaceInfo) info,
             // catalog);
         } else if (info instanceof StoreInfo) {
 
-            StoreInfo store = CatalogUtils.localizeStore((StoreInfo) info, catalog);
-            catalog.remove(store);
+            StoreInfo store = CatalogUtils.localizeStore((StoreInfo) info, catalog, false);
+            if (store != null) {
+                catalog.remove(store);
+            }
             // catalog.save(CatalogUtils.getProxy(store));
 
             // info=CatalogUtils.localizeStore((StoreInfo)info,catalog);
         } else if (info instanceof ResourceInfo) {
 
             final ResourceInfo resource =
-                    CatalogUtils.localizeResource((ResourceInfo) info, catalog);
-            catalog.remove(resource);
+                    CatalogUtils.localizeResource((ResourceInfo) info, catalog, false);
+            if (resource != null) {
+                catalog.remove(resource);
+            }
             // catalog.save(CatalogUtils.getProxy(resource));
             // info =CatalogUtils.localizeResource((ResourceInfo)info,catalog);
         } else if (info instanceof StyleInfo) {
 
-            final StyleInfo style = CatalogUtils.localizeStyle((StyleInfo) info, catalog);
+            final StyleInfo style = CatalogUtils.localizeStyle((StyleInfo) info, catalog, false);
+            if (style != null) {
+                catalog.remove(style);
 
-            catalog.remove(style);
-
-            // check options
-            final String purge = (String) options.get("purge");
-            if (purge != null && Boolean.parseBoolean(purge)) {
-                try {
-                    catalog.getResourcePool().deleteStyle(style, true);
-                } catch (IOException e) {
-                    if (LOGGER.isLoggable(java.util.logging.Level.SEVERE)) {
-                        LOGGER.severe(e.getLocalizedMessage());
+                // check options
+                final String purge = (String) options.get("purge");
+                if (purge != null && Boolean.parseBoolean(purge)) {
+                    try {
+                        catalog.getResourcePool().deleteStyle(style, true);
+                    } catch (IOException e) {
+                        if (LOGGER.isLoggable(java.util.logging.Level.SEVERE)) {
+                            LOGGER.severe(e.getLocalizedMessage());
+                        }
                     }
                 }
             }
-
             // catalog.detach(CatalogUtils.getProxy(deserializedObject));
             // info = CatalogUtils.localizeStyle((StyleInfo) info, catalog);
 
         } else if (info instanceof WorkspaceInfo) {
 
             final WorkspaceInfo workspace =
-                    CatalogUtils.localizeWorkspace((WorkspaceInfo) info, catalog);
-            catalog.remove(workspace);
+                    CatalogUtils.localizeWorkspace((WorkspaceInfo) info, catalog, false);
+            if (workspace != null) {
+                catalog.remove(workspace);
+            }
             // catalog.detach(workspace);
             // info = CatalogUtils.localizeWorkspace((WorkspaceInfo) info,
             // catalog);

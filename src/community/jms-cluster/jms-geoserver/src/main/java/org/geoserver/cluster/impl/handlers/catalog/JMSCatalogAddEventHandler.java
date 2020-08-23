@@ -80,46 +80,46 @@ public class JMSCatalogAddEventHandler extends JMSCatalogEventHandler {
         if (info instanceof LayerGroupInfo) {
 
             final LayerGroupInfo deserObject =
-                    CatalogUtils.localizeLayerGroup((LayerGroupInfo) info, catalog);
+                    CatalogUtils.localizeLayerGroup((LayerGroupInfo) info, catalog, true);
             catalog.add(ModificationProxy.unwrap(deserObject));
 
         } else if (info instanceof LayerInfo) {
 
-            final LayerInfo layer = CatalogUtils.localizeLayer((LayerInfo) info, catalog);
+            final LayerInfo layer = CatalogUtils.localizeLayer((LayerInfo) info, catalog, true);
             catalog.add(ModificationProxy.unwrap(layer));
 
         } else if (info instanceof MapInfo) {
 
-            final MapInfo localObject = CatalogUtils.localizeMapInfo((MapInfo) info, catalog);
+            final MapInfo localObject = CatalogUtils.localizeMapInfo((MapInfo) info, catalog, true);
             catalog.add(ModificationProxy.unwrap(localObject));
 
         } else if (info instanceof NamespaceInfo) {
 
             final NamespaceInfo namespace =
-                    CatalogUtils.localizeNamespace((NamespaceInfo) info, catalog);
+                    CatalogUtils.localizeNamespace((NamespaceInfo) info, catalog, true);
             catalog.add(ModificationProxy.unwrap(namespace));
 
         } else if (info instanceof StoreInfo) {
 
-            StoreInfo store = CatalogUtils.localizeStore((StoreInfo) info, catalog);
+            StoreInfo store = CatalogUtils.localizeStore((StoreInfo) info, catalog, true);
             catalog.add(ModificationProxy.unwrap(store));
 
         } else if (info instanceof ResourceInfo) {
 
             final ResourceInfo resource =
-                    CatalogUtils.localizeResource((ResourceInfo) info, catalog);
+                    CatalogUtils.localizeResource((ResourceInfo) info, catalog, true);
             catalog.add(ModificationProxy.unwrap(resource));
 
         } else if (info instanceof StyleInfo) {
 
             final StyleInfo deserializedObject =
-                    CatalogUtils.localizeStyle((StyleInfo) info, catalog);
+                    CatalogUtils.localizeStyle((StyleInfo) info, catalog, true);
             catalog.add(ModificationProxy.unwrap(deserializedObject));
 
         } else if (info instanceof WorkspaceInfo) {
 
             final WorkspaceInfo workspace =
-                    CatalogUtils.localizeWorkspace((WorkspaceInfo) info, catalog);
+                    CatalogUtils.localizeWorkspace((WorkspaceInfo) info, catalog, true);
             catalog.add(ModificationProxy.unwrap(workspace));
 
         } else if (info instanceof CatalogInfo) {

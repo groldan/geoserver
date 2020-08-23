@@ -204,8 +204,10 @@ public final class CatalogDiffVisitor implements CatalogVisitor {
     @Override
     public void visit(StyleInfo style) {
         StyleInfo otherStyle = otherCatalog.getStyle(style.getId());
-        if (!(Objects.equals(style, otherStyle)
-                && getStyleFile(style, dataDir).equals(getStyleFile(otherStyle, otherDataDir)))) {
+        boolean equals = Objects.equals(style, otherStyle);
+        String styleFile1 = style == null ? null : getStyleFile(style, dataDir);
+        String styleFile2 = otherStyle == null ? null : getStyleFile(otherStyle, otherDataDir);
+        if (!(equals && Objects.equals(styleFile1, styleFile2))) {
             differences.add(new InfoDiff(style, otherStyle));
         }
     }
@@ -270,7 +272,7 @@ public final class CatalogDiffVisitor implements CatalogVisitor {
     }
 
     /** Retrieves a style file content has a string. */
-    private String getStyleFile(StyleInfo styleInfo, GeoServerDataDirectory dataDir) {
+    static String getStyleFile(StyleInfo styleInfo, GeoServerDataDirectory dataDir) {
         Resource resource = dataDir.get(styleInfo, styleInfo.getFilename());
         try (InputStream input = resource.in();
                 ByteArrayOutputStream output = new ByteArrayOutputStream()) {

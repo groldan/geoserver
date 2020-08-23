@@ -165,7 +165,7 @@ public final class IntegrationTest {
         // check instance A
         waitNoEvents(INSTANCE_A, 100);
         List<InfoDiff> differences = differences(INSTANCE_C, INSTANCE_A);
-        assertThat(differences.size(), is(4));
+        assertThat(differences.toString(), differences.size(), is(4));
         // check instance B
         waitNoEvents(INSTANCE_B, 100);
         differences = differences(INSTANCE_C, INSTANCE_B);

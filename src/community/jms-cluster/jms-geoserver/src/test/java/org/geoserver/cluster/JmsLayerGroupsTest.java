@@ -73,13 +73,13 @@ public final class JmsLayerGroupsTest extends GeoServerSystemTestSupport {
         // remove the test layer group to force a complete deserialization
         removeTestLayerGroup();
         // let's see if we got the correct event
-        assertThat(messages.size(), is(1));
+        assertThat(messages.toString(), messages.size(), is(1));
         List<CatalogEvent> layerGroupAddEvent =
                 getMessagesForHandler(messages, CATALOG_ADD_EVENT_HANDLER_KEY, addEventHandler);
         assertThat(layerGroupAddEvent.size(), is(1));
         assertThat(layerGroupAddEvent.get(0).getSource(), instanceOf(LayerGroupInfo.class));
         LayerGroupInfo layerGroup = (LayerGroupInfo) layerGroupAddEvent.get(0).getSource();
-        CatalogUtils.localizeLayerGroup(layerGroup, getCatalog());
+        layerGroup = CatalogUtils.localizeLayerGroup(layerGroup, getCatalog(), true);
         // checking the published layer group
         assertThat(layerGroup.getName(), is(TEST_LAYER_GROUP_NAME));
         List<PublishedInfo> content = layerGroup.getLayers();

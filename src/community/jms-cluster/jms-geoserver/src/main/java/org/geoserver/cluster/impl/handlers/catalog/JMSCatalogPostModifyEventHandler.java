@@ -77,7 +77,12 @@ public class JMSCatalogPostModifyEventHandler extends JMSCatalogEventHandler {
         if (info instanceof LayerGroupInfo) {
 
             final LayerGroupInfo localizedObject =
-                    CatalogUtils.localizeLayerGroup((LayerGroupInfo) info, catalog);
+                    CatalogUtils.localizeLayerGroup((LayerGroupInfo) info, catalog, false);
+            if (localizedObject == null) {
+                throw new IllegalStateException(
+                        "Unable to handle remote post-modify event, LayerGroupInfo does not exist: "
+                                + info.getId());
+            }
             catalog.firePostModified(
                     ModificationProxy.unwrap(localizedObject),
                     modifyEv.getPropertyNames(),
@@ -86,7 +91,13 @@ public class JMSCatalogPostModifyEventHandler extends JMSCatalogEventHandler {
 
         } else if (info instanceof LayerInfo) {
 
-            final LayerInfo localizedObject = CatalogUtils.localizeLayer((LayerInfo) info, catalog);
+            final LayerInfo localizedObject =
+                    CatalogUtils.localizeLayer((LayerInfo) info, catalog, false);
+            if (localizedObject == null) {
+                throw new IllegalStateException(
+                        "Unable to handle remote post-modify event, LayerInfo does not exist: "
+                                + info.getId());
+            }
             catalog.firePostModified(
                     ModificationProxy.unwrap(localizedObject),
                     modifyEv.getPropertyNames(),
@@ -95,7 +106,13 @@ public class JMSCatalogPostModifyEventHandler extends JMSCatalogEventHandler {
 
         } else if (info instanceof MapInfo) {
 
-            final MapInfo localizedObject = CatalogUtils.localizeMapInfo((MapInfo) info, catalog);
+            final MapInfo localizedObject =
+                    CatalogUtils.localizeMapInfo((MapInfo) info, catalog, false);
+            if (localizedObject == null) {
+                throw new IllegalStateException(
+                        "Unable to handle remote post-modify event, MapInfo does not exist: "
+                                + info.getId());
+            }
             catalog.firePostModified(
                     ModificationProxy.unwrap(localizedObject),
                     modifyEv.getPropertyNames(),
@@ -105,7 +122,12 @@ public class JMSCatalogPostModifyEventHandler extends JMSCatalogEventHandler {
         } else if (info instanceof NamespaceInfo) {
 
             final NamespaceInfo localizedObject =
-                    CatalogUtils.localizeNamespace((NamespaceInfo) info, catalog);
+                    CatalogUtils.localizeNamespace((NamespaceInfo) info, catalog, false);
+            if (localizedObject == null) {
+                throw new IllegalStateException(
+                        "Unable to handle remote post-modify event, NamespaceInfo does not exist: "
+                                + info.getId());
+            }
             catalog.firePostModified(
                     ModificationProxy.unwrap(localizedObject),
                     modifyEv.getPropertyNames(),
@@ -114,7 +136,13 @@ public class JMSCatalogPostModifyEventHandler extends JMSCatalogEventHandler {
 
         } else if (info instanceof StoreInfo) {
 
-            final StoreInfo localizedObject = CatalogUtils.localizeStore((StoreInfo) info, catalog);
+            final StoreInfo localizedObject =
+                    CatalogUtils.localizeStore((StoreInfo) info, catalog, false);
+            if (localizedObject == null) {
+                throw new IllegalStateException(
+                        "Unable to handle remote post-modify event, StoreInfo does not exist: "
+                                + info.getId());
+            }
             catalog.firePostModified(
                     ModificationProxy.unwrap(localizedObject),
                     modifyEv.getPropertyNames(),
@@ -124,7 +152,12 @@ public class JMSCatalogPostModifyEventHandler extends JMSCatalogEventHandler {
         } else if (info instanceof ResourceInfo) {
 
             final ResourceInfo localizedObject =
-                    CatalogUtils.localizeResource((ResourceInfo) info, catalog);
+                    CatalogUtils.localizeResource((ResourceInfo) info, catalog, false);
+            if (localizedObject == null) {
+                throw new IllegalStateException(
+                        "Unable to handle remote post-modify event, ResourceInfo does not exist: "
+                                + info.getId());
+            }
             catalog.firePostModified(
                     ModificationProxy.unwrap(localizedObject),
                     modifyEv.getPropertyNames(),
@@ -133,7 +166,13 @@ public class JMSCatalogPostModifyEventHandler extends JMSCatalogEventHandler {
 
         } else if (info instanceof StyleInfo) {
 
-            final StyleInfo localizedObject = CatalogUtils.localizeStyle((StyleInfo) info, catalog);
+            final StyleInfo localizedObject =
+                    CatalogUtils.localizeStyle((StyleInfo) info, catalog, false);
+            if (localizedObject == null) {
+                throw new IllegalStateException(
+                        "Unable to handle remote post-modify event, StyleInfo does not exist: "
+                                + info.getId());
+            }
             catalog.firePostModified(
                     ModificationProxy.unwrap(localizedObject),
                     modifyEv.getPropertyNames(),
@@ -143,7 +182,12 @@ public class JMSCatalogPostModifyEventHandler extends JMSCatalogEventHandler {
         } else if (info instanceof WorkspaceInfo) {
 
             final WorkspaceInfo localizedObject =
-                    CatalogUtils.localizeWorkspace((WorkspaceInfo) info, catalog);
+                    CatalogUtils.localizeWorkspace((WorkspaceInfo) info, catalog, false);
+            if (localizedObject == null) {
+                throw new IllegalStateException(
+                        "Unable to handle remote post-modify event, WorkspaceInfo does not exist: "
+                                + info.getId());
+            }
             catalog.firePostModified(
                     ModificationProxy.unwrap(localizedObject),
                     modifyEv.getPropertyNames(),
