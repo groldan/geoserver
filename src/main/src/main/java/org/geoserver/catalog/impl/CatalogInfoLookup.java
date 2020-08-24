@@ -4,13 +4,16 @@
  */
 package org.geoserver.catalog.impl;
 
+import com.google.common.base.Objects;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -18,7 +21,16 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CatalogInfo;
+import org.geoserver.catalog.LayerGroupInfo;
+import org.geoserver.catalog.LayerInfo;
+import org.geoserver.catalog.MapInfo;
+import org.geoserver.catalog.NamespaceInfo;
+import org.geoserver.catalog.ResourceInfo;
+import org.geoserver.catalog.StoreInfo;
+import org.geoserver.catalog.StyleInfo;
+import org.geoserver.catalog.WorkspaceInfo;
 import org.geoserver.ows.util.OwsUtils;
+import org.geotools.feature.NameImpl;
 import org.geotools.util.logging.Logging;
 import org.opengis.feature.type.Name;
 
@@ -34,8 +46,56 @@ import org.opengis.feature.type.Name;
 class CatalogInfoLookup<T extends CatalogInfo> {
     static final Logger LOGGER = Logging.getLogger(CatalogInfoLookup.class);
 
-    ConcurrentHashMap<Class<T>, Map<String, T>> idMultiMap = new ConcurrentHashMap<>();
-    ConcurrentHashMap<Class<T>, Map<Name, T>> nameMultiMap = new ConcurrentHashMap<>();
+    /**
+     * Name mapper for {@link MapInfo}, uses simple name mapping on {@link MapInfo#getName()} as it
+     * doesn't have a namespace component
+     */
+    static final Function<MapInfo, Name> MAP_NAME_MAPPER = m -> new NameImpl(m.getName());
+
+    /**
+     * The name uses the workspace id as it does not need to be updated when the workspace is
+     * renamed
+     */
+    static final Function<StoreInfo, Name> STORE_NAME_MAPPER =
+            s -> new NameImpl(s.getWorkspace().getId(), s.getName());
+
+    /**
+     * The name uses the namspace id as it does not need to be updated when the namespace is renamed
+     */
+    static final Function<ResourceInfo, Name> RESOURCE_NAME_MAPPER =
+            r -> new NameImpl(r.getNamespace().getId(), r.getName());
+
+    /** Like LayerInfo, actually delegates to the resource logic */
+    static final Function<LayerInfo, Name> LAYER_NAME_MAPPER =
+            l -> RESOURCE_NAME_MAPPER.apply(l.getResource());
+
+    /**
+     * The name uses the workspace id as it does not need to be updated when the workspace is
+     * renamed
+     */
+    static final Function<LayerGroupInfo, Name> LAYERGROUP_NAME_MAPPER =
+            lg ->
+                    new NameImpl(
+                            lg.getWorkspace() != null ? lg.getWorkspace().getId() : null,
+                            lg.getName());
+
+    static final Function<NamespaceInfo, Name> NAMESPACE_NAME_MAPPER =
+            n -> new NameImpl(n.getPrefix());
+
+    static final Function<WorkspaceInfo, Name> WORKSPACE_NAME_MAPPER =
+            w -> new NameImpl(w.getName());
+
+    static final Function<StyleInfo, Name> STYLE_NAME_MAPPER =
+            s ->
+                    new NameImpl(
+                            s.getWorkspace() != null ? s.getWorkspace().getId() : null,
+                            s.getName());
+
+    ConcurrentMap<Class<T>, ConcurrentMap<String, T>> idMultiMap = new ConcurrentHashMap<>();
+    ConcurrentMap<Class<T>, ConcurrentMap<Name, T>> nameMultiMap = new ConcurrentHashMap<>();
+    ConcurrentMap<Class<T>, ConcurrentMap<String, Name>> idToMameMultiMap =
+            new ConcurrentHashMap<>();
+
     Function<T, Name> nameMapper;
     static final Predicate TRUE = x -> true;
 
@@ -44,36 +104,34 @@ class CatalogInfoLookup<T extends CatalogInfo> {
         this.nameMapper = nameMapper;
     }
 
-    <K> Map<K, T> getMapForValue(ConcurrentHashMap<Class<T>, Map<K, T>> maps, T value) {
-        Class<T> vc;
-        if (Proxy.isProxyClass(value.getClass())) {
-            ModificationProxy h = (ModificationProxy) Proxy.getInvocationHandler(value);
-            Object po = (T) h.getProxyObject();
-            vc = (Class<T>) po.getClass();
-        } else {
-            vc = (Class<T>) value.getClass();
-        }
-
-        return getMapForValue(maps, vc);
+    <K, V> ConcurrentMap<K, V> getMapForValue(
+            ConcurrentMap<Class<T>, ConcurrentMap<K, V>> maps, T value) {
+        @SuppressWarnings("unchecked")
+        Class<T> vc = (Class<T>) value.getClass();
+        return getMapForType(maps, vc);
     }
 
-    protected <K> Map<K, T> getMapForValue(ConcurrentHashMap<Class<T>, Map<K, T>> maps, Class vc) {
-        Map<K, T> vcMap = maps.get(vc);
-        if (vcMap == null) {
-            vcMap = maps.computeIfAbsent(vc, k -> new ConcurrentSkipListMap<K, T>());
+    @SuppressWarnings("unchecked")
+    protected <K, V> ConcurrentMap<K, V> getMapForType(
+            ConcurrentMap<Class<T>, ConcurrentMap<K, V>> maps, Class vc) {
+        return maps.computeIfAbsent(vc, k -> new ConcurrentSkipListMap<K, V>());
+    }
+
+    private void checkNotAProxy(T value) {
+        if (Proxy.isProxyClass(value.getClass())) {
+            throw new IllegalArgumentException(
+                    "Proxy values shall not be passed to CatalogInfoLookup");
         }
-        return vcMap;
     }
 
     public T add(T value) {
-        if (Proxy.isProxyClass(value.getClass())) {
-            ModificationProxy h = (ModificationProxy) Proxy.getInvocationHandler(value);
-            value = (T) h.getProxyObject();
-        }
+        checkNotAProxy(value);
+        Map<String, T> idMap = getMapForValue(idMultiMap, value);
         Map<Name, T> nameMap = getMapForValue(nameMultiMap, value);
+        Map<String, Name> idToName = getMapForValue(idToMameMultiMap, value);
         Name name = nameMapper.apply(value);
         nameMap.put(name, value);
-        Map<String, T> idMap = getMapForValue(idMultiMap, value);
+        idToName.put(value.getId(), name);
         return idMap.put(value.getId(), value);
     }
 
@@ -87,30 +145,42 @@ class CatalogInfoLookup<T extends CatalogInfo> {
     }
 
     public T remove(T value) {
-        Name name = nameMapper.apply(value);
-        Map<Name, T> nameMap = getMapForValue(nameMultiMap, value);
-        nameMap.remove(name);
+        checkNotAProxy(value);
         Map<String, T> idMap = getMapForValue(idMultiMap, value);
-        return idMap.remove(value.getId());
+        T removed = idMap.remove(value.getId());
+        if (removed != null) {
+            Name name = getMapForValue(idToMameMultiMap, value).remove(value.getId());
+            getMapForValue(nameMultiMap, value).remove(name);
+        }
+        return removed;
     }
 
-    /** Updates the value in the name map. The new value must be a ModificationProxy */
-    public void update(T proxiedValue) {
-        ModificationProxy h = (ModificationProxy) Proxy.getInvocationHandler(proxiedValue);
-        T actualValue = (T) h.getProxyObject();
-
-        Name oldName = nameMapper.apply(actualValue);
-        Name newName = nameMapper.apply(proxiedValue);
-        if (!oldName.equals(newName)) {
-            Map<Name, T> nameMap = getMapForValue(nameMultiMap, actualValue);
+    /** Updates the value in the name map. */
+    public void update(T value) {
+        checkNotAProxy(value);
+        CatalogInfo oldValue = this.findById(value.getId(), value.getClass());
+        if (oldValue == null) {
+            throw new NoSuchElementException(
+                    value.getClass().getSimpleName()
+                            + " with id "
+                            + value.getId()
+                            + " does not exist");
+        }
+        ConcurrentMap<String, Name> idToName = getMapForValue(idToMameMultiMap, value);
+        Name oldName = idToName.get(value.getId());
+        Name newName = nameMapper.apply(value);
+        if (!Objects.equal(oldName, newName)) {
+            Map<Name, T> nameMap = getMapForValue(nameMultiMap, value);
             nameMap.remove(oldName);
-            nameMap.put(newName, actualValue);
+            nameMap.put(newName, value);
+            idToName.put(value.getId(), newName);
         }
     }
 
     public void clear() {
         idMultiMap.clear();
         nameMultiMap.clear();
+        idToMameMultiMap.clear();
     }
 
     /**
@@ -128,8 +198,8 @@ class CatalogInfoLookup<T extends CatalogInfo> {
                 Map<Name, T> valueMap = nameMultiMap.get(key);
                 if (valueMap != null) {
                     for (T v : valueMap.values()) {
-                        final U u = (U) v;
-                        if (predicate == TRUE || predicate.test(u)) {
+                        final U u = clazz.cast(v);
+                        if (predicate.test(u)) {
                             result.add(u);
                         }
                     }
@@ -148,7 +218,7 @@ class CatalogInfoLookup<T extends CatalogInfo> {
                 if (valueMap != null) {
                     T t = valueMap.get(id);
                     if (t != null) {
-                        return (U) t;
+                        return clazz.cast(t);
                     }
                 }
             }
@@ -165,7 +235,7 @@ class CatalogInfoLookup<T extends CatalogInfo> {
                 if (valueMap != null) {
                     T t = valueMap.get(name);
                     if (t != null) {
-                        return (U) t;
+                        return clazz.cast(t);
                     }
                 }
             }
@@ -188,8 +258,8 @@ class CatalogInfoLookup<T extends CatalogInfo> {
                 Map<Name, T> valueMap = nameMultiMap.get(key);
                 if (valueMap != null) {
                     for (T v : valueMap.values()) {
-                        final U u = (U) v;
-                        if (predicate == TRUE || predicate.test(u)) {
+                        final U u = clazz.cast(v);
+                        if (predicate.test(u)) {
                             return u;
                         }
                     }
@@ -201,7 +271,7 @@ class CatalogInfoLookup<T extends CatalogInfo> {
     }
 
     /** Sets the specified catalog into all CatalogInfo objects contained in this lookup */
-    public CatalogInfoLookup setCatalog(Catalog catalog) {
+    public CatalogInfoLookup<T> setCatalog(Catalog catalog) {
         for (Map<Name, T> valueMap : nameMultiMap.values()) {
             if (valueMap != null) {
                 for (T v : valueMap.values()) {
@@ -223,5 +293,51 @@ class CatalogInfoLookup<T extends CatalogInfo> {
         }
 
         return this;
+    }
+
+    /**
+     * CatalogInfoLookup specialization for {@code ResourceInfo} that encapsulates the logic to
+     * update the name lookup for the linked {@code LayerInfo} given that {@code LayerInfo.getName()
+     * == LayerInfo.getResource().getName()}
+     */
+    static final class ResouceInfoLookup extends CatalogInfoLookup<ResourceInfo> {
+        private final LayerInfoLookup layers;
+
+        public ResouceInfoLookup(LayerInfoLookup layers) {
+            super(RESOURCE_NAME_MAPPER);
+            this.layers = layers;
+        }
+
+        public @Override void update(ResourceInfo value) {
+            Name oldName = getMapForValue(idToMameMultiMap, value).get(value.getId());
+            Name newName = nameMapper.apply(value);
+            super.update(value);
+            if (!newName.equals(oldName)) {
+                layers.updateName(oldName, newName);
+            }
+        }
+    }
+
+    static final class LayerInfoLookup extends CatalogInfoLookup<LayerInfo> {
+
+        public LayerInfoLookup() {
+            super(LAYER_NAME_MAPPER);
+        }
+
+        void updateName(Name oldName, Name newName) {
+            ConcurrentMap<Name, LayerInfo> nameLookup =
+                    getMapForType(nameMultiMap, LayerInfoImpl.class);
+            LayerInfo layer = nameLookup.remove(oldName);
+            if (layer != null) {
+                nameLookup.put(newName, layer);
+                getMapForType(idToMameMultiMap, LayerInfoImpl.class).put(layer.getId(), newName);
+            }
+        }
+
+        @Override
+        public LayerInfoLookup setCatalog(Catalog catalog) {
+            super.setCatalog(catalog);
+            return this;
+        }
     }
 }
