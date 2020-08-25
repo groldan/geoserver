@@ -86,6 +86,46 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
         setCatalog(catalog);
     }
 
+    public void setNamespaces(NamespaceRepository namespaces) {
+        this.namespaces = namespaces;
+        this.namespaces.setCatalog(getCatalog());
+    }
+
+    public void setWorkspaces(WorkspaceRepository workspaces) {
+        this.workspaces = workspaces;
+        this.workspaces.setCatalog(getCatalog());
+    }
+
+    public void setStores(StoreRepository stores) {
+        this.stores = stores;
+        this.stores.setCatalog(getCatalog());
+    }
+
+    public void setResources(ResourceRepository resources) {
+        this.resources = resources;
+        this.resources.setCatalog(getCatalog());
+    }
+
+    public void setLayers(LayerRepository layers) {
+        this.layers = layers;
+        this.layers.setCatalog(getCatalog());
+    }
+
+    public void setLayerGroups(LayerGroupRepository layerGroups) {
+        this.layerGroups = layerGroups;
+        this.layerGroups.setCatalog(getCatalog());
+    }
+
+    public void setMaps(MapRepository maps) {
+        this.maps = maps;
+        this.maps.setCatalog(getCatalog());
+    }
+
+    public void setStyles(StyleRepository styles) {
+        this.styles = styles;
+        this.styles.setCatalog(getCatalog());
+    }
+
     public @Override void setCatalog(Catalog catalog) {
         this.catalog = (CatalogImpl) catalog;
         this.workspaces.setCatalog(catalog);
