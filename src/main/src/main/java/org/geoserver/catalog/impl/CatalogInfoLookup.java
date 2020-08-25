@@ -4,14 +4,16 @@
  */
 package org.geoserver.catalog.impl;
 
-import com.google.common.base.Objects;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
+
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -21,6 +23,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CatalogInfo;
+import org.geoserver.catalog.DataStoreInfo;
 import org.geoserver.catalog.LayerGroupInfo;
 import org.geoserver.catalog.LayerInfo;
 import org.geoserver.catalog.MapInfo;
@@ -33,6 +36,7 @@ import org.geoserver.ows.util.OwsUtils;
 import org.geotools.feature.NameImpl;
 import org.geotools.util.logging.Logging;
 import org.opengis.feature.type.Name;
+import org.opengis.filter.Filter;
 
 /**
  * A support index for {@link DefaultCatalogFacade}, can perform fast lookups of {@link CatalogInfo}
@@ -43,7 +47,7 @@ import org.opengis.feature.type.Name;
  *
  * @param <T>
  */
-class CatalogInfoLookup<T extends CatalogInfo> {
+class CatalogInfoLookup<T extends CatalogInfo> implements CatalogInfoRepository<T> {
     static final Logger LOGGER = Logging.getLogger(CatalogInfoLookup.class);
 
     /**
@@ -97,7 +101,10 @@ class CatalogInfoLookup<T extends CatalogInfo> {
             new ConcurrentHashMap<>();
 
     Function<T, Name> nameMapper;
-    static final Predicate TRUE = x -> true;
+
+    static final <T> Predicate<T> alwaysTrue() {
+        return x -> true;
+    }
 
     public CatalogInfoLookup(Function<T, Name> nameMapper) {
         super();
@@ -124,18 +131,23 @@ class CatalogInfoLookup<T extends CatalogInfo> {
         }
     }
 
-    public T add(T value) {
+    @Override
+    public void add(T value) {
         checkNotAProxy(value);
         Map<String, T> idMap = getMapForValue(idMultiMap, value);
         Map<Name, T> nameMap = getMapForValue(nameMultiMap, value);
         Map<String, Name> idToName = getMapForValue(idToMameMultiMap, value);
-        Name name = nameMapper.apply(value);
-        nameMap.put(name, value);
-        idToName.put(value.getId(), name);
-        return idMap.put(value.getId(), value);
+
+        synchronized (idMap) {
+            Name name = nameMapper.apply(value);
+            nameMap.put(name, value);
+            idToName.put(value.getId(), name);
+            idMap.put(value.getId(), value);
+        }
     }
 
-    public Collection<T> values() {
+    @Override
+    public List<T> findAll() {
         List<T> result = new ArrayList<>();
         for (Map<String, T> v : idMultiMap.values()) {
             result.addAll(v.values());
@@ -144,43 +156,67 @@ class CatalogInfoLookup<T extends CatalogInfo> {
         return result;
     }
 
-    public T remove(T value) {
+    @Override
+    public void remove(T value) {
         checkNotAProxy(value);
         Map<String, T> idMap = getMapForValue(idMultiMap, value);
-        T removed = idMap.remove(value.getId());
-        if (removed != null) {
-            Name name = getMapForValue(idToMameMultiMap, value).remove(value.getId());
-            getMapForValue(nameMultiMap, value).remove(name);
+        synchronized (idMap) {
+            T removed = idMap.remove(value.getId());
+            if (removed != null) {
+                Name name = getMapForValue(idToMameMultiMap, value).remove(value.getId());
+                getMapForValue(nameMultiMap, value).remove(name);
+            }
         }
-        return removed;
     }
 
     /** Updates the value in the name map. */
+    @Override
     public void update(T value) {
         checkNotAProxy(value);
-        CatalogInfo oldValue = this.findById(value.getId(), value.getClass());
-        if (oldValue == null) {
-            throw new NoSuchElementException(
-                    value.getClass().getSimpleName()
-                            + " with id "
-                            + value.getId()
-                            + " does not exist");
-        }
-        ConcurrentMap<String, Name> idToName = getMapForValue(idToMameMultiMap, value);
-        Name oldName = idToName.get(value.getId());
-        Name newName = nameMapper.apply(value);
-        if (!Objects.equal(oldName, newName)) {
-            Map<Name, T> nameMap = getMapForValue(nameMultiMap, value);
-            nameMap.remove(oldName);
-            nameMap.put(newName, value);
-            idToName.put(value.getId(), newName);
+        Map<String, T> idMap = getMapForValue(idMultiMap, value);
+        synchronized (idMap) {
+            CatalogInfo oldValue = idMap.get(value.getId());
+            if (oldValue == null) {
+                throw new NoSuchElementException(
+                        value.getClass().getSimpleName()
+                                + " with id "
+                                + value.getId()
+                                + " does not exist");
+            }
+            ConcurrentMap<String, Name> idToName = getMapForValue(idToMameMultiMap, value);
+            Name oldName = idToName.get(value.getId());
+            Name newName = nameMapper.apply(value);
+            if (!Objects.equals(oldName, newName)) {
+                Map<Name, T> nameMap = getMapForValue(nameMultiMap, value);
+                nameMap.remove(oldName);
+                nameMap.put(newName, value);
+                idToName.put(value.getId(), newName);
+            }
         }
     }
 
-    public void clear() {
+    @Override
+    public void dispose() {
         idMultiMap.clear();
         nameMultiMap.clear();
         idToMameMultiMap.clear();
+    }
+
+    @Override
+    public <U extends T> List<U> findAll(Filter filter) {
+        return list(null, toPredicate(filter));
+    }
+
+    @Override
+    public <U extends T> List<U> findAll(Filter filter, Class<U> infoType) {
+        return list(infoType, toPredicate(filter));
+    }
+
+    protected <V> Predicate<V> toPredicate(Filter filter) {
+        if (filter == null || filter == Filter.INCLUDE) {
+            return CatalogInfoLookup.alwaysTrue();
+        }
+        return o -> filter.evaluate(o);
     }
 
     /**
@@ -191,8 +227,12 @@ class CatalogInfoLookup<T extends CatalogInfo> {
      * with 20k layers go down from 50s to 44s (which is a lot, considering there is a lot of other
      * things going on)
      */
+    @SuppressWarnings("unchecked")
     <U extends CatalogInfo> List<U> list(Class<U> clazz, Predicate<U> predicate) {
         ArrayList<U> result = new ArrayList<U>();
+        if (clazz == null) {
+            clazz = (Class<U>) CatalogInfo.class;
+        }
         for (Class<T> key : nameMultiMap.keySet()) {
             if (clazz.isAssignableFrom(key)) {
                 Map<Name, T> valueMap = nameMultiMap.get(key);
@@ -211,7 +251,8 @@ class CatalogInfoLookup<T extends CatalogInfo> {
     }
 
     /** Looks up a CatalogInfo by class and identifier */
-    public <U extends CatalogInfo> U findById(String id, Class<U> clazz) {
+    @Override
+    public <U extends T> U findById(String id, Class<U> clazz) {
         for (Class<T> key : idMultiMap.keySet()) {
             if (clazz.isAssignableFrom(key)) {
                 Map<String, T> valueMap = idMultiMap.get(key);
@@ -228,7 +269,8 @@ class CatalogInfoLookup<T extends CatalogInfo> {
     }
 
     /** Looks up a CatalogInfo by class and name */
-    public <U extends CatalogInfo> U findByName(Name name, Class<U> clazz) {
+    @Override
+    public <U extends T> U findByName(Name name, Class<U> clazz) {
         for (Class<T> key : nameMultiMap.keySet()) {
             if (clazz.isAssignableFrom(key)) {
                 Map<Name, T> valueMap = nameMultiMap.get(key);
@@ -270,8 +312,14 @@ class CatalogInfoLookup<T extends CatalogInfo> {
         return null;
     }
 
+    @Override
+    public void syncTo(CatalogInfoRepository<T> target) {
+        throw new UnsupportedOperationException("not yet implemented");
+    }
+
     /** Sets the specified catalog into all CatalogInfo objects contained in this lookup */
-    public CatalogInfoLookup<T> setCatalog(Catalog catalog) {
+    @Override
+    public void setCatalog(Catalog catalog) {
         for (Map<Name, T> valueMap : nameMultiMap.values()) {
             if (valueMap != null) {
                 for (T v : valueMap.values()) {
@@ -291,8 +339,127 @@ class CatalogInfoLookup<T extends CatalogInfo> {
                 }
             }
         }
+    }
 
-        return this;
+    static class NamespaceInfoLookup extends CatalogInfoLookup<NamespaceInfo>
+            implements NamespaceRepository {
+        private NamespaceInfo defaultNamespace;
+
+        public NamespaceInfoLookup() {
+            super(NAMESPACE_NAME_MAPPER);
+        }
+
+        public @Override void setDefaultNamespace(NamespaceInfo namespace) {
+            this.defaultNamespace =
+                    namespace == null ? null : findById(namespace.getId(), NamespaceInfo.class);
+        }
+
+        public @Override NamespaceInfo getDefaultNamespace() {
+            return defaultNamespace;
+        }
+
+        public @Override NamespaceInfo findOneByURI(String uri) {
+            return findFirst(NamespaceInfo.class, ns -> uri.equals(ns.getURI()));
+        }
+
+        public @Override List<NamespaceInfo> findAllByURI(String uri) {
+            return list(NamespaceInfo.class, ns -> ns.getURI().equals(uri));
+        }
+    }
+
+    static class WorkspaceInfoLookup extends CatalogInfoLookup<WorkspaceInfo>
+            implements WorkspaceRepository {
+
+        private WorkspaceInfo defaultWorkspace;
+
+        public WorkspaceInfoLookup() {
+            super(WORKSPACE_NAME_MAPPER);
+        }
+
+        public @Override void setDefaultWorkspace(WorkspaceInfo workspace) {
+            this.defaultWorkspace =
+                    workspace == null ? null : findById(workspace.getId(), WorkspaceInfo.class);
+        }
+
+        public @Override WorkspaceInfo getDefaultWorkspace() {
+            return defaultWorkspace;
+        }
+    }
+
+    static class StoreInfoLookup extends CatalogInfoLookup<StoreInfo> implements StoreRepository {
+        /** The default store keyed by workspace id */
+        protected ConcurrentMap<String, DataStoreInfo> defaultStores = new ConcurrentHashMap<>();
+
+        public StoreInfoLookup() {
+            super(STORE_NAME_MAPPER);
+        }
+
+        public @Override void setDefaultDataStore(WorkspaceInfo workspace, DataStoreInfo store) {
+            java.util.Objects.requireNonNull(workspace);
+            String wsId = workspace.getId();
+            final DataStoreInfo localStore;
+            if (store == null) {
+                localStore = null;
+            } else {
+                localStore = super.findById(store.getId(), DataStoreInfo.class);
+            }
+            defaultStores.compute(wsId, (ws, oldDefaultStore) -> localStore);
+        }
+
+        public @Override DataStoreInfo getDefaultDataStore(WorkspaceInfo workspace) {
+            return defaultStores.get(workspace.getId());
+        }
+
+        public @Override List<DataStoreInfo> getDefaultDataStores() {
+            return new ArrayList<>(defaultStores.values());
+        }
+
+        public @Override void dispose() {
+            super.dispose();
+            defaultStores.clear();
+        }
+
+        public @Override <T extends StoreInfo> T findOneByName(String name, Class<T> clazz) {
+            return findFirst(clazz, s -> name.equals(s.getName()));
+        }
+
+        public @Override <T extends StoreInfo> List<T> findAllByWorkspace(
+                WorkspaceInfo workspace, Class<T> clazz) {
+            return list(clazz, s -> workspace.getId().equals(s.getWorkspace().getId()));
+        }
+
+        public @Override <T extends StoreInfo> List<T> findAllByType(Class<T> clazz) {
+            return list(clazz, CatalogInfoLookup.alwaysTrue());
+        }
+    }
+
+    static class LayerGroupInfoLookup extends CatalogInfoLookup<LayerGroupInfo>
+            implements LayerGroupRepository {
+        public LayerGroupInfoLookup() {
+            super(LAYERGROUP_NAME_MAPPER);
+        }
+
+        public @Override LayerGroupInfo findOneByName(String name) {
+            return findFirst(LayerGroupInfo.class, lg -> name.equals(lg.getName()));
+        }
+
+        public @Override List<LayerGroupInfo> findAllByWorkspaceIsNull() {
+            return list(LayerGroupInfo.class, lg -> lg.getWorkspace() == null);
+        }
+
+        public @Override List<LayerGroupInfo> findAllByWorkspace(WorkspaceInfo workspace) {
+            return list(
+                    LayerGroupInfo.class,
+                    lg ->
+                            lg.getWorkspace() != null
+                                    && lg.getWorkspace().getId().equals(workspace.getId()));
+        }
+    }
+
+    static class MapInfoLookup extends CatalogInfoLookup<MapInfo> implements MapRepository {
+        public MapInfoLookup() {
+            super(MAP_NAME_MAPPER);
+        }
     }
 
     /**
@@ -300,10 +467,11 @@ class CatalogInfoLookup<T extends CatalogInfo> {
      * update the name lookup for the linked {@code LayerInfo} given that {@code LayerInfo.getName()
      * == LayerInfo.getResource().getName()}
      */
-    static final class ResouceInfoLookup extends CatalogInfoLookup<ResourceInfo> {
+    static final class ResourceInfoLookup extends CatalogInfoLookup<ResourceInfo>
+            implements ResourceRepository {
         private final LayerInfoLookup layers;
 
-        public ResouceInfoLookup(LayerInfoLookup layers) {
+        public ResourceInfoLookup(LayerInfoLookup layers) {
             super(RESOURCE_NAME_MAPPER);
             this.layers = layers;
         }
@@ -316,9 +484,35 @@ class CatalogInfoLookup<T extends CatalogInfo> {
                 layers.updateName(oldName, newName);
             }
         }
+
+        public @Override <T extends ResourceInfo> T findOneByName(String name, Class<T> clazz) {
+            return findFirst(clazz, r -> name.equals(r.getName()));
+        }
+
+        public @Override <T extends ResourceInfo> List<T> findAllByType(Class<T> clazz) {
+            return list(clazz, CatalogInfoLookup.alwaysTrue());
+        }
+
+        public @Override <T extends ResourceInfo> List<T> findAllByNamespace(
+                NamespaceInfo ns, Class<T> clazz) {
+            return list(clazz, r -> ns.equals(r.getNamespace()));
+        }
+
+        public @Override <T extends ResourceInfo> T findByStoreAndName(
+                StoreInfo store, String name, Class<T> clazz) {
+            return findFirst(
+                    clazz,
+                    r -> name.equals(r.getName()) && store.getId().equals(r.getStore().getId()));
+        }
+
+        @Override
+        public <T extends ResourceInfo> List<T> findAllByStore(StoreInfo store, Class<T> clazz) {
+            return list(clazz, r -> store.equals(r.getStore()));
+        }
     }
 
-    static final class LayerInfoLookup extends CatalogInfoLookup<LayerInfo> {
+    static final class LayerInfoLookup extends CatalogInfoLookup<LayerInfo>
+            implements LayerRepository {
 
         public LayerInfoLookup() {
             super(LAYER_NAME_MAPPER);
@@ -334,10 +528,43 @@ class CatalogInfoLookup<T extends CatalogInfo> {
             }
         }
 
-        @Override
-        public LayerInfoLookup setCatalog(Catalog catalog) {
-            super.setCatalog(catalog);
-            return this;
+        public @Override LayerInfo findOneByName(String name) {
+            return findFirst(LayerInfo.class, li -> name.equals(li.getName()));
+        }
+
+        public @Override List<LayerInfo> findAllByDefaultStyleOrStyles(StyleInfo style) {
+            return list(
+                    LayerInfo.class,
+                    li -> style.equals(li.getDefaultStyle()) || li.getStyles().contains(style));
+        }
+
+        public @Override List<LayerInfo> findAllByResource(ResourceInfo resource) {
+            // in the current setup we cannot have multiple layers associated to the same
+            // resource, as they would all share the same name (the one of the resource) so
+            // a direct lookup becomes possible
+            Name name = RESOURCE_NAME_MAPPER.apply(resource);
+            LayerInfo layer = findByName(name, LayerInfo.class);
+            return layer == null ? emptyList() : singletonList(layer);
+        }
+    }
+
+    static class StyleInfoLookup extends CatalogInfoLookup<StyleInfo> implements StyleRepository {
+        public StyleInfoLookup() {
+            super(STYLE_NAME_MAPPER);
+        }
+
+        public @Override StyleInfo findOneByName(String name) {
+            return findFirst(StyleInfo.class, s -> name.equals(s.getName()));
+        }
+
+        public @Override List<StyleInfo> findAllByNullWorkspace() {
+            return list(StyleInfo.class, s -> s.getWorkspace() == null);
+        }
+
+        public @Override List<StyleInfo> findAllByWorkspace(WorkspaceInfo ws) {
+            return list(
+                    StyleInfo.class,
+                    s -> s.getWorkspace() != null && s.getWorkspace().getId().equals(ws.getId()));
         }
     }
 }

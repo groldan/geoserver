@@ -36,6 +36,15 @@ public abstract class AbstractCatalogFacade implements CatalogFacade {
         return ModificationProxy.unwrap(obj);
     }
 
+    protected <T extends CatalogInfo> T wrapInModificationProxy(T ci, Class<T> clazz) {
+        return ci == null ? null : ModificationProxy.create(ci, clazz);
+    }
+
+    protected <T extends CatalogInfo> List<T> wrapInModificationProxy(
+            List<T> proxyList, Class<T> clazz) {
+        return ModificationProxy.createList(proxyList, clazz);
+    }
+
     protected void beforeSaved(
             CatalogInfo object, List propertyNames, List oldValues, List newValues) {
         CatalogInfo real = ModificationProxy.unwrap(object);
