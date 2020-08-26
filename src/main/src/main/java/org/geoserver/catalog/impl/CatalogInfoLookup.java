@@ -95,9 +95,11 @@ class CatalogInfoLookup<T extends CatalogInfo> implements CatalogInfoRepository<
                             s.getWorkspace() != null ? s.getWorkspace().getId() : null,
                             s.getName());
 
-    ConcurrentMap<Class<T>, ConcurrentMap<String, T>> idMultiMap = new ConcurrentHashMap<>();
-    ConcurrentMap<Class<T>, ConcurrentMap<Name, T>> nameMultiMap = new ConcurrentHashMap<>();
-    ConcurrentMap<Class<T>, ConcurrentMap<String, Name>> idToMameMultiMap =
+    protected ConcurrentMap<Class<T>, ConcurrentMap<String, T>> idMultiMap =
+            new ConcurrentHashMap<>();
+    protected ConcurrentMap<Class<T>, ConcurrentMap<Name, T>> nameMultiMap =
+            new ConcurrentHashMap<>();
+    protected ConcurrentMap<Class<T>, ConcurrentMap<String, Name>> idToMameMultiMap =
             new ConcurrentHashMap<>();
 
     Function<T, Name> nameMapper;
@@ -124,7 +126,7 @@ class CatalogInfoLookup<T extends CatalogInfo> implements CatalogInfoRepository<
         return maps.computeIfAbsent(vc, k -> new ConcurrentSkipListMap<K, V>());
     }
 
-    private void checkNotAProxy(T value) {
+    private static void checkNotAProxy(CatalogInfo value) {
         if (Proxy.isProxyClass(value.getClass())) {
             throw new IllegalArgumentException(
                     "Proxy values shall not be passed to CatalogInfoLookup");
@@ -525,6 +527,21 @@ class CatalogInfoLookup<T extends CatalogInfo> implements CatalogInfoRepository<
             if (layer != null) {
                 nameLookup.put(newName, layer);
                 getMapForType(idToMameMultiMap, LayerInfoImpl.class).put(layer.getId(), newName);
+            }
+        }
+
+        /** Override to remove by name instead of by id */
+        @Override
+        public void remove(LayerInfo value) {
+            checkNotAProxy(value);
+            ConcurrentMap<Name, LayerInfo> nameMap = getMapForValue(nameMultiMap, value);
+            synchronized (nameMap) {
+                Name name = nameMapper.apply(value);
+                LayerInfo removed = nameMap.remove(name);
+                if (removed != null) {
+                    getMapForValue(idMultiMap, value).remove(value.getId());
+                    getMapForValue(idToMameMultiMap, value).remove(value.getId());
+                }
             }
         }
 
