@@ -681,8 +681,6 @@ public abstract class AbstractCatalogFacade implements CatalogFacade {
         if (dao instanceof AbstractCatalogFacade) {
             // do an optimized sync
             AbstractCatalogFacade other = (AbstractCatalogFacade) dao;
-            other.setCatalog(catalog);
-
             this.workspaces.syncTo(other.workspaces);
             other.workspaces.setDefaultWorkspace(this.workspaces.getDefaultWorkspace());
 
@@ -700,6 +698,7 @@ public abstract class AbstractCatalogFacade implements CatalogFacade {
             this.layerGroups.syncTo(other.layerGroups);
             this.styles.syncTo(other.styles);
             this.maps.syncTo(other.maps);
+            other.setCatalog(catalog);
         } else {
             // do a manual import
             for (WorkspaceInfo ws : workspaces.findAll()) {

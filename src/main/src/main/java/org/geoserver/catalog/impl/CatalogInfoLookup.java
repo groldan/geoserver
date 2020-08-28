@@ -199,6 +199,10 @@ class CatalogInfoLookup<T extends CatalogInfo> implements CatalogInfoRepository<
 
     @Override
     public void dispose() {
+        clear();
+    }
+
+    protected void clear() {
         idMultiMap.clear();
         nameMultiMap.clear();
         idToMameMultiMap.clear();
@@ -316,7 +320,15 @@ class CatalogInfoLookup<T extends CatalogInfo> implements CatalogInfoRepository<
 
     @Override
     public void syncTo(CatalogInfoRepository<T> target) {
-        throw new UnsupportedOperationException("not yet implemented");
+        if (target instanceof CatalogInfoLookup) {
+            CatalogInfoLookup<T> other = (CatalogInfoLookup<T>) target;
+            other.clear();
+            other.idMultiMap.putAll(this.idMultiMap);
+            other.nameMultiMap.putAll(this.nameMultiMap);
+            other.idToMameMultiMap.putAll(this.idToMameMultiMap);
+        } else {
+            this.idMultiMap.values().forEach(typeMap -> typeMap.values().forEach(target::add));
+        }
     }
 
     /** Sets the specified catalog into all CatalogInfo objects contained in this lookup */
