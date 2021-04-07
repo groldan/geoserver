@@ -17,6 +17,7 @@ import org.geoserver.catalog.ResourceInfo;
 import org.geoserver.catalog.StyleInfo;
 import org.geoserver.catalog.WMSLayerInfo;
 import org.geoserver.catalog.WorkspaceInfo;
+import org.geoserver.catalog.decorators.CatalogFilter;
 import org.geoserver.platform.GeoServerExtensions;
 import org.opengis.filter.Filter;
 import org.springframework.security.core.Authentication;

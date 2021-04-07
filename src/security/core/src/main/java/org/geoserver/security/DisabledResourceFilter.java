@@ -9,6 +9,7 @@ import org.geoserver.catalog.LayerGroupInfo;
 import org.geoserver.catalog.LayerInfo;
 import org.geoserver.catalog.Predicates;
 import org.geoserver.catalog.ResourceInfo;
+import org.geoserver.catalog.decorators.AbstractCatalogFilter;
 import org.geoserver.ows.Dispatcher;
 import org.geoserver.ows.Request;
 import org.opengis.filter.Filter;

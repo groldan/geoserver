@@ -12,6 +12,7 @@ import java.util.List;
 import org.apache.commons.collections4.CollectionUtils;
 import org.geoserver.catalog.LayerInfo;
 import org.geoserver.catalog.ResourceInfo;
+import org.geoserver.catalog.decorators.AbstractCatalogFilter;
 import org.geoserver.ows.Dispatcher;
 import org.geoserver.ows.Request;
 import org.geoserver.platform.GeoServerExtensions;
