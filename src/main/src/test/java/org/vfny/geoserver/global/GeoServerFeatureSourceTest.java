@@ -11,7 +11,7 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.geoserver.catalog.MetadataMap;
 import org.geoserver.catalog.ProjectionPolicy;
-import org.geoserver.security.decorators.DecoratingSimpleFeatureSource;
+import org.geoserver.catalog.decorators.DecoratingSimpleFeatureSource;
 import org.geotools.data.Query;
 import org.geotools.data.property.PropertyDataStore;
 import org.geotools.data.simple.SimpleFeatureCollection;

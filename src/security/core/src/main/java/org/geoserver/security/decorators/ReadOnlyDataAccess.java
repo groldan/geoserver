@@ -7,6 +7,7 @@ package org.geoserver.security.decorators;
 
 import java.io.IOException;
 import org.geoserver.catalog.FeatureTypeInfo;
+import org.geoserver.catalog.decorators.DecoratingDataAccess;
 import org.geoserver.security.Response;
 import org.geoserver.security.SecureCatalogImpl;
 import org.geoserver.security.WrapperPolicy;

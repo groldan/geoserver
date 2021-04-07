@@ -6,6 +6,7 @@ package org.geoserver.security.decorators;
 
 import java.io.IOException;
 import org.geoserver.catalog.WMTSStoreInfo;
+import org.geoserver.catalog.decorators.DecoratingWMTSStoreInfo;
 import org.geoserver.security.AccessLevel;
 import org.geoserver.security.SecureCatalogImpl;
 import org.geoserver.security.WrapperPolicy;

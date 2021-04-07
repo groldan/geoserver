@@ -9,6 +9,7 @@ import java.io.IOException;
 import org.geoserver.catalog.StoreInfo;
 import org.geoserver.catalog.WMSLayerInfo;
 import org.geoserver.catalog.WMSStoreInfo;
+import org.geoserver.catalog.decorators.DecoratingWMSLayerInfo;
 import org.geoserver.security.SecureCatalogImpl;
 import org.geoserver.security.WrapperPolicy;
 import org.geotools.ows.wms.Layer;

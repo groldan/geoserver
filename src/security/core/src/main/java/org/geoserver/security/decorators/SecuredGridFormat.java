@@ -5,6 +5,7 @@
  */
 package org.geoserver.security.decorators;
 
+import org.geoserver.catalog.decorators.DecoratingGridFormat;
 import org.geoserver.security.Response;
 import org.geoserver.security.SecureCatalogImpl;
 import org.geoserver.security.WrapperPolicy;

@@ -11,6 +11,7 @@ import org.geoserver.catalog.LayerInfo;
 import org.geoserver.catalog.ResourceInfo;
 import org.geoserver.catalog.WMSLayerInfo;
 import org.geoserver.catalog.WMTSLayerInfo;
+import org.geoserver.catalog.decorators.DecoratingLayerInfo;
 import org.geoserver.security.SecureCatalogImpl;
 import org.geoserver.security.WrapperPolicy;
 

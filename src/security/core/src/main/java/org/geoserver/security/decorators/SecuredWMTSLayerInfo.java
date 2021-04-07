@@ -9,6 +9,7 @@ import org.geoserver.catalog.StoreInfo;
 import org.geoserver.catalog.WMSLayerInfo;
 import org.geoserver.catalog.WMTSLayerInfo;
 import org.geoserver.catalog.WMTSStoreInfo;
+import org.geoserver.catalog.decorators.DecoratingWMTSLayerInfo;
 import org.geoserver.security.SecureCatalogImpl;
 import org.geoserver.security.WrapperPolicy;
 import org.geotools.ows.wmts.model.WMTSLayer;

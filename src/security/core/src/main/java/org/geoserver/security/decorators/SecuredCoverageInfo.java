@@ -9,6 +9,7 @@ import java.io.IOException;
 import org.geoserver.catalog.CoverageInfo;
 import org.geoserver.catalog.CoverageStoreInfo;
 import org.geoserver.catalog.StoreInfo;
+import org.geoserver.catalog.decorators.DecoratingCoverageInfo;
 import org.geoserver.ows.Dispatcher;
 import org.geoserver.ows.Request;
 import org.geoserver.security.AccessLevel;

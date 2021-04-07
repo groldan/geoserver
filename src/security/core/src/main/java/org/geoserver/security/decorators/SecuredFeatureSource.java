@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geoserver.catalog.decorators.DecoratingFeatureSource;
 import org.geoserver.ows.Dispatcher;
 import org.geoserver.ows.Request;
 import org.geoserver.security.AccessLevel;

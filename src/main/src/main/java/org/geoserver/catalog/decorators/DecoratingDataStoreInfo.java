@@ -3,7 +3,7 @@
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
-package org.geoserver.security.decorators;
+package org.geoserver.catalog.decorators;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -11,27 +11,26 @@ import java.util.Date;
 import java.util.Map;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CatalogVisitor;
-import org.geoserver.catalog.CoverageStoreInfo;
+import org.geoserver.catalog.DataStoreInfo;
 import org.geoserver.catalog.MetadataMap;
 import org.geoserver.catalog.WorkspaceInfo;
-import org.geotools.coverage.grid.io.AbstractGridFormat;
+import org.geotools.data.DataAccess;
 import org.geotools.util.decorate.AbstractDecorator;
-import org.geotools.util.factory.Hints;
-import org.opengis.coverage.grid.GridCoverageReader;
+import org.opengis.feature.Feature;
+import org.opengis.feature.type.FeatureType;
 import org.opengis.util.ProgressListener;
 
 /**
- * Delegates all methods to the provided delegate. Suclasses will override methods in order to
- * perform their decoration work
+ * Delegates every method to the wrapped {@link DataStoreInfo}. Subclasses will override selected
+ * methods to perform their "decoration" job
  *
- * @author Andrea Aime - TOPP
- * @param <T>
- * @param <F>
+ * @author Andrea Aime
  */
-public class DecoratingCoverageStoreInfo extends AbstractDecorator<CoverageStoreInfo>
-        implements CoverageStoreInfo {
+@SuppressWarnings("serial")
+public class DecoratingDataStoreInfo extends AbstractDecorator<DataStoreInfo>
+        implements DataStoreInfo {
 
-    public DecoratingCoverageStoreInfo(CoverageStoreInfo delegate) {
+    public DecoratingDataStoreInfo(DataStoreInfo delegate) {
         super(delegate);
     }
 
@@ -46,18 +45,24 @@ public class DecoratingCoverageStoreInfo extends AbstractDecorator<CoverageStore
     }
 
     @Override
+    public DataAccess<? extends FeatureType, ? extends Feature> getDataStore(
+            ProgressListener listener) throws IOException {
+        return delegate.getDataStore(listener);
+    }
+
+    @Override
     public String getDescription() {
         return delegate.getDescription();
     }
 
     @Override
-    public Throwable getError() {
-        return delegate.getError();
+    public String getType() {
+        return delegate.getType();
     }
 
     @Override
-    public AbstractGridFormat getFormat() {
-        return delegate.getFormat();
+    public Throwable getError() {
+        return delegate.getError();
     }
 
     @Override
@@ -76,16 +81,6 @@ public class DecoratingCoverageStoreInfo extends AbstractDecorator<CoverageStore
     }
 
     @Override
-    public String getType() {
-        return delegate.getType();
-    }
-
-    @Override
-    public String getURL() {
-        return delegate.getURL();
-    }
-
-    @Override
     public WorkspaceInfo getWorkspace() {
         return delegate.getWorkspace();
     }
@@ -98,6 +93,11 @@ public class DecoratingCoverageStoreInfo extends AbstractDecorator<CoverageStore
     @Override
     public void setDescription(String description) {
         delegate.setDescription(description);
+    }
+
+    @Override
+    public void setType(String type) {
+        delegate.setType(type);
     }
 
     @Override
@@ -116,16 +116,6 @@ public class DecoratingCoverageStoreInfo extends AbstractDecorator<CoverageStore
     }
 
     @Override
-    public void setType(String type) {
-        delegate.setType(type);
-    }
-
-    @Override
-    public void setURL(String url) {
-        delegate.setURL(url);
-    }
-
-    @Override
     public void setWorkspace(WorkspaceInfo workspace) {
         delegate.setWorkspace(workspace);
     }
@@ -138,12 +128,6 @@ public class DecoratingCoverageStoreInfo extends AbstractDecorator<CoverageStore
     @Override
     public <T> T getAdapter(Class<T> adapterClass, Map<?, ?> hints) {
         return delegate.getAdapter(adapterClass, hints);
-    }
-
-    @Override
-    public GridCoverageReader getGridCoverageReader(ProgressListener listener, Hints hints)
-            throws IOException {
-        return delegate.getGridCoverageReader(listener, hints);
     }
 
     @Override

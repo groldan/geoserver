@@ -3,7 +3,7 @@
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
-package org.geoserver.security.decorators;
+package org.geoserver.catalog.decorators;
 
 import java.util.Date;
 import java.util.List;

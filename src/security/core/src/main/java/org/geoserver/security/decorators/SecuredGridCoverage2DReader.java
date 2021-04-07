@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import org.geoserver.catalog.Predicates;
+import org.geoserver.catalog.decorators.DecoratingGridCoverage2DReader;
 import org.geoserver.data.util.CoverageUtils;
 import org.geoserver.security.CoverageAccessLimits;
 import org.geoserver.security.WrapperPolicy;

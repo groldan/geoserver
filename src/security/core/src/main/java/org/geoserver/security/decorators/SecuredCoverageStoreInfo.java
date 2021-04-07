@@ -6,6 +6,7 @@
 package org.geoserver.security.decorators;
 
 import org.geoserver.catalog.CoverageStoreInfo;
+import org.geoserver.catalog.decorators.DecoratingCoverageStoreInfo;
 import org.geoserver.ows.Dispatcher;
 import org.geoserver.ows.Request;
 import org.geoserver.security.AccessLevel;

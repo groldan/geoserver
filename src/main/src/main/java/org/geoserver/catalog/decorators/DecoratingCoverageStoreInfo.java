@@ -3,7 +3,7 @@
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
-package org.geoserver.security.decorators;
+package org.geoserver.catalog.decorators;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -11,39 +11,28 @@ import java.util.Date;
 import java.util.Map;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CatalogVisitor;
+import org.geoserver.catalog.CoverageStoreInfo;
 import org.geoserver.catalog.MetadataMap;
-import org.geoserver.catalog.WMSStoreInfo;
 import org.geoserver.catalog.WorkspaceInfo;
-import org.geotools.ows.wms.WebMapServer;
+import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.util.decorate.AbstractDecorator;
+import org.geotools.util.factory.Hints;
+import org.opengis.coverage.grid.GridCoverageReader;
 import org.opengis.util.ProgressListener;
 
 /**
- * Delegates every method to the delegate wms store info. Subclasses will override selected methods
- * to perform their "decoration" job
+ * Delegates all methods to the provided delegate. Suclasses will override methods in order to
+ * perform their decoration work
  *
- * @author Andrea Aime - GeoSolutions
+ * @author Andrea Aime - TOPP
+ * @param <T>
+ * @param <F>
  */
-public class DecoratingWMSStoreInfo extends AbstractDecorator<WMSStoreInfo>
-        implements WMSStoreInfo {
+public class DecoratingCoverageStoreInfo extends AbstractDecorator<CoverageStoreInfo>
+        implements CoverageStoreInfo {
 
-    public DecoratingWMSStoreInfo(WMSStoreInfo delegate) {
+    public DecoratingCoverageStoreInfo(CoverageStoreInfo delegate) {
         super(delegate);
-    }
-
-    @Override
-    public void accept(CatalogVisitor visitor) {
-        delegate.accept(visitor);
-    }
-
-    @Override
-    public <T> T getAdapter(Class<T> adapterClass, Map<?, ?> hints) {
-        return delegate.getAdapter(adapterClass, hints);
-    }
-
-    @Override
-    public String getCapabilitiesURL() {
-        return delegate.getCapabilitiesURL();
     }
 
     @Override
@@ -67,6 +56,11 @@ public class DecoratingWMSStoreInfo extends AbstractDecorator<WMSStoreInfo>
     }
 
     @Override
+    public AbstractGridFormat getFormat() {
+        return delegate.getFormat();
+    }
+
+    @Override
     public String getId() {
         return delegate.getId();
     }
@@ -87,8 +81,8 @@ public class DecoratingWMSStoreInfo extends AbstractDecorator<WMSStoreInfo>
     }
 
     @Override
-    public WebMapServer getWebMapServer(ProgressListener listener) throws IOException {
-        return delegate.getWebMapServer(listener);
+    public String getURL() {
+        return delegate.getURL();
     }
 
     @Override
@@ -99,11 +93,6 @@ public class DecoratingWMSStoreInfo extends AbstractDecorator<WMSStoreInfo>
     @Override
     public boolean isEnabled() {
         return delegate.isEnabled();
-    }
-
-    @Override
-    public void setCapabilitiesURL(String url) {
-        delegate.setCapabilitiesURL(url);
     }
 
     @Override
@@ -132,68 +121,29 @@ public class DecoratingWMSStoreInfo extends AbstractDecorator<WMSStoreInfo>
     }
 
     @Override
+    public void setURL(String url) {
+        delegate.setURL(url);
+    }
+
+    @Override
     public void setWorkspace(WorkspaceInfo workspace) {
         delegate.setWorkspace(workspace);
     }
 
     @Override
-    public String getUsername() {
-        return delegate.getUsername();
+    public void accept(CatalogVisitor visitor) {
+        delegate.accept(visitor);
     }
 
     @Override
-    public void setUsername(String user) {
-        delegate.setUsername(user);
+    public <T> T getAdapter(Class<T> adapterClass, Map<?, ?> hints) {
+        return delegate.getAdapter(adapterClass, hints);
     }
 
     @Override
-    public String getPassword() {
-        return delegate.getPassword();
-    }
-
-    @Override
-    public void setPassword(String password) {
-        delegate.setPassword(password);
-    }
-
-    @Override
-    public int getMaxConnections() {
-        return delegate.getMaxConnections();
-    }
-
-    @Override
-    public void setMaxConnections(int maxConcurrentConnections) {
-        delegate.setMaxConnections(maxConcurrentConnections);
-    }
-
-    @Override
-    public int getReadTimeout() {
-        return delegate.getReadTimeout();
-    }
-
-    @Override
-    public void setReadTimeout(int timeoutSeconds) {
-        delegate.setReadTimeout(timeoutSeconds);
-    }
-
-    @Override
-    public int getConnectTimeout() {
-        return delegate.getConnectTimeout();
-    }
-
-    @Override
-    public void setConnectTimeout(int timeoutSeconds) {
-        delegate.setConnectTimeout(timeoutSeconds);
-    }
-
-    @Override
-    public boolean isUseConnectionPooling() {
-        return delegate.isUseConnectionPooling();
-    }
-
-    @Override
-    public void setUseConnectionPooling(boolean useHttpConnectionPooling) {
-        delegate.setUseConnectionPooling(useHttpConnectionPooling);
+    public GridCoverageReader getGridCoverageReader(ProgressListener listener, Hints hints)
+            throws IOException {
+        return delegate.getGridCoverageReader(listener, hints);
     }
 
     @Override

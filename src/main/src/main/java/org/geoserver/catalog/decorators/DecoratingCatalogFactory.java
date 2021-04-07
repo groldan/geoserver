@@ -3,7 +3,7 @@
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
-package org.geoserver.security.decorators;
+package org.geoserver.catalog.decorators;
 
 import org.geoserver.catalog.AttributeTypeInfo;
 import org.geoserver.catalog.AttributionInfo;

@@ -1,9 +1,8 @@
-/* (c) 2014-2015 Open Source Geospatial Foundation - all rights reserved
- * (c) 2001 - 2013 OpenPlans
+/* (c) 2016 Open Source Geospatial Foundation - all rights reserved
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
-package org.geoserver.security.decorators;
+package org.geoserver.catalog.decorators;
 
 import it.geosolutions.imageio.maskband.DatasetLayout;
 import java.io.IOException;
@@ -11,11 +10,16 @@ import java.util.List;
 import java.util.Set;
 import javax.media.jai.ImageLayout;
 import org.geotools.coverage.grid.GridCoverage2D;
-import org.geotools.coverage.grid.io.GridCoverage2DReader;
+import org.geotools.coverage.grid.io.DimensionDescriptor;
+import org.geotools.coverage.grid.io.GranuleSource;
+import org.geotools.coverage.grid.io.HarvestedSource;
 import org.geotools.coverage.grid.io.OverviewPolicy;
+import org.geotools.coverage.grid.io.StructuredGridCoverage2DReader;
 import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.util.factory.Hints;
 import org.opengis.coverage.grid.Format;
 import org.opengis.coverage.grid.GridEnvelope;
+import org.opengis.feature.simple.SimpleFeatureType;
 import org.opengis.parameter.GeneralParameterValue;
 import org.opengis.parameter.ParameterDescriptor;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
@@ -23,16 +27,17 @@ import org.opengis.referencing.datum.PixelInCell;
 import org.opengis.referencing.operation.MathTransform;
 
 /**
- * Delegates every method to the delegate grid coverage reader. Subclasses will override selected
- * methods to perform their "decoration" job
+ * Delegates every method to the delegate structured grid coverage reader. Subclasses will override
+ * selected methods to perform their "decoration" job
  *
- * @author Andrea Aime
+ * @author Daniele Romagnoli
  */
-public abstract class DecoratingGridCoverage2DReader implements GridCoverage2DReader {
+public abstract class DecoratingStructuredGridCoverage2DReader
+        implements StructuredGridCoverage2DReader {
 
-    protected GridCoverage2DReader delegate;
+    protected StructuredGridCoverage2DReader delegate;
 
-    public DecoratingGridCoverage2DReader(GridCoverage2DReader delegate) {
+    public DecoratingStructuredGridCoverage2DReader(StructuredGridCoverage2DReader delegate) {
         this.delegate = delegate;
     }
 
@@ -175,6 +180,46 @@ public abstract class DecoratingGridCoverage2DReader implements GridCoverage2DRe
     @Override
     public double[][] getResolutionLevels(String coverageName) throws IOException {
         return delegate.getResolutionLevels(coverageName);
+    }
+
+    @Override
+    public GranuleSource getGranules(String coverageName, boolean readOnly)
+            throws IOException, UnsupportedOperationException {
+        return delegate.getGranules(coverageName, readOnly);
+    }
+
+    @Override
+    public boolean isReadOnly() {
+        return delegate.isReadOnly();
+    }
+
+    @Override
+    public void createCoverage(String coverageName, SimpleFeatureType schema)
+            throws IOException, UnsupportedOperationException {
+        delegate.createCoverage(coverageName, schema);
+    }
+
+    @Override
+    public boolean removeCoverage(String coverageName, boolean delete)
+            throws IOException, UnsupportedOperationException {
+        return delegate.removeCoverage(coverageName, delete);
+    }
+
+    @Override
+    public void delete(boolean deleteData) throws IOException {
+        delegate.delete(deleteData);
+    }
+
+    @Override
+    public List<HarvestedSource> harvest(String defaultTargetCoverage, Object source, Hints hints)
+            throws IOException, UnsupportedOperationException {
+        return delegate.harvest(defaultTargetCoverage, source, hints);
+    }
+
+    @Override
+    public List<DimensionDescriptor> getDimensionDescriptors(String coverageName)
+            throws IOException {
+        return delegate.getDimensionDescriptors(coverageName);
     }
 
     @Override

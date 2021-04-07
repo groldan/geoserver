@@ -3,7 +3,7 @@
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
-package org.geoserver.security.decorators;
+package org.geoserver.catalog.decorators;
 
 import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.coverage.grid.io.GridCoverage2DReader;
@@ -21,7 +21,7 @@ import org.opengis.parameter.ParameterValueGroup;
  */
 public abstract class DecoratingGridFormat implements Format {
 
-    AbstractGridFormat delegate;
+    protected AbstractGridFormat delegate;
 
     public DecoratingGridFormat(AbstractGridFormat delegate) {
         this.delegate = delegate;

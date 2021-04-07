@@ -5,6 +5,7 @@
 package org.geoserver.security.decorators;
 
 import java.io.IOException;
+import org.geoserver.catalog.decorators.DecoratingStructuredGridCoverage2DReader;
 import org.geoserver.security.WrapperPolicy;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.io.StructuredGridCoverage2DReader;

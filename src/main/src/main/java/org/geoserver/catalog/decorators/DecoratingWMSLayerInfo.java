@@ -1,59 +1,61 @@
-/* (c) 2014 - 2015 Open Source Geospatial Foundation - all rights reserved
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
  * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
-package org.geoserver.security.decorators;
+package org.geoserver.catalog.decorators;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import org.geoserver.catalog.AttributeTypeInfo;
+import java.util.Optional;
+import java.util.Set;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CatalogVisitor;
 import org.geoserver.catalog.DataLinkInfo;
-import org.geoserver.catalog.DataStoreInfo;
-import org.geoserver.catalog.FeatureTypeInfo;
 import org.geoserver.catalog.KeywordInfo;
 import org.geoserver.catalog.MetadataLinkInfo;
 import org.geoserver.catalog.MetadataMap;
 import org.geoserver.catalog.NamespaceInfo;
 import org.geoserver.catalog.ProjectionPolicy;
 import org.geoserver.catalog.StoreInfo;
-import org.geotools.data.FeatureSource;
+import org.geoserver.catalog.StyleInfo;
+import org.geoserver.catalog.WMSLayerInfo;
+import org.geoserver.catalog.WMSStoreInfo;
 import org.geotools.geometry.jts.ReferencedEnvelope;
-import org.geotools.measure.Measure;
+import org.geotools.ows.wms.Layer;
+import org.geotools.styling.Style;
 import org.geotools.util.decorate.AbstractDecorator;
-import org.geotools.util.factory.Hints;
-import org.opengis.feature.Feature;
-import org.opengis.feature.type.FeatureType;
 import org.opengis.feature.type.Name;
-import org.opengis.filter.Filter;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.util.ProgressListener;
 
 /**
- * Delegates every method to the delegate feature type info. Subclasses will override selected
- * methods to perform their "decoration" job
+ * Delegates every method to the delegate wms layer info. Subclasses will override selected methods
+ * to perform their "decoration" job
  *
- * @author Andrea Aime
+ * @author Andrea Aime - GeoSolutions
  */
-public abstract class DecoratingFeatureTypeInfo extends AbstractDecorator<FeatureTypeInfo>
-        implements FeatureTypeInfo {
+public class DecoratingWMSLayerInfo extends AbstractDecorator<WMSLayerInfo>
+        implements WMSLayerInfo {
 
-    public DecoratingFeatureTypeInfo(FeatureTypeInfo info) {
-        super(info);
+    public DecoratingWMSLayerInfo(WMSLayerInfo delegate) {
+        super(delegate);
     }
 
     @Override
-    public FeatureSource<? extends FeatureType, ? extends Feature> getFeatureSource(
-            ProgressListener listener, Hints hints) throws IOException {
-        return delegate.getFeatureSource(listener, hints);
+    public void accept(CatalogVisitor visitor) {
+        delegate.accept(visitor);
     }
 
     @Override
-    public DataStoreInfo getStore() {
-        return delegate.getStore();
+    public ReferencedEnvelope boundingBox() throws Exception {
+        return delegate.boundingBox();
+    }
+
+    @Override
+    public boolean enabled() {
+        return delegate.enabled();
     }
 
     @Override
@@ -72,23 +74,8 @@ public abstract class DecoratingFeatureTypeInfo extends AbstractDecorator<Featur
     }
 
     @Override
-    public List<AttributeTypeInfo> getAttributes() {
-        return delegate.getAttributes();
-    }
-
-    @Override
-    public ReferencedEnvelope boundingBox() throws Exception {
-        return delegate.boundingBox();
-    }
-
-    @Override
     public Catalog getCatalog() {
         return delegate.getCatalog();
-    }
-
-    @Override
-    public void setCatalog(Catalog catalog) {
-        delegate.setCatalog(catalog);
     }
 
     @Override
@@ -99,21 +86,6 @@ public abstract class DecoratingFeatureTypeInfo extends AbstractDecorator<Featur
     @Override
     public String getDescription() {
         return delegate.getDescription();
-    }
-
-    @Override
-    public List<AttributeTypeInfo> attributes() throws IOException {
-        return delegate.attributes();
-    }
-
-    @Override
-    public FeatureType getFeatureType() throws IOException {
-        return delegate.getFeatureType();
-    }
-
-    @Override
-    public Filter filter() {
-        return delegate.filter();
     }
 
     @Override
@@ -137,11 +109,6 @@ public abstract class DecoratingFeatureTypeInfo extends AbstractDecorator<Featur
     }
 
     @Override
-    public int getMaxFeatures() {
-        return delegate.getMaxFeatures();
-    }
-
-    @Override
     public MetadataMap getMetadata() {
         return delegate.getMetadata();
     }
@@ -159,12 +126,6 @@ public abstract class DecoratingFeatureTypeInfo extends AbstractDecorator<Featur
     @Override
     public String getName() {
         return delegate.getName();
-    }
-
-    /** @see org.geoserver.catalog.ResourceInfo#getQualifiedName() */
-    @Override
-    public Name getQualifiedName() {
-        return delegate.getQualifiedName();
     }
 
     @Override
@@ -187,17 +148,6 @@ public abstract class DecoratingFeatureTypeInfo extends AbstractDecorator<Featur
         return delegate.getNativeName();
     }
 
-    /** @see org.geoserver.catalog.ResourceInfo#getQualifiedNativeName() */
-    @Override
-    public Name getQualifiedNativeName() {
-        return delegate.getQualifiedNativeName();
-    }
-
-    @Override
-    public int getNumDecimals() {
-        return delegate.getNumDecimals();
-    }
-
     @Override
     public String prefixedName() {
         return delegate.prefixedName();
@@ -209,8 +159,23 @@ public abstract class DecoratingFeatureTypeInfo extends AbstractDecorator<Featur
     }
 
     @Override
+    public Name getQualifiedName() {
+        return delegate.getQualifiedName();
+    }
+
+    @Override
+    public Name getQualifiedNativeName() {
+        return delegate.getQualifiedNativeName();
+    }
+
+    @Override
     public String getSRS() {
         return delegate.getSRS();
+    }
+
+    @Override
+    public WMSStoreInfo getStore() {
+        return delegate.getStore();
     }
 
     @Override
@@ -219,18 +184,23 @@ public abstract class DecoratingFeatureTypeInfo extends AbstractDecorator<Featur
     }
 
     @Override
+    public Layer getWMSLayer(ProgressListener listener) throws IOException {
+        return delegate.getWMSLayer(listener);
+    }
+
+    @Override
     public boolean isEnabled() {
         return delegate.isEnabled();
     }
 
     @Override
-    public boolean enabled() {
-        return delegate.enabled();
+    public void setAbstract(String abstract1) {
+        delegate.setAbstract(abstract1);
     }
 
     @Override
-    public void setAbstract(String _abstract) {
-        delegate.setAbstract(_abstract);
+    public void setCatalog(Catalog catalog) {
+        delegate.setCatalog(catalog);
     }
 
     @Override
@@ -246,11 +216,6 @@ public abstract class DecoratingFeatureTypeInfo extends AbstractDecorator<Featur
     @Override
     public void setLatLonBoundingBox(ReferencedEnvelope box) {
         delegate.setLatLonBoundingBox(box);
-    }
-
-    @Override
-    public void setMaxFeatures(int maxFeatures) {
-        delegate.setMaxFeatures(maxFeatures);
     }
 
     @Override
@@ -279,11 +244,6 @@ public abstract class DecoratingFeatureTypeInfo extends AbstractDecorator<Featur
     }
 
     @Override
-    public void setNumDecimals(int numDecimals) {
-        delegate.setNumDecimals(numDecimals);
-    }
-
-    @Override
     public void setProjectionPolicy(ProjectionPolicy policy) {
         delegate.setProjectionPolicy(policy);
     }
@@ -304,11 +264,6 @@ public abstract class DecoratingFeatureTypeInfo extends AbstractDecorator<Featur
     }
 
     @Override
-    public void accept(CatalogVisitor visitor) {
-        delegate.accept(visitor);
-    }
-
-    @Override
     public boolean isAdvertised() {
         return delegate.isAdvertised();
     }
@@ -316,91 +271,6 @@ public abstract class DecoratingFeatureTypeInfo extends AbstractDecorator<Featur
     @Override
     public void setAdvertised(boolean advertised) {
         delegate.setAdvertised(advertised);
-    }
-
-    @Override
-    public List<String> getResponseSRS() {
-        return delegate.getResponseSRS();
-    }
-
-    @Override
-    public boolean isOverridingServiceSRS() {
-        return delegate.isOverridingServiceSRS();
-    }
-
-    @Override
-    public void setOverridingServiceSRS(boolean overridingServiceSRS) {
-        delegate.setOverridingServiceSRS(overridingServiceSRS);
-    }
-
-    @Override
-    public boolean getSkipNumberMatched() {
-        return delegate.getSkipNumberMatched();
-    }
-
-    @Override
-    public void setSkipNumberMatched(boolean skipNumberMatched) {
-        delegate.setSkipNumberMatched(skipNumberMatched);
-    }
-
-    @Override
-    public Measure getLinearizationTolerance() {
-        return delegate.getLinearizationTolerance();
-    }
-
-    @Override
-    public void setLinearizationTolerance(Measure tolerance) {
-        delegate.setLinearizationTolerance(tolerance);
-    }
-
-    @Override
-    public boolean isCircularArcPresent() {
-        return delegate.isCircularArcPresent();
-    }
-
-    @Override
-    public void setCircularArcPresent(boolean enabled) {
-        delegate.setCircularArcPresent(enabled);
-    }
-
-    @Override
-    public String getCqlFilter() {
-        return delegate.getCqlFilter();
-    }
-
-    @Override
-    public void setCqlFilter(String cqlFilter) {
-        delegate.setCqlFilter(cqlFilter);
-    }
-
-    @Override
-    public boolean getEncodeMeasures() {
-        return delegate.getEncodeMeasures();
-    }
-
-    @Override
-    public void setEncodeMeasures(boolean encodeMeasures) {
-        delegate.setEncodeMeasures(encodeMeasures);
-    }
-
-    @Override
-    public boolean getPadWithZeros() {
-        return delegate.getPadWithZeros();
-    }
-
-    @Override
-    public void setPadWithZeros(boolean padWithZeros) {
-        delegate.setPadWithZeros(padWithZeros);
-    }
-
-    @Override
-    public boolean getForcedDecimal() {
-        return delegate.getForcedDecimal();
-    }
-
-    @Override
-    public void setForcedDecimal(boolean forcedDecimal) {
-        delegate.setForcedDecimal(forcedDecimal);
     }
 
     @Override
@@ -421,6 +291,127 @@ public abstract class DecoratingFeatureTypeInfo extends AbstractDecorator<Featur
     @Override
     public void setDisabledServices(List<String> disabledServices) {
         delegate.setDisabledServices(disabledServices);
+    }
+
+    @Override
+    public List<String> remoteStyles() { //
+        return delegate.remoteStyles();
+    }
+
+    @Override
+    public String getForcedRemoteStyle() {
+
+        return delegate.getForcedRemoteStyle();
+    }
+
+    @Override
+    public void setForcedRemoteStyle(String forcedRemoteStyle) {
+        delegate.setForcedRemoteStyle(forcedRemoteStyle);
+    }
+
+    @Override
+    public List<String> availableFormats() {
+        return delegate.availableFormats();
+    }
+
+    @Override
+    public Optional<Style> findRemoteStyleByName(String name) {
+        return delegate.findRemoteStyleByName(name);
+    }
+
+    @Override
+    public boolean isSelectedRemoteStyles(String name) {
+        return delegate.isSelectedRemoteStyles(name);
+    }
+
+    @Override
+    public Set<StyleInfo> getRemoteStyleInfos() {
+        return delegate.getRemoteStyleInfos();
+    }
+
+    @Override
+    public List<String> getSelectedRemoteFormats() {
+        return delegate.getSelectedRemoteFormats();
+    }
+
+    @Override
+    public void setSelectedRemoteFormats(List<String> selectedRemoteFormats) {
+        delegate.setSelectedRemoteFormats(selectedRemoteFormats);
+    }
+
+    @Override
+    public List<String> getSelectedRemoteStyles() {
+        return delegate.getSelectedRemoteStyles();
+    }
+
+    @Override
+    public void setSelectedRemoteStyles(List<String> selectedRemoteStyles) {
+        delegate.setSelectedRemoteStyles(selectedRemoteStyles);
+    }
+
+    @Override
+    public boolean isFormatValid(String format) {
+        return delegate.isFormatValid(format);
+    }
+
+    @Override
+    public void reset() {
+        delegate.reset();
+    }
+
+    @Override
+    public String getPreferredFormat() {
+        return delegate.getPreferredFormat();
+    }
+
+    @Override
+    public void setPreferredFormat(String prefferedFormat) {
+        delegate.setPreferredFormat(prefferedFormat);
+    }
+
+    @Override
+    public Set<StyleInfo> getStyles() {
+        return delegate.getStyles();
+    }
+
+    @Override
+    public StyleInfo getDefaultStyle() {
+        return delegate.getDefaultStyle();
+    }
+
+    @Override
+    public Double getMinScale() {
+        return delegate.getMinScale();
+    }
+
+    @Override
+    public void setMinScale(Double minScale) {
+        delegate.setMinScale(minScale);
+    }
+
+    @Override
+    public Double getMaxScale() {
+        return delegate.getMaxScale();
+    }
+
+    @Override
+    public void setMaxScale(Double maxScale) {
+        delegate.setMaxScale(maxScale);
+    }
+
+    @Override
+    public List<StyleInfo> getAllAvailableRemoteStyles() {
+        return delegate.getAllAvailableRemoteStyles();
+    }
+
+    @Override
+    public boolean isMetadataBBoxRespected() {
+        return delegate.isMetadataBBoxRespected();
+    }
+
+    @Override
+    public void setMetadataBBoxRespected(boolean metadataBBoxRespected) {
+        delegate.setMetadataBBoxRespected(metadataBBoxRespected);
     }
 
     @Override

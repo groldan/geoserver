@@ -17,6 +17,7 @@ import java.util.Set;
 import org.geoserver.catalog.DataStoreInfo;
 import org.geoserver.catalog.FeatureTypeInfo;
 import org.geoserver.catalog.StoreInfo;
+import org.geoserver.catalog.decorators.DecoratingFeatureTypeInfo;
 import org.geoserver.security.AccessLevel;
 import org.geoserver.security.SecureCatalogImpl;
 import org.geoserver.security.VectorAccessLimits;

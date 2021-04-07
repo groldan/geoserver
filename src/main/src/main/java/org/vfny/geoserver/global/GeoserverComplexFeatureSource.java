@@ -7,7 +7,7 @@ package org.vfny.geoserver.global;
 import java.io.IOException;
 import java.util.Objects;
 import org.geoserver.catalog.FeatureTypeInfo;
-import org.geoserver.security.decorators.DecoratingFeatureSource;
+import org.geoserver.catalog.decorators.DecoratingFeatureSource;
 import org.geotools.data.DataSourceException;
 import org.geotools.data.FeatureSource;
 import org.geotools.data.Query;

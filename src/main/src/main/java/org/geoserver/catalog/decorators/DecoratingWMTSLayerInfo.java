@@ -1,19 +1,14 @@
-/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
- * (c) 2001 - 2013 OpenPlans
+/* (c) 2017 Open Source Geospatial Foundation - all rights reserved
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
-package org.geoserver.security.decorators;
+package org.geoserver.catalog.decorators;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CatalogVisitor;
-import org.geoserver.catalog.CoverageDimensionInfo;
-import org.geoserver.catalog.CoverageInfo;
-import org.geoserver.catalog.CoverageStoreInfo;
 import org.geoserver.catalog.DataLinkInfo;
 import org.geoserver.catalog.KeywordInfo;
 import org.geoserver.catalog.MetadataLinkInfo;
@@ -21,29 +16,42 @@ import org.geoserver.catalog.MetadataMap;
 import org.geoserver.catalog.NamespaceInfo;
 import org.geoserver.catalog.ProjectionPolicy;
 import org.geoserver.catalog.StoreInfo;
+import org.geoserver.catalog.WMTSLayerInfo;
+import org.geoserver.catalog.WMTSStoreInfo;
 import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.ows.wmts.model.WMTSLayer;
 import org.geotools.util.decorate.AbstractDecorator;
-import org.geotools.util.factory.Hints;
-import org.opengis.coverage.grid.GridCoverage;
-import org.opengis.coverage.grid.GridCoverageReader;
-import org.opengis.coverage.grid.GridGeometry;
 import org.opengis.feature.type.Name;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.util.ProgressListener;
 
 /**
- * Delegates all methods to the provided delegate. Suclasses will override methods in order to
- * perform their decoration work
+ * Delegates every method to the delegate wmts layer info.
  *
- * @author Andrea Aime - TOPP
- * @param <T>
- * @param <F>
+ * <p>Subclasses will override selected methods to perform their "decoration" job
+ *
+ * @author Emanuele Tajariol (etj at geo-solutions dot it)
  */
-public class DecoratingCoverageInfo extends AbstractDecorator<CoverageInfo>
-        implements CoverageInfo {
+public class DecoratingWMTSLayerInfo extends AbstractDecorator<WMTSLayerInfo>
+        implements WMTSLayerInfo {
 
-    public DecoratingCoverageInfo(CoverageInfo delegate) {
+    public DecoratingWMTSLayerInfo(WMTSLayerInfo delegate) {
         super(delegate);
+    }
+
+    @Override
+    public void accept(CatalogVisitor visitor) {
+        delegate.accept(visitor);
+    }
+
+    @Override
+    public ReferencedEnvelope boundingBox() throws Exception {
+        return delegate.boundingBox();
+    }
+
+    @Override
+    public boolean enabled() {
+        return delegate.enabled();
     }
 
     @Override
@@ -62,18 +70,8 @@ public class DecoratingCoverageInfo extends AbstractDecorator<CoverageInfo>
     }
 
     @Override
-    public ReferencedEnvelope boundingBox() throws Exception {
-        return delegate.boundingBox();
-    }
-
-    @Override
     public Catalog getCatalog() {
         return delegate.getCatalog();
-    }
-
-    @Override
-    public void setCatalog(Catalog catalog) {
-        delegate.setCatalog(catalog);
     }
 
     @Override
@@ -82,51 +80,13 @@ public class DecoratingCoverageInfo extends AbstractDecorator<CoverageInfo>
     }
 
     @Override
-    public String getDefaultInterpolationMethod() {
-        return delegate.getDefaultInterpolationMethod();
-    }
-
-    @Override
     public String getDescription() {
         return delegate.getDescription();
     }
 
     @Override
-    public List<CoverageDimensionInfo> getDimensions() {
-        return delegate.getDimensions();
-    }
-
-    @Override
-    public GridGeometry getGrid() {
-        return delegate.getGrid();
-    }
-
-    @Override
-    public GridCoverage getGridCoverage(ProgressListener listener, Hints hints) throws IOException {
-        return delegate.getGridCoverage(listener, hints);
-    }
-
-    @Override
-    public GridCoverage getGridCoverage(
-            ProgressListener listener, ReferencedEnvelope envelope, Hints hints)
-            throws IOException {
-        return delegate.getGridCoverage(listener, envelope, hints);
-    }
-
-    @Override
-    public GridCoverageReader getGridCoverageReader(ProgressListener listener, Hints hints)
-            throws IOException {
-        return delegate.getGridCoverageReader(listener, hints);
-    }
-
-    @Override
     public String getId() {
         return delegate.getId();
-    }
-
-    @Override
-    public List<String> getInterpolationMethods() {
-        return delegate.getInterpolationMethods();
     }
 
     @Override
@@ -164,12 +124,6 @@ public class DecoratingCoverageInfo extends AbstractDecorator<CoverageInfo>
         return delegate.getName();
     }
 
-    /** @see org.geoserver.catalog.ResourceInfo#getQualifiedName() */
-    @Override
-    public Name getQualifiedName() {
-        return delegate.getQualifiedName();
-    }
-
     @Override
     public NamespaceInfo getNamespace() {
         return delegate.getNamespace();
@@ -186,24 +140,8 @@ public class DecoratingCoverageInfo extends AbstractDecorator<CoverageInfo>
     }
 
     @Override
-    public String getNativeFormat() {
-        return delegate.getNativeFormat();
-    }
-
-    @Override
     public String getNativeName() {
         return delegate.getNativeName();
-    }
-
-    /** @see org.geoserver.catalog.ResourceInfo#getQualifiedNativeName() */
-    @Override
-    public Name getQualifiedNativeName() {
-        return delegate.getQualifiedNativeName();
-    }
-
-    @Override
-    public Map<String, Serializable> getParameters() {
-        return delegate.getParameters();
     }
 
     @Override
@@ -217,13 +155,13 @@ public class DecoratingCoverageInfo extends AbstractDecorator<CoverageInfo>
     }
 
     @Override
-    public List<String> getRequestSRS() {
-        return delegate.getRequestSRS();
+    public Name getQualifiedName() {
+        return delegate.getQualifiedName();
     }
 
     @Override
-    public List<String> getResponseSRS() {
-        return delegate.getResponseSRS();
+    public Name getQualifiedNativeName() {
+        return delegate.getQualifiedNativeName();
     }
 
     @Override
@@ -232,13 +170,8 @@ public class DecoratingCoverageInfo extends AbstractDecorator<CoverageInfo>
     }
 
     @Override
-    public CoverageStoreInfo getStore() {
+    public WMTSStoreInfo getStore() {
         return delegate.getStore();
-    }
-
-    @Override
-    public List<String> getSupportedFormats() {
-        return delegate.getSupportedFormats();
     }
 
     @Override
@@ -247,23 +180,23 @@ public class DecoratingCoverageInfo extends AbstractDecorator<CoverageInfo>
     }
 
     @Override
+    public WMTSLayer getWMTSLayer(ProgressListener listener) throws IOException {
+        return delegate.getWMTSLayer(listener);
+    }
+
+    @Override
     public boolean isEnabled() {
         return delegate.isEnabled();
     }
 
     @Override
-    public boolean enabled() {
-        return delegate.enabled();
+    public void setAbstract(String abstract1) {
+        delegate.setAbstract(abstract1);
     }
 
     @Override
-    public void setAbstract(String _abstract) {
-        delegate.setAbstract(_abstract);
-    }
-
-    @Override
-    public void setDefaultInterpolationMethod(String defaultInterpolationMethod) {
-        delegate.setDefaultInterpolationMethod(defaultInterpolationMethod);
+    public void setCatalog(Catalog catalog) {
+        delegate.setCatalog(catalog);
     }
 
     @Override
@@ -274,11 +207,6 @@ public class DecoratingCoverageInfo extends AbstractDecorator<CoverageInfo>
     @Override
     public void setEnabled(boolean enabled) {
         delegate.setEnabled(enabled);
-    }
-
-    @Override
-    public void setGrid(GridGeometry grid) {
-        delegate.setGrid(grid);
     }
 
     @Override
@@ -307,11 +235,6 @@ public class DecoratingCoverageInfo extends AbstractDecorator<CoverageInfo>
     }
 
     @Override
-    public void setNativeFormat(String nativeFormat) {
-        delegate.setNativeFormat(nativeFormat);
-    }
-
-    @Override
     public void setNativeName(String nativeName) {
         delegate.setNativeName(nativeName);
     }
@@ -337,11 +260,6 @@ public class DecoratingCoverageInfo extends AbstractDecorator<CoverageInfo>
     }
 
     @Override
-    public void accept(CatalogVisitor visitor) {
-        delegate.accept(visitor);
-    }
-
-    @Override
     public boolean isAdvertised() {
         return delegate.isAdvertised();
     }
@@ -349,16 +267,6 @@ public class DecoratingCoverageInfo extends AbstractDecorator<CoverageInfo>
     @Override
     public void setAdvertised(boolean advertised) {
         delegate.setAdvertised(advertised);
-    }
-
-    @Override
-    public String getNativeCoverageName() {
-        return delegate.getNativeCoverageName();
-    }
-
-    @Override
-    public void setNativeCoverageName(String nativeCoverageName) {
-        delegate.setNativeCoverageName(nativeCoverageName);
     }
 
     @Override
