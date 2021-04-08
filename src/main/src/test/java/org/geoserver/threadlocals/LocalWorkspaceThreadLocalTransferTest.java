@@ -31,12 +31,12 @@ public class LocalWorkspaceThreadLocalTransferTest extends AbstractThreadLocalTr
                 new ThreadLocalTransferCallable(new LocalWorkspaceThreadLocalTransfer()) {
 
                     @Override
-                    void assertThreadLocalCleaned() {
+                    protected void assertThreadLocalCleaned() {
                         assertNull(LocalWorkspace.get());
                     }
 
                     @Override
-                    void assertThreadLocalApplied() {
+                    protected void assertThreadLocalApplied() {
                         assertSame(ws, LocalWorkspace.get());
                     }
                 });

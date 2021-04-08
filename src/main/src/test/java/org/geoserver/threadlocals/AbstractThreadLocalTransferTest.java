@@ -73,8 +73,8 @@ public abstract class AbstractThreadLocalTransferTest {
             return null;
         }
 
-        abstract void assertThreadLocalCleaned();
+        protected abstract void assertThreadLocalCleaned();
 
-        abstract void assertThreadLocalApplied();
+        protected abstract void assertThreadLocalApplied();
     };
 }

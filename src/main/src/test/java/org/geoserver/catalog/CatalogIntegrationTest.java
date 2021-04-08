@@ -11,7 +11,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -29,7 +28,6 @@ import org.geoserver.data.test.SystemTestData;
 import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.platform.GeoServerExtensionsHelper;
 import org.geoserver.platform.resource.Resource;
-import org.geoserver.security.decorators.SecuredLayerGroupInfo;
 import org.geoserver.test.GeoServerSystemTestSupport;
 import org.geoserver.test.SystemTest;
 import org.geoserver.test.TestSetup;
@@ -40,6 +38,7 @@ import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.styling.LineSymbolizer;
 import org.geotools.styling.PointSymbolizer;
 import org.geotools.util.Version;
+import org.geotools.util.decorate.AbstractDecorator;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -170,6 +169,7 @@ public class CatalogIntegrationTest extends GeoServerSystemTestSupport {
         assertEquals(1, countPersister);
     }
 
+    @SuppressWarnings("unchecked")
     @Test
     public void modificationProxySerializeTest() throws Exception {
         Catalog catalog = getCatalog();
@@ -249,8 +249,8 @@ public class CatalogIntegrationTest extends GeoServerSystemTestSupport {
         catalog.add(lg);
         // ... make sure we get a proxy
         lg = catalog.getLayerGroupByName("test-lg");
-        if (lg instanceof SecuredLayerGroupInfo) {
-            lg = ((SecuredLayerGroupInfo) lg).unwrap(LayerGroupInfo.class);
+        if (lg instanceof AbstractDecorator) {
+            lg = ((AbstractDecorator<LayerGroupInfo>) lg).unwrap(LayerGroupInfo.class);
         }
         LayerGroupInfo lg2 = serialize(lg);
         assertSame(ModificationProxy.unwrap(lg), ModificationProxy.unwrap(lg2));

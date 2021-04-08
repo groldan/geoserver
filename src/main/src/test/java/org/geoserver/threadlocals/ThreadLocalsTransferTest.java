@@ -25,7 +25,6 @@ import org.geoserver.ows.Dispatcher;
 import org.geoserver.ows.LocalPublished;
 import org.geoserver.ows.LocalWorkspace;
 import org.geoserver.ows.Request;
-import org.geoserver.security.AdminRequest;
 import org.geoserver.test.GeoServerSystemTestSupport;
 import org.junit.After;
 import org.junit.Before;
@@ -57,7 +56,6 @@ public class ThreadLocalsTransferTest extends GeoServerSystemTestSupport {
     @After
     public void cleanupThreadLocals() {
         Dispatcher.REQUEST.remove();
-        AdminRequest.finish();
         LocalPublished.remove();
         LocalWorkspace.remove();
         SecurityContextHolder.getContext().setAuthentication(null);
@@ -71,8 +69,6 @@ public class ThreadLocalsTransferTest extends GeoServerSystemTestSupport {
         LocalPublished.set(layer);
         final WorkspaceInfo ws = new WorkspaceInfoImpl();
         LocalWorkspace.set(ws);
-        final Object myState = new Object();
-        AdminRequest.start(myState);
         final Authentication auth = new UsernamePasswordAuthenticationToken("user", "password");
         SecurityContextHolder.getContext().setAuthentication(auth);
         final ThreadLocalsTransfer transfer = new ThreadLocalsTransfer();
@@ -92,7 +88,6 @@ public class ThreadLocalsTransferTest extends GeoServerSystemTestSupport {
 
                                 // check all thread locals have been applied to the current thread
                                 assertSame(request, Dispatcher.REQUEST.get());
-                                assertSame(myState, AdminRequest.get());
                                 assertSame(layer, LocalPublished.get());
                                 assertSame(ws, LocalWorkspace.get());
                                 assertSame(
@@ -106,7 +101,6 @@ public class ThreadLocalsTransferTest extends GeoServerSystemTestSupport {
                                 // check all thread locals have been cleaned up from the current
                                 // thread
                                 assertNull(Dispatcher.REQUEST.get());
-                                assertNull(AdminRequest.get());
                                 assertNull(LocalPublished.get());
                                 assertNull(LocalWorkspace.get());
                                 assertNull(SecurityContextHolder.getContext().getAuthentication());

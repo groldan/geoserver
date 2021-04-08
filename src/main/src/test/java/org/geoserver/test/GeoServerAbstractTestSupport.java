@@ -7,7 +7,6 @@ package org.geoserver.test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
-
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -44,8 +43,6 @@ import javax.xml.transform.stream.StreamResult;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 import javax.xml.validation.Validator;
-import net.sf.json.JSON;
-import net.sf.json.JSONSerializer;
 import org.apache.commons.codec.binary.Base64;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.FeatureTypeInfo;
@@ -62,7 +59,6 @@ import org.geoserver.platform.ContextLoadedEvent;
 import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.platform.GeoServerExtensionsHelper;
 import org.geoserver.platform.GeoServerResourceLoader;
-import org.geoserver.security.GeoServerSecurityManager;
 import org.geotools.data.DataUtilities;
 import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.referencing.CRS;
@@ -87,6 +83,8 @@ import org.xml.sax.ErrorHandler;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
+import net.sf.json.JSON;
+import net.sf.json.JSONSerializer;
 
 /**
  * Base test class for GeoServer unit tests.
@@ -320,11 +318,6 @@ public abstract class GeoServerAbstractTestSupport extends OneTimeSetupTest {
     /** Accessor for global geoserver instance from the test application context. */
     protected GeoServer getGeoServer() {
         return (GeoServer) applicationContext.getBean("geoServer");
-    }
-
-    /** Accesssor for global security manager instance from the test application context. */
-    protected GeoServerSecurityManager getSecurityManager() {
-        return (GeoServerSecurityManager) applicationContext.getBean("geoServerSecurityManager");
     }
 
     /** Flush XSD if exists. */

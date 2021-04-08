@@ -16,4 +16,6 @@
         http://www.springframework.org/schema/context
         http://www.springframework.org/schema/context/spring-context.xsd">
 
+  <bean id="adminRequestTransfer" class="org.geoserver.security.threadlocals.AdminRequestThreadLocalTransfer"/>
+
 </beans>

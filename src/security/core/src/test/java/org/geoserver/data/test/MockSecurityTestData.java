@@ -9,14 +9,15 @@ import java.io.File;
 import java.io.IOException;
 import org.apache.commons.io.FileUtils;
 import org.geoserver.catalog.Catalog;
-import org.geoserver.test.GeoServerMockTestSupport;
+import org.geoserver.security.GeoServerSecurityManager;
+import org.geoserver.test.GeoServerSecurityMockTestSupport;
 import org.geoserver.test.GeoServerSystemTestSupport;
 import org.geoserver.util.IOUtils;
 
 /**
  * Test setup uses for GeoServer mock tests.
  *
- * <p>This is the default test setup used by {@link GeoServerMockTestSupport}. During setup this
+ * <p>This is the default test setup used by {@link GeoServerSecurityMockTestSupport}. During setup this
  * class creates a catalog whose contents contain all the layers defined by {@link CiteTestData}
  *
  * <p>Customizing the setup, adding layers, etc... is done from {@link
@@ -28,23 +29,24 @@ import org.geoserver.util.IOUtils;
     "PMD.JUnit4TestShouldUseBeforeAnnotation",
     "PMD.JUnit4TestShouldUseAfterAnnotation"
 })
-public class MockTestData extends CiteTestData {
+public class MockSecurityTestData extends MockTestData {
 
     File data;
     Catalog catalog;
-    MockCreator mockCreator;
+    GeoServerSecurityManager secMgr;
+    MockSecurityCreator mockCreator;
     boolean includeRaster;
 
-    public MockTestData() throws IOException {
+    public MockSecurityTestData() throws IOException {
         // setup the root
         data = IOUtils.createRandomDirectory("./target", "mock", "data");
         data.delete();
         data.mkdir();
 
-        mockCreator = new MockCreator();
+        mockCreator = new MockSecurityCreator();
     }
 
-    public void setMockCreator(MockCreator mockCreator) {
+    public void setMockCreator(MockSecurityCreator mockCreator) {
         this.mockCreator = mockCreator;
     }
 
@@ -65,6 +67,17 @@ public class MockTestData extends CiteTestData {
             }
         }
         return catalog;
+    }
+
+    public GeoServerSecurityManager getSecurityManager() {
+        if (secMgr == null) {
+            try {
+                secMgr = mockCreator.createSecurityManager(this);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return secMgr;
     }
 
     @Override

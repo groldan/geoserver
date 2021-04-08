@@ -31,12 +31,12 @@ public class LocalLayerThreadLocalTransferTest extends AbstractThreadLocalTransf
                 new ThreadLocalTransferCallable(new LocalPublishedThreadLocalTransfer()) {
 
                     @Override
-                    void assertThreadLocalCleaned() {
+                    protected void assertThreadLocalCleaned() {
                         assertNull(LocalPublished.get());
                     }
 
                     @Override
-                    void assertThreadLocalApplied() {
+                    protected void assertThreadLocalApplied() {
                         assertSame(layer, LocalPublished.get());
                     }
                 });

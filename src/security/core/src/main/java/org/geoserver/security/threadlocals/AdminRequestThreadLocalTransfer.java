@@ -3,10 +3,11 @@
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
-package org.geoserver.threadlocals;
+package org.geoserver.security.threadlocals;
 
 import java.util.Map;
 import org.geoserver.security.AdminRequest;
+import org.geoserver.threadlocals.ThreadLocalTransfer;
 
 /**
  * Transfers the {@link AdminRequest} management to another thread

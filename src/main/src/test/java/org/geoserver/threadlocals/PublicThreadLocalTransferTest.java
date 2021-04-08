@@ -27,12 +27,12 @@ public class PublicThreadLocalTransferTest extends AbstractThreadLocalTransferTe
                         new PublicThreadLocalTransfer(Dispatcher.class, "REQUEST")) {
 
                     @Override
-                    void assertThreadLocalCleaned() {
+                    protected void assertThreadLocalCleaned() {
                         assertNull(Dispatcher.REQUEST.get());
                     }
 
                     @Override
-                    void assertThreadLocalApplied() {
+                    protected void assertThreadLocalApplied() {
                         assertSame(request, Dispatcher.REQUEST.get());
                     }
                 });

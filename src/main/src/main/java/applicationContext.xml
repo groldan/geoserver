@@ -280,7 +280,6 @@
     <constructor-arg index="0" value="org.geoserver.ows.Dispatcher"/>
     <constructor-arg index="1" value="REQUEST"/>
   </bean>
-  <bean id="adminRequestTransfer" class="org.geoserver.threadlocals.AdminRequestThreadLocalTransfer"/>
   <bean id="authenticationTransfer" class="org.geoserver.threadlocals.AuthenticationThreadLocalTransfer"/>
   <bean id="localPublishedTransfer" class="org.geoserver.threadlocals.LocalPublishedThreadLocalTransfer"/>
   <bean id="localWorkspaceTransfer" class="org.geoserver.threadlocals.LocalWorkspaceThreadLocalTransfer"/>

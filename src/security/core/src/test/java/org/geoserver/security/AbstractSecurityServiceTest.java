@@ -10,7 +10,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
@@ -24,7 +23,6 @@ import org.geoserver.security.password.GeoServerEmptyPasswordEncoder;
 import org.geoserver.security.password.GeoServerMultiplexingPasswordEncoder;
 import org.geoserver.security.password.GeoServerPBEPasswordEncoder;
 import org.geoserver.security.password.GeoServerPlainTextPasswordEncoder;
-import org.geoserver.test.GeoServerSystemTestSupport;
 import org.geotools.util.URLs;
 
 /**
@@ -32,7 +30,7 @@ import org.geotools.util.URLs;
  *
  * @author christian
  */
-public abstract class AbstractSecurityServiceTest extends GeoServerSystemTestSupport {
+public abstract class AbstractSecurityServiceTest extends GeoServerSecurityTestSupport {
 
     @Override
     protected void setUpTestData(SystemTestData testData) throws Exception {

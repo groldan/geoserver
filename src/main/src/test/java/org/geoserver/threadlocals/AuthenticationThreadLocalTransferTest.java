@@ -31,12 +31,12 @@ public class AuthenticationThreadLocalTransferTest extends AbstractThreadLocalTr
                 new ThreadLocalTransferCallable(new AuthenticationThreadLocalTransfer()) {
 
                     @Override
-                    void assertThreadLocalCleaned() {
+                    protected void assertThreadLocalCleaned() {
                         assertNull(SecurityContextHolder.getContext().getAuthentication());
                     }
 
                     @Override
-                    void assertThreadLocalApplied() {
+                    protected void assertThreadLocalApplied() {
                         assertSame(auth, SecurityContextHolder.getContext().getAuthentication());
                     }
                 });
