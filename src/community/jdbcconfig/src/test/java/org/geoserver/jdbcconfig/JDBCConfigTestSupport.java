@@ -5,7 +5,10 @@
  */
 package org.geoserver.jdbcconfig;
 
-import static org.easymock.EasyMock.*;
+import static org.easymock.EasyMock.anyObject;
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
 
 import java.io.File;
 import java.io.IOException;
@@ -66,8 +69,11 @@ public class JDBCConfigTestSupport {
         BasicDataSource dataSource;
         boolean initialized = false;
 
+        private File tmpDir;
+
         public DBConfig(
                 String name, String driver, String connectionUrl, String dbUser, String dbPasswd) {
+            this();
             this.name = name;
             this.driver = driver;
             this.connectionUrl = connectionUrl;
@@ -75,12 +81,26 @@ public class JDBCConfigTestSupport {
             this.dbPasswd = dbPasswd;
         }
 
-        DBConfig() {}
+        DBConfig() {
+            try {
+                this.tmpDir = createTempDir();
+            } catch (IOException e) {
+                e.printStackTrace();
+                throw new RuntimeException(e);
+            }
+        }
 
         BasicDataSource dataSource() throws Exception {
             if (dataSource != null) return dataSource;
 
-            dataSource =
+            dataSource = newDataSource();
+            Connection connection = dataSource.getConnection();
+            connection.close();
+            return dataSource;
+        }
+
+        BasicDataSource newDataSource() throws IOException {
+            BasicDataSource dataSource =
                     new BasicDataSource() {
 
                         @Override
@@ -89,15 +109,12 @@ public class JDBCConfigTestSupport {
                         }
                     };
             dataSource.setDriverClassName(driver);
-            dataSource.setUrl(
-                    connectionUrl.replace("${DATA_DIR}", createTempDir().getAbsolutePath()));
+            dataSource.setUrl(connectionUrl.replace("${DATA_DIR}", tmpDir.getAbsolutePath()));
             dataSource.setUsername(dbUser);
             dataSource.setPassword(dbPasswd);
 
             dataSource.setMinIdle(3);
             dataSource.setMaxActive(10);
-            Connection connection = dataSource.getConnection();
-            connection.close();
             return dataSource;
         }
 
@@ -229,6 +246,10 @@ public class JDBCConfigTestSupport {
         this.dbConfig = dbConfig;
     }
 
+    public DataSource newDataSource() throws IOException {
+        return dbConfig.newDataSource();
+    }
+
     public void setUpWithoutAppContext() throws Exception {
         ConfigDatabase.LOGGER.setLevel(Level.FINER);
 
@@ -318,14 +339,14 @@ public class JDBCConfigTestSupport {
         return configDb;
     }
 
-    private void initDb() throws Exception {
+    public void initDb() throws Exception {
         if (!dbConfig.initialized) {
             runScript(dbConfig.getInitScript(), null, true);
             dbConfig.initialized = true;
         }
     }
 
-    private void dropDb() throws Exception {
+    public void dropDb() throws Exception {
         URL url = JDBCGeoServerLoader.class.getResource(dbConfig.getResetScript());
         if (url != null && dbConfig.initialized) {
             runScript(dbConfig.getResetScript(), null, true);

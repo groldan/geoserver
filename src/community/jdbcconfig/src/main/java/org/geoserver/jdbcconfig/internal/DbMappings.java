@@ -5,8 +5,11 @@
  */
 package org.geoserver.jdbcconfig.internal;
 
-import static com.google.common.base.Preconditions.*;
-import static org.geoserver.jdbcconfig.internal.DbUtils.*;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
+import static org.geoserver.jdbcconfig.internal.DbUtils.logStatement;
+import static org.geoserver.jdbcconfig.internal.DbUtils.params;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Throwables;
@@ -14,7 +17,6 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -35,6 +37,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -55,6 +58,7 @@ import org.geoserver.ows.util.ClassProperties;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.util.logging.Logging;
 import org.opengis.filter.FilterFactory;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
@@ -75,10 +79,12 @@ public class DbMappings {
     /**
      * Per type oid property types. Keys are {@link #getTypeId(Class) type ids}, values are a map of
      * property name to property type for that type of object.
+     *
+     * <p>Populated by {@link #reloadPropertyTypes}, possibly multiple times during initialization
+     * to account for race conditions on clustered environments.
      */
-    private Map<Integer, Map<String, PropertyType>> propertyTypes;
+    private final Map<Integer, Map<String, PropertyType>> propertyTypes = new HashMap<>();
 
-    @SuppressWarnings("unchecked")
     private static final Set<Class<? extends Serializable>> INDEXABLE_TYPES =
             ImmutableSet.of( //
                     String.class, //
@@ -126,14 +132,17 @@ public class DbMappings {
             this.typeIds = this.types.inverse();
         }
 
-        this.propertyTypes = loadPropertyTypes(template);
+        reloadPropertyTypes(template);
 
         // create all direct property types for which we don't need a special mapping entry on
         // nested_properties.properties. Need to do this before adding nested properties for
         // relationships to be found
         for (ClassMappings cm : classMsappings) {
             Class<? extends Info> clazz = cm.getInterface();
-            addDirectPropertyTypes(clazz, template);
+            boolean reload = addDirectPropertyTypes(clazz, template);
+            if (reload) {
+                reloadPropertyTypes(template);
+            }
         }
 
         // create all nested and/or collection properties, both self and related to other objects,
@@ -148,8 +157,6 @@ public class DbMappings {
                 addNestedPropertyTypes(template, nestedPropDefs);
             }
         }
-
-        this.propertyTypes = ImmutableMap.copyOf(this.propertyTypes);
     }
 
     private static class PropertyTypeDef {
@@ -356,13 +363,22 @@ public class DbMappings {
                 String.format(
                         "insert into type (typename, oid) values (:typeName, %s)",
                         dialect.nextVal("seq_TYPE"));
-        int update = template.update(sql, params("typeName", typeName));
-        if (1 == update) {
-            log("created type " + typeName);
+        try {
+            int update = template.update(sql, params("typeName", typeName));
+            if (1 == update) {
+                log("created type " + typeName);
+            }
+        } catch (DuplicateKeyException e) {
+            LOGGER.fine("Some other instance created " + typeName);
         }
     }
 
-    private void addDirectPropertyTypes(
+    /**
+     * @return {@code true} if the property types shall be reloaded because when creating one,
+     *     someone else won the race, and hence the {@link #propertyTypes} map is out of sync with
+     *     the db.
+     */
+    private boolean addDirectPropertyTypes(
             final Class<? extends Info> clazz, final NamedParameterJdbcOperations template) {
 
         log("Creating property mappings for " + clazz.getName());
@@ -371,6 +387,8 @@ public class DbMappings {
 
         List<String> properties = Lists.newArrayList(classProperties.properties());
         Collections.sort(properties);
+
+        boolean needsReloading = false;
 
         for (String propertyName : properties) {
             propertyName = fixCase(propertyName);
@@ -391,15 +409,20 @@ public class DbMappings {
                         componentType.isEnum()
                                 || CharSequence.class.isAssignableFrom(componentType);
 
-                isText &= !"id".equals(propertyName); // id is not on the full text search list of
-                // properties
-                addPropertyType(template, clazz, propertyName, null, false, isText);
+                // id is not on the full text search list of properties
+                isText &= !"id".equals(propertyName);
+
+                PropertyType addedProp =
+                        addPropertyType(template, clazz, propertyName, null, false, isText);
+                boolean createdBySomeoneElse = null == addedProp;
+                needsReloading |= createdBySomeoneElse;
             } else {
                 log("Ignoring property " + propertyName + ":" + returnType.getSimpleName());
             }
         }
 
         log("----------------------");
+        return needsReloading;
     }
 
     /** */
@@ -420,36 +443,55 @@ public class DbMappings {
                 final Integer targetPropId = getTypeId(targetPropertyOf);
                 checkState(
                         null != targetPropId,
-                        Joiner.on("")
-                                .join(
-                                        "Property ",
-                                        propertyOf.getName(),
-                                        ".",
-                                        propertyName,
-                                        " references property ",
-                                        targetPropertyOf.getName(),
-                                        ".",
-                                        targetPropertyName,
-                                        " but target property typ does not exist"));
+                        "Property %s.%s references property %s.%s but target property type does not exist",
+                        propertyOf.getName(),
+                        propertyName,
+                        targetPropertyOf.getName(),
+                        targetPropertyName);
 
-                Map<String, PropertyType> targetPropertyTypes;
-                targetPropertyTypes = this.propertyTypes.get(targetPropId);
+                Map<String, PropertyType> targetPropertyTypes =
+                        this.propertyTypes.get(targetPropId);
                 checkState(
                         targetPropertyTypes != null,
-                        "PropertyTypes of target type "
-                                + targetPropertyOf.getName()
-                                + " not found while adding property "
-                                + propertyName
-                                + " of "
-                                + propertyOf.getName());
+                        "PropertyTypes of target type %s not found while adding property %s of %s",
+                        targetPropertyOf.getName(),
+                        propertyName,
+                        propertyOf.getName());
 
                 targetPropertyType = targetPropertyTypes.get(targetPropertyName);
-                checkState(targetPropertyType != null);
+                if (targetPropertyType == null) {
+                    // reload due to possible race condition (we don't have it, but someone else
+                    // just added it)
+                    reloadPropertyTypes(template);
+                    targetPropertyTypes = this.propertyTypes.get(targetPropId);
+                    targetPropertyType = targetPropertyTypes.get(targetPropertyName);
+                }
+                checkState(
+                        targetPropertyType != null,
+                        "Target property %s of %s not found",
+                        targetPropertyName,
+                        targetPropertyOf);
             }
             boolean text = isText == null ? false : isText.booleanValue();
-            addPropertyType(
-                    template, propertyOf, propertyName, targetPropertyType, isCollection, text);
+            PropertyType addedProp =
+                    addPropertyType(
+                            template,
+                            propertyOf,
+                            propertyName,
+                            targetPropertyType,
+                            isCollection,
+                            text);
+            boolean createdBySomeoneElse = null == addedProp;
+            if (createdBySomeoneElse) {
+                reloadPropertyTypes(template);
+            }
         }
+    }
+
+    private void reloadPropertyTypes(final NamedParameterJdbcOperations template) {
+        Map<Integer, Map<String, PropertyType>> loaded = loadPropertyTypes(template);
+        this.propertyTypes.clear();
+        this.propertyTypes.putAll(loaded);
     }
 
     public PropertyType getPropertyType(Integer propId) {
@@ -520,22 +562,31 @@ public class DbMappings {
                             isText);
             logStatement(insert, params);
             KeyHolder keyHolder = new GeneratedKeyHolder();
-            template.update(
-                    insert, new MapSqlParameterSource(params), keyHolder, new String[] {"oid"});
-
-            // looks like some db's return the pk different than others, so lets try both ways
-            Number pTypeKey = (Number) keyHolder.getKeys().get("oid");
-            if (pTypeKey == null) {
-                pTypeKey = keyHolder.getKey();
+            try {
+                template.update(
+                        insert, new MapSqlParameterSource(params), keyHolder, new String[] {"oid"});
+                // looks like some db's return the pk different than others, so lets try both ways
+                Number pTypeKey = (Number) keyHolder.getKeys().get("oid");
+                if (pTypeKey == null) {
+                    pTypeKey = keyHolder.getKey();
+                }
+                pType =
+                        new PropertyType(
+                                pTypeKey.intValue(),
+                                targetPropertyOid,
+                                typeId,
+                                propertyName,
+                                isCollection,
+                                isText);
+            } catch (DuplicateKeyException duplicate) {
+                pType = null;
+                log(
+                        "Not adding property type ",
+                        infoClazz.getSimpleName(),
+                        ".",
+                        propertyName,
+                        " as it already exists");
             }
-            pType =
-                    new PropertyType(
-                            pTypeKey.intValue(),
-                            targetPropertyOid,
-                            typeId,
-                            propertyName,
-                            isCollection,
-                            isText);
         } else {
             log(
                     "Not adding property type ",
