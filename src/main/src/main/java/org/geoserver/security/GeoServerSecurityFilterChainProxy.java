@@ -254,7 +254,9 @@ public class GeoServerSecurityFilterChainProxy
 
     @Override
     public void destroy() {
-        proxy.destroy();
+        if (proxy != null) {
+            proxy.destroy();
+        }
 
         // do some cleanup
         securityManager.removeListener(this);

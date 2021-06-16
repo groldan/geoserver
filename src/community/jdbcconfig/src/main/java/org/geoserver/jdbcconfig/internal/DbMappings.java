@@ -157,6 +157,9 @@ public class DbMappings {
                 addNestedPropertyTypes(template, nestedPropDefs);
             }
         }
+
+        // finally reload property types
+        reloadPropertyTypes(template);
     }
 
     private static class PropertyTypeDef {

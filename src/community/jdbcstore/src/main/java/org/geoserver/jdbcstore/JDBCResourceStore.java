@@ -328,6 +328,12 @@ public class JDBCResourceStore implements ResourceStore {
         }
 
         @Override
+        public String toString() {
+            return String.format(
+                    "%s[path=%s, type=%s]", getClass().getSimpleName(), path(), getType());
+        }
+
+        @Override
         public boolean delete() {
             List<Lock> locks = new ArrayList<Lock>();
             lockRecursively(locks);

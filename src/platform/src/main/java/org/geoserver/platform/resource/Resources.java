@@ -53,7 +53,7 @@ public class Resources {
      * @return true If resource is not UNDEFINED
      */
     public static boolean exists(Resource resource) {
-        return resource != null && resource.getType() != Resource.Type.UNDEFINED;
+        return resource != null && resource.exists();
     }
 
     /**

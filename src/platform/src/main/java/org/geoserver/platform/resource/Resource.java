@@ -131,7 +131,31 @@ public interface Resource {
     long lastmodified();
 
     /**
-     * Resource parent, or null for ResourceStore base diretory.
+     * @return {@code true} if the resource exists and represents a file, as a shortcut for {@code
+     *     getType() == Type.RESOURCE}
+     */
+    default boolean isFile() {
+        return getType() == Type.RESOURCE;
+    }
+
+    /**
+     * @return {@code true} if the resource exists and represents a directory, as a shortcut for
+     *     {@code getType() == Type.DIRECTORY}
+     */
+    default boolean isDirectory() {
+        return getType() == Type.DIRECTORY;
+    }
+
+    /**
+     * @return {@code true} if the resource exists, as a shortcut for {@code getType() !=
+     *     Type.UNDEFINED}
+     */
+    default boolean exists() {
+        return getType() != Type.UNDEFINED;
+    }
+
+    /**
+     * Resource parent, or null for ResourceStore base directory.
      *
      * @see File#getParentFile()
      * @return Resource located parent path, or null ResourceStore base directory
