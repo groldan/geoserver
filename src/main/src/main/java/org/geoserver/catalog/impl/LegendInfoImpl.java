@@ -5,6 +5,7 @@
  */
 package org.geoserver.catalog.impl;
 
+import java.util.Objects;
 import org.geoserver.catalog.LegendInfo;
 
 public class LegendInfoImpl implements LegendInfo {
@@ -81,5 +82,22 @@ public class LegendInfoImpl implements LegendInfo {
                 .append(onlineResource)
                 .append(']')
                 .toString();
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(format, height, id, onlineResource, width);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof LegendInfoImpl)) return false;
+        LegendInfoImpl other = (LegendInfoImpl) obj;
+        return Objects.equals(format, other.format)
+                && height == other.height
+                && Objects.equals(id, other.id)
+                && Objects.equals(onlineResource, other.onlineResource)
+                && width == other.width;
     }
 }

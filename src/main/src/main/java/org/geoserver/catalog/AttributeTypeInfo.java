@@ -5,7 +5,6 @@
  */
 package org.geoserver.catalog;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
 import org.opengis.feature.type.AttributeDescriptor;
@@ -62,7 +61,7 @@ public interface AttributeTypeInfo extends Serializable {
      * <p>Note that this value is not persisted with other attributes, and could be <code>null
      * </code>.
      */
-    AttributeDescriptor getAttribute() throws IOException;
+    AttributeDescriptor getAttribute();
 
     /** Sets the underlying attribute descriptor. */
     void setAttribute(AttributeDescriptor attribute);

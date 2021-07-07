@@ -35,4 +35,17 @@ public class WMTSLayerInfoImpl extends ResourceInfoImpl implements WMTSLayerInfo
     public WMTSStoreInfo getStore() {
         return (WMTSStoreInfo) super.getStore();
     }
+
+    @Override
+    public int hashCode() {
+        return super.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!super.equals(obj)) return false;
+        if (!(obj instanceof WMTSLayerInfo)) return false;
+        return true;
+    }
 }

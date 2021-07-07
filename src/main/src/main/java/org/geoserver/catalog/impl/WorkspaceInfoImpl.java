@@ -7,6 +7,7 @@ package org.geoserver.catalog.impl;
 
 import java.io.Serializable;
 import java.util.Date;
+import java.util.Objects;
 import org.geoserver.catalog.CatalogVisitor;
 import org.geoserver.catalog.MetadataMap;
 import org.geoserver.catalog.WorkspaceInfo;
@@ -68,27 +69,24 @@ public class WorkspaceInfoImpl implements WorkspaceInfo, Serializable {
 
     @Override
     public int hashCode() {
-        final int prime = 31;
-        int result = 1;
-        result = prime * result + ((id == null) ? 0 : id.hashCode());
-        result = prime * result + ((name == null) ? 0 : name.hashCode());
-        return result;
+        // Note _default is to be ignored, not part of NamespaceInfo, but merely an implementation
+        // detail for the default (data directory) catalog persistence
+        return Objects.hash(dateCreated, dateModified, id, isolated, metadata, name);
     }
 
     @Override
     public boolean equals(Object obj) {
+        // Note _default is to be ignored, not part of NamespaceInfo, but merely an implementation
+        // detail for the default (data directory) catalog persistence
         if (this == obj) return true;
-        if (obj == null) return false;
         if (!(obj instanceof WorkspaceInfo)) return false;
-
-        final WorkspaceInfo other = (WorkspaceInfo) obj;
-        if (id == null) {
-            if (other.getId() != null) return false;
-        } else if (!id.equals(other.getId())) return false;
-        if (name == null) {
-            if (other.getName() != null) return false;
-        } else if (!name.equals(other.getName())) return false;
-        return true;
+        WorkspaceInfo other = (WorkspaceInfo) obj;
+        return Objects.equals(id, other.getId())
+                && Objects.equals(name, other.getName())
+                && Objects.equals(dateCreated, other.getDateCreated())
+                && Objects.equals(dateModified, other.getDateModified())
+                && isolated == other.isIsolated()
+                && Objects.equals(metadata, other.getMetadata());
     }
 
     @Override

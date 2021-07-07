@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -94,10 +95,6 @@ public class LayerInfoImpl implements LayerInfo {
     protected Date dateCreated;
 
     protected Date dateModified;
-
-    protected GrowableInternationalString internationalTitle;
-
-    protected InternationalString internationalAbstract;
 
     @Override
     public String getId() {
@@ -281,68 +278,46 @@ public class LayerInfoImpl implements LayerInfo {
 
     @Override
     public int hashCode() {
-        final int prime = 31;
-        int result = 1;
-        result = prime * result + ((defaultStyle == null) ? 0 : defaultStyle.hashCode());
-        result = prime * result + ((id == null) ? 0 : id.hashCode());
-        result = prime * result + ((legend == null) ? 0 : legend.hashCode());
-        // TODO: add back when resource publish split is in place
-        // result = prime * result + ((name == null) ? 0 : name.hashCode());
-        result = prime * result + ((path == null) ? 0 : path.hashCode());
-        result = prime * result + ((resource == null) ? 0 : resource.hashCode());
-        result = prime * result + ((styles == null) ? 0 : styles.hashCode());
-        result = prime * result + ((type == null) ? 0 : type.hashCode());
-        result = prime * result + ((attribution == null) ? 0 : attribution.hashCode());
-        result = prime * result + ((authorityURLs == null) ? 0 : authorityURLs.hashCode());
-        result = prime * result + ((identifiers == null) ? 0 : identifiers.hashCode());
-        return result;
+        return Objects.hash(
+                attribution,
+                authorityURLs,
+                dateCreated,
+                dateModified,
+                defaultStyle,
+                defaultWMSInterpolationMethod,
+                id,
+                identifiers,
+                legend,
+                metadata,
+                opaque,
+                path,
+                queryable,
+                resource,
+                styles,
+                type);
     }
 
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;
-        if (obj == null) return false;
         if (!(obj instanceof LayerInfo)) return false;
-        final LayerInfo other = (LayerInfo) obj;
-        if (defaultStyle == null) {
-            if (other.getDefaultStyle() != null) return false;
-        } else if (!defaultStyle.equals(other.getDefaultStyle())) return false;
-        if (id == null) {
-            if (other.getId() != null) return false;
-        } else if (!id.equals(other.getId())) return false;
-        if (legend == null) {
-            if (other.getLegend() != null) return false;
-        } else if (!legend.equals(other.getLegend())) return false;
-        // TODO: add back when resource/publish split is in place
-        //        if (name == null) {
-        //            if (other.getName() != null)
-        //                return false;
-        //        } else if (!name.equals(other.getName()))
-        //            return false;
-        if (path == null) {
-            if (other.getPath() != null) return false;
-        } else if (!path.equals(other.getPath())) return false;
-        if (resource == null) {
-            if (other.getResource() != null) return false;
-        } else if (!resource.equals(other.getResource())) return false;
-        if (styles == null) {
-            if (other.getStyles() != null) return false;
-        } else if (!styles.equals(other.getStyles())) return false;
-        if (type == null) {
-            if (other.getType() != null) return false;
-        } else if (!type.equals(other.getType())) return false;
-        if (attribution == null) {
-            if (other.getAttribution() != null) return false;
-        } else if (!attribution.equals(other.getAttribution())) return false;
-        if (authorityURLs == null) {
-            if (other.getAuthorityURLs() != null) return false;
-        } else if (!authorityURLs.equals(other.getAuthorityURLs())) return false;
-
-        if (identifiers == null) {
-            if (other.getIdentifiers() != null) return false;
-        } else if (!identifiers.equals(other.getIdentifiers())) return false;
-
-        return true;
+        LayerInfo other = (LayerInfo) obj;
+        return Objects.equals(id, other.getId())
+                && Objects.equals(identifiers, other.getIdentifiers())
+                && type == other.getType()
+                && Objects.equals(attribution, other.getAttribution())
+                && Objects.equals(authorityURLs, other.getAuthorityURLs())
+                && Objects.equals(dateCreated, other.getDateCreated())
+                && Objects.equals(dateModified, other.getDateModified())
+                && Objects.equals(defaultStyle, other.getDefaultStyle())
+                && defaultWMSInterpolationMethod == other.getDefaultWMSInterpolationMethod()
+                && Objects.equals(legend, other.getLegend())
+                && Objects.equals(metadata, other.getMetadata())
+                && Objects.equals(opaque, other.isOpaque())
+                && Objects.equals(path, other.getPath())
+                && Objects.equals(queryable, other.isQueryable())
+                && Objects.equals(resource, other.getResource())
+                && Objects.equals(styles, other.getStyles());
     }
 
     @Override

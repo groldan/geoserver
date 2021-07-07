@@ -7,6 +7,7 @@ package org.geoserver.catalog.impl;
 
 import java.io.IOException;
 import java.util.Date;
+import java.util.Objects;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CatalogVisitor;
 import org.geoserver.catalog.LegendInfo;
@@ -30,7 +31,7 @@ public class StyleInfoImpl implements StyleInfo {
     protected WorkspaceInfo workspace;
 
     // not used, maininting this property for xstream backward compatability
-    protected Version sldVersion = null;
+    protected transient Version sldVersion = null;
 
     protected String format = SLDHandler.FORMAT;
 
@@ -168,45 +169,34 @@ public class StyleInfoImpl implements StyleInfo {
 
     @Override
     public int hashCode() {
-        final int prime = 31;
-        int result = 1;
-        result = prime * result + ((filename == null) ? 0 : filename.hashCode());
-        result = prime * result + ((id == null) ? 0 : id.hashCode());
-        result = prime * result + ((name == null) ? 0 : name.hashCode());
-        result = prime * result + ((workspace == null) ? 0 : workspace.hashCode());
-        result = prime * result + ((format == null) ? 0 : format.hashCode());
-        result = prime * result + ((languageVersion == null) ? 0 : languageVersion.hashCode());
-        return result;
+        return Objects.hash(
+                dateCreated,
+                dateModified,
+                filename,
+                format,
+                id,
+                languageVersion,
+                legend,
+                metadata,
+                name,
+                workspace);
     }
 
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;
-        if (obj == null) return false;
         if (!(obj instanceof StyleInfo)) return false;
-        final StyleInfo other = (StyleInfo) obj;
-        if (filename == null) {
-            if (other.getFilename() != null) return false;
-        } else if (!filename.equals(other.getFilename())) return false;
-        if (id == null) {
-            if (other.getId() != null) return false;
-        } else if (!id.equals(other.getId())) return false;
-        if (name == null) {
-            if (other.getName() != null) return false;
-        } else if (!name.equals(other.getName())) return false;
-        if (workspace == null) {
-            if (other.getWorkspace() != null) return false;
-        } else if (!workspace.equals(other.getWorkspace())) return false;
-        if (format == null) {
-            if (other.getFormat() != null) return false;
-        } else {
-            if (!format.equals(other.getFormat())) return false;
-        }
-        if (languageVersion == null) {
-            if (other.getFormatVersion() != null) return false;
-        } else if (!languageVersion.equals(other.getFormatVersion())) return false;
-
-        return true;
+        StyleInfo other = (StyleInfo) obj;
+        return Objects.equals(id, other.getId())
+                && Objects.equals(name, other.getName())
+                && Objects.equals(dateCreated, other.getDateCreated())
+                && Objects.equals(dateModified, other.getDateModified())
+                && Objects.equals(filename, other.getFilename())
+                && Objects.equals(format, other.getFormat())
+                && Objects.equals(languageVersion, other.getFormatVersion())
+                && Objects.equals(legend, other.getLegend())
+                && Objects.equals(metadata, other.getMetadata())
+                && Objects.equals(workspace, other.getWorkspace());
     }
 
     @Override

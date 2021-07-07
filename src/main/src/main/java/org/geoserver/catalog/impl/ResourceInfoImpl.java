@@ -1,4 +1,4 @@
-/* (c) 2014 - 2016 Open Source Geospatial Foundation - all rights reserved
+/* (c) 2014 - 2015 Open Source Geospatial Foundation - all rights reserved
  * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
@@ -8,6 +8,7 @@ package org.geoserver.catalog.impl;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.geoserver.catalog.Catalog;
@@ -482,84 +483,67 @@ public abstract class ResourceInfoImpl implements ResourceInfo {
 
     @Override
     public int hashCode() {
-        final int prime = 31;
-        int result = 1;
-        result = prime * result + ((_abstract == null) ? 0 : _abstract.hashCode());
-        result = prime * result + ((alias == null) ? 0 : alias.hashCode());
-        result = prime * result + ((description == null) ? 0 : description.hashCode());
-        result = prime * result + (enabled ? 1231 : 1237);
-        result = prime * result + ((id == null) ? 0 : id.hashCode());
-        result = prime * result + ((keywords == null) ? 0 : keywords.hashCode());
-        result = prime * result + ((latLonBoundingBox == null) ? 0 : latLonBoundingBox.hashCode());
-        result = prime * result + ((metadataLinks == null) ? 0 : metadataLinks.hashCode());
-        result = prime * result + ((name == null) ? 0 : name.hashCode());
-        result = prime * result + ((namespace == null) ? 0 : namespace.hashCode());
-        result = prime * result + ((nativeBoundingBox == null) ? 0 : nativeBoundingBox.hashCode());
-        result = prime * result + ((nativeCRS == null) ? 0 : nativeCRS.hashCode());
-        result = prime * result + ((nativeName == null) ? 0 : nativeName.hashCode());
-        result = prime * result + ((projectionPolicy == null) ? 0 : projectionPolicy.hashCode());
-        result = prime * result + ((srs == null) ? 0 : srs.hashCode());
-        result = prime * result + ((store == null) ? 0 : store.hashCode());
-        result = prime * result + ((title == null) ? 0 : title.hashCode());
-        return result;
+        return Objects.hash(
+                _abstract,
+                advertised,
+                alias,
+                dataLinks,
+                description,
+                disabledServices,
+                enabled,
+                id,
+                internationalAbstract,
+                internationalTitle,
+                keywords,
+                latLonBoundingBox,
+                metadata,
+                metadataLinks,
+                name,
+                namespace,
+                nativeBoundingBox,
+                nativeCRS,
+                nativeName,
+                projectionPolicy,
+                serviceConfiguration,
+                simpleConversionEnabled,
+                srs,
+                store,
+                title);
     }
 
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;
-        if (obj == null) return false;
         if (!(obj instanceof ResourceInfo)) return false;
-
-        final ResourceInfo other = (ResourceInfo) obj;
-        if (id == null) {
-            if (other.getId() != null) return false;
-        } else if (!id.equals(other.getId())) return false;
-        if (_abstract == null) {
-            if (other.getAbstract() != null) return false;
-        } else if (!_abstract.equals(other.getAbstract())) return false;
-        if (alias == null) {
-            if (other.getAlias() != null) return false;
-        } else if (!alias.equals(other.getAlias())) return false;
-        if (description == null) {
-            if (other.getDescription() != null) return false;
-        } else if (!description.equals(other.getDescription())) return false;
-        if (enabled != other.isEnabled()) return false;
-        if (keywords == null) {
-            if (other.getKeywords() != null) return false;
-        } else if (!keywords.equals(other.getKeywords())) return false;
-        if (latLonBoundingBox == null) {
-            if (other.getLatLonBoundingBox() != null) return false;
-        } else if (!latLonBoundingBox.equals(other.getLatLonBoundingBox())) return false;
-        if (metadataLinks == null) {
-            if (other.getMetadataLinks() != null) return false;
-        } else if (!metadataLinks.equals(other.getMetadataLinks())) return false;
-        if (name == null) {
-            if (other.getName() != null) return false;
-        } else if (!name.equals(other.getName())) return false;
-        if (namespace == null) {
-            if (other.getNamespace() != null) return false;
-        } else if (!namespace.equals(other.getNamespace())) return false;
-        if (nativeBoundingBox == null) {
-            if (other.getNativeBoundingBox() != null) return false;
-        } else if (!nativeBoundingBox.equals(other.getNativeBoundingBox())) return false;
-        if (nativeCRS == null) {
-            if (other.getNativeCRS() != null) return false;
-        } else if (!CRS.equalsIgnoreMetadata(nativeCRS, other.getNativeCRS())) return false;
-        if (nativeName == null) {
-            if (other.getNativeName() != null) return false;
-        } else if (!nativeName.equals(other.getNativeName())) return false;
-        if (projectionPolicy == null) {
-            if (other.getProjectionPolicy() != null) return false;
-        } else if (!projectionPolicy.equals(other.getProjectionPolicy())) return false;
-        if (srs == null) {
-            if (other.getSRS() != null) return false;
-        } else if (!srs.equals(other.getSRS())) return false;
-        if (store == null) {
-            if (other.getStore() != null) return false;
-        } else if (!store.equals(other.getStore())) return false;
-        if (title == null) {
-            if (other.getTitle() != null) return false;
-        } else if (!title.equals(other.getTitle())) return false;
-        return true;
+        ResourceInfo other = (ResourceInfo) obj;
+        // Note: using accessors instead of direct field access. Some properties are computed on the
+        // fly (e.g. isAdvertised())
+        return Objects.equals(id, other.getId())
+                && isEnabled() == other.isEnabled()
+                && getProjectionPolicy() == other.getProjectionPolicy()
+                && isServiceConfiguration() == other.isServiceConfiguration()
+                && Objects.equals(getAbstract(), other.getAbstract())
+                && Objects.equals(isAdvertised(), other.isAdvertised())
+                && Objects.equals(getAlias(), other.getAlias())
+                && Objects.equals(getDataLinks(), other.getDataLinks())
+                && Objects.equals(getDescription(), other.getDescription())
+                && Objects.equals(getDisabledServices(), other.getDisabledServices())
+                && Objects.equals(getKeywords(), other.getKeywords())
+                && Objects.equals(getLatLonBoundingBox(), other.getLatLonBoundingBox())
+                && Objects.equals(getMetadata(), other.getMetadata())
+                && Objects.equals(getMetadataLinks(), other.getMetadataLinks())
+                && Objects.equals(getName(), other.getName())
+                && Objects.equals(getNamespace(), other.getNamespace())
+                && Objects.equals(getNativeBoundingBox(), other.getNativeBoundingBox())
+                && Objects.equals(getNativeName(), other.getNativeName())
+                && Objects.equals(isSimpleConversionEnabled(), other.isSimpleConversionEnabled())
+                && Objects.equals(getSRS(), other.getSRS())
+                && Objects.equals(getTitle(), other.getTitle())
+                // CRS.equalsIgnoreMetadata accepts null on either arg
+                && CRS.equalsIgnoreMetadata(getNativeCRS(), other.getNativeCRS())
+                // Using getters since value may be computed on the fly
+                && Objects.equals(getInternationalAbstract(), other.getInternationalAbstract())
+                && Objects.equals(getInternationalTitle(), other.getInternationalTitle())
+                && Objects.equals(getStore(), other.getStore());
     }
 }

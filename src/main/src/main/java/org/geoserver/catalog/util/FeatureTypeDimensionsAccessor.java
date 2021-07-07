@@ -4,7 +4,6 @@
  */
 package org.geoserver.catalog.util;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -84,11 +83,7 @@ public class FeatureTypeDimensionsAccessor {
     }
 
     private Class<?> getBinding(AttributeTypeInfo attributeTypeInfo) {
-        try {
-            return attributeTypeInfo.getAttribute().getType().getBinding();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        return attributeTypeInfo.getAttribute().getType().getBinding();
     }
 
     public MetadataMap getMetadataMap() {

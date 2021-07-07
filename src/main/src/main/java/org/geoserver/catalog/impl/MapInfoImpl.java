@@ -7,6 +7,7 @@ package org.geoserver.catalog.impl;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import org.geoserver.catalog.CatalogVisitor;
 import org.geoserver.catalog.LayerInfo;
 import org.geoserver.catalog.MapInfo;
@@ -73,5 +74,21 @@ public class MapInfoImpl implements MapInfo {
                 .append(name)
                 .append(']')
                 .toString();
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(enabled, id, layers, name);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof MapInfo)) return false;
+        MapInfo other = (MapInfo) obj;
+        return Objects.equals(id, other.getId())
+                && Objects.equals(name, other.getName())
+                && enabled == other.isEnabled()
+                && Objects.equals(layers, other.getLayers());
     }
 }

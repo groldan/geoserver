@@ -11,10 +11,13 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.MetadataMap;
 import org.geoserver.catalog.StoreInfo;
 import org.geoserver.catalog.WorkspaceInfo;
+import org.geotools.data.DataAccessFactory.Param;
+import org.geotools.util.Converters;
 import org.opengis.util.ProgressListener;
 
 /** Default implementation of {@link StoreInfo}. */
@@ -39,7 +42,9 @@ public abstract class StoreInfoImpl implements StoreInfo {
 
     protected MetadataMap metadata = new MetadataMap();
 
-    protected Throwable error;
+    // TODO: REMOVE, this is dead-code. Set by GeoServerLoader, but the accessor is not used
+    // throughout the entire codebase
+    protected transient Throwable error;
 
     protected boolean _default;
 
@@ -187,44 +192,60 @@ public abstract class StoreInfoImpl implements StoreInfo {
 
     @Override
     public int hashCode() {
-        final int prime = 31;
-        int result = 1;
-        result =
-                prime * result
-                        + ((connectionParameters == null) ? 0 : connectionParameters.hashCode());
-        result = prime * result + ((description == null) ? 0 : description.hashCode());
-        result = prime * result + (enabled ? 1231 : 1237);
-        result = prime * result + ((id == null) ? 0 : id.hashCode());
-        result = prime * result + ((name == null) ? 0 : name.hashCode());
-        result = prime * result + ((workspace == null) ? 0 : workspace.hashCode());
-        return result;
+        return Objects.hash(
+                connectionParameters,
+                dateCreated,
+                dateModified,
+                description,
+                enabled,
+                id,
+                metadata,
+                name,
+                type,
+                workspace == null ? null : workspace.getId());
     }
 
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;
-        if (obj == null) return false;
-        if (!(obj instanceof StoreInfo)) {
-            return false;
-        }
+        if (!(obj instanceof StoreInfo)) return false;
+        StoreInfo other = (StoreInfo) obj;
+        return Objects.equals(id, other.getId())
+                && Objects.equals(workspace, other.getWorkspace())
+                && Objects.equals(dateCreated, other.getDateCreated())
+                && Objects.equals(dateModified, other.getDateModified())
+                && Objects.equals(description, other.getDescription())
+                && enabled == other.isEnabled()
+                && Objects.equals(metadata, other.getMetadata())
+                && Objects.equals(name, other.getName())
+                && Objects.equals(type, other.getType())
+                && connectionParametersAreEqual(
+                        connectionParameters, other.getConnectionParameters());
+    }
 
-        final StoreInfo other = (StoreInfo) obj;
-        if (connectionParameters == null) {
-            if (other.getConnectionParameters() != null) return false;
-        } else if (!connectionParameters.equals(other.getConnectionParameters())) return false;
-        if (description == null) {
-            if (other.getDescription() != null) return false;
-        } else if (!description.equals(other.getDescription())) return false;
-        if (enabled != other.isEnabled()) return false;
-        if (id == null) {
-            if (other.getId() != null) return false;
-        } else if (!id.equals(other.getId())) return false;
-        if (name == null) {
-            if (other.getName() != null) return false;
-        } else if (!name.equals(other.getName())) return false;
-        if (workspace == null) {
-            if (other.getWorkspace() != null) return false;
-        } else if (!workspace.equals(other.getWorkspace())) return false;
+    /**
+     * Accounts for the fact that parameter values might be equivalent though of different types,
+     * and {@link Param#lookUp(Map) DataAccessFactory$Param#lookUp(Map)} will perform the type
+     * conversion. E.g., a {@code boolean} parameter might have a {@code Boolean} or {@code String}
+     * value in the map.
+     */
+    private boolean connectionParametersAreEqual(Map<String, ?> params1, Map<String, ?> params2) {
+        if (params1 == params2) return true;
+        if (params1 == null || params2 == null) return false;
+        if (!params1.keySet().equals(params2.keySet())) return false;
+        for (Map.Entry<String, ?> e1 : params1.entrySet()) {
+            Object v1 = e1.getValue();
+            Object v2 = params2.get(e1.getKey());
+            if (!Objects.equals(v1, v2)) {
+                String s1 = Converters.convert(v1, String.class);
+                String s2 = Converters.convert(v2, String.class);
+                if ((v1 != null && s1 == null)
+                        || (v2 != null && s2 == null)
+                        || !Objects.equals(s1, s2)) {
+                    return false;
+                }
+            }
+        }
         return true;
     }
 

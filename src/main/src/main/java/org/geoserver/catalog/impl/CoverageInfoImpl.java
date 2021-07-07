@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CatalogVisitor;
 import org.geoserver.catalog.CoverageDimensionInfo;
@@ -205,66 +206,36 @@ public class CoverageInfoImpl extends ResourceInfoImpl implements CoverageInfo {
         int result = super.hashCode();
         result =
                 prime * result
-                        + ((defaultInterpolationMethod == null)
-                                ? 0
-                                : defaultInterpolationMethod.hashCode());
-        result = prime * result + ((dimensions == null) ? 0 : dimensions.hashCode());
-        result = prime * result + ((grid == null) ? 0 : grid.hashCode());
-        result =
-                prime * result
-                        + ((interpolationMethods == null) ? 0 : interpolationMethods.hashCode());
-        result = prime * result + ((nativeFormat == null) ? 0 : nativeFormat.hashCode());
-        result = prime * result + ((parameters == null) ? 0 : parameters.hashCode());
-        result = prime * result + ((requestSRS == null) ? 0 : requestSRS.hashCode());
-        result = prime * result + ((responseSRS == null) ? 0 : responseSRS.hashCode());
-        result = prime * result + ((supportedFormats == null) ? 0 : supportedFormats.hashCode());
-        result =
-                prime * result + ((nativeCoverageName == null) ? 0 : nativeCoverageName.hashCode());
+                        + Objects.hash(
+                                defaultInterpolationMethod,
+                                dimensions,
+                                grid,
+                                interpolationMethods,
+                                nativeCoverageName,
+                                nativeFormat,
+                                parameters,
+                                requestSRS,
+                                responseSRS,
+                                supportedFormats);
         return result;
     }
 
     @Override
     public boolean equals(Object obj) {
-        if (!(obj instanceof CoverageInfo)) {
-            return false;
-        }
-        if (!super.equals(obj)) {
-            return false;
-        }
-
-        final CoverageInfo other = (CoverageInfo) obj;
-        if (defaultInterpolationMethod == null) {
-            if (other.getDefaultInterpolationMethod() != null) return false;
-        } else if (!defaultInterpolationMethod.equals(other.getDefaultInterpolationMethod()))
-            return false;
-        if (dimensions == null) {
-            if (other.getDimensions() != null) return false;
-        } else if (!dimensions.equals(other.getDimensions())) return false;
-        if (grid == null) {
-            if (other.getGrid() != null) return false;
-        } else if (!grid.equals(other.getGrid())) return false;
-        if (interpolationMethods == null) {
-            if (other.getInterpolationMethods() != null) return false;
-        } else if (!interpolationMethods.equals(other.getInterpolationMethods())) return false;
-        if (nativeFormat == null) {
-            if (other.getNativeFormat() != null) return false;
-        } else if (!nativeFormat.equals(other.getNativeFormat())) return false;
-        if (parameters == null) {
-            if (other.getParameters() != null) return false;
-        } else if (!parameters.equals(other.getParameters())) return false;
-        if (requestSRS == null) {
-            if (other.getRequestSRS() != null) return false;
-        } else if (!requestSRS.equals(other.getRequestSRS())) return false;
-        if (responseSRS == null) {
-            if (other.getResponseSRS() != null) return false;
-        } else if (!responseSRS.equals(other.getResponseSRS())) return false;
-        if (supportedFormats == null) {
-            if (other.getSupportedFormats() != null) return false;
-        } else if (!supportedFormats.equals(other.getSupportedFormats())) return false;
-        if (nativeCoverageName == null) {
-            if (other.getNativeCoverageName() != null) return false;
-        } else if (!nativeCoverageName.equals(other.getNativeCoverageName())) return false;
-        return true;
+        if (this == obj) return true;
+        if (!super.equals(obj)) return false;
+        if (!(obj instanceof CoverageInfo)) return false;
+        CoverageInfo other = (CoverageInfo) obj;
+        return Objects.equals(defaultInterpolationMethod, other.getDefaultInterpolationMethod())
+                && Objects.equals(dimensions, other.getDimensions())
+                && Objects.equals(grid, other.getGrid())
+                && Objects.equals(interpolationMethods, other.getInterpolationMethods())
+                && Objects.equals(nativeCoverageName, other.getNativeCoverageName())
+                && Objects.equals(nativeFormat, other.getNativeFormat())
+                && Objects.equals(parameters, other.getParameters())
+                && Objects.equals(requestSRS, other.getRequestSRS())
+                && Objects.equals(responseSRS, other.getResponseSRS())
+                && Objects.equals(supportedFormats, other.getSupportedFormats());
     }
 
     @Override
