@@ -66,6 +66,15 @@ public class LayerGroupInfoImpl extends PublishedInfoImpl implements LayerGroupI
     private List<KeywordInfo> keywords;
 
     @Override
+    protected Object readResolve() {
+        super.readResolve();
+        if (null == mode) {
+            mode = Mode.SINGLE;
+        }
+        return this;
+    }
+
+    @Override
     public List<KeywordInfo> getKeywords() {
         return keywords;
     }
@@ -78,15 +87,6 @@ public class LayerGroupInfoImpl extends PublishedInfoImpl implements LayerGroupI
      */
     public void setKeywords(List<KeywordInfo> keywords) {
         this.keywords = keywords == null ? new ArrayList<>() : keywords;
-    }
-
-    @Override
-    protected Object readResolve() {
-        super.readResolve();
-        if (null == mode) {
-            mode = Mode.SINGLE;
-        }
-        return this;
     }
 
     @Override

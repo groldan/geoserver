@@ -1591,5 +1591,18 @@ public class XStreamPersisterTest {
             super();
             this.scientificName = scientificName;
         }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(scientificName);
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) return true;
+            if (!(obj instanceof SweetBanana)) return false;
+            SweetBanana other = (SweetBanana) obj;
+            return Objects.equals(scientificName, other.scientificName);
+        }
     }
 }
