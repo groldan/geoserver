@@ -16,10 +16,9 @@ import org.opengis.util.ProgressListener;
 
 /** Default implementation of {@link CoverageStoreInfo}. */
 public class CoverageStoreInfoImpl extends StoreInfoImpl implements CoverageStoreInfo {
+    private static final long serialVersionUID = 1L;
 
     protected String url;
-
-    protected AbstractGridFormat format;
 
     protected CoverageStoreInfoImpl() {}
 
@@ -55,5 +54,15 @@ public class CoverageStoreInfoImpl extends StoreInfoImpl implements CoverageStor
     public GridCoverageReader getGridCoverageReader(ProgressListener listener, Hints hints)
             throws IOException {
         return catalog.getResourcePool().getGridCoverageReader(this, null, hints);
+    }
+
+    @Override
+    public int hashCode() {
+        return CoverageStoreInfo.hashCode(this);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return CoverageStoreInfo.equals(this, obj);
     }
 }

@@ -15,4 +15,20 @@ public interface WMTSLayerInfo extends ResourceInfo {
 
     /** Returns the raw WMTS layer associated to this resource */
     public WMTSLayer getWMTSLayer(ProgressListener listener) throws IOException;
+
+    /**
+     * Canonical implementation of {@link Object#hashCode()} for {@code WMTSLayerInfo} based on the
+     * interface accessors
+     */
+    public static int hashCode(WMTSLayerInfo o) {
+        throw new UnsupportedOperationException("implement");
+    }
+
+    /**
+     * Canonical implementation of {@link Object#equals(Object)} for a {@code WMTSLayerInfo} and
+     * another object based on the interface accessors
+     */
+    public static boolean equals(WMTSLayerInfo o, Object obj) {
+        throw new UnsupportedOperationException("implement");
+    }
 }

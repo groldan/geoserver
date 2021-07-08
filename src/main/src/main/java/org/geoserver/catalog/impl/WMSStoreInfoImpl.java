@@ -114,4 +114,14 @@ public class WMSStoreInfoImpl extends StoreInfoImpl implements WMSStoreInfo {
     public void setUseConnectionPooling(boolean useHttpConnectionPooling) {
         getMetadata().put("useConnectionPooling", Boolean.valueOf(useHttpConnectionPooling));
     }
+
+    @Override
+    public int hashCode() {
+        return WMSStoreInfo.hashCode(this);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return WMSStoreInfo.equals(this, obj);
+    }
 }

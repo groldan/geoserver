@@ -6,12 +6,9 @@
 package org.geoserver.catalog.impl;
 
 import java.io.IOException;
-import java.util.Date;
-import java.util.Objects;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CatalogVisitor;
 import org.geoserver.catalog.LegendInfo;
-import org.geoserver.catalog.MetadataMap;
 import org.geoserver.catalog.SLDHandler;
 import org.geoserver.catalog.StyleInfo;
 import org.geoserver.catalog.WorkspaceInfo;
@@ -19,19 +16,18 @@ import org.geotools.styling.Style;
 import org.geotools.styling.StyledLayerDescriptor;
 import org.geotools.util.Version;
 
-public class StyleInfoImpl implements StyleInfo {
+public class StyleInfoImpl extends CatalogInfoImpl implements StyleInfo {
+    private static final long serialVersionUID = 1L;
 
     /** Marks a remote style, generated on the fly from a capabilites document */
     public static final String IS_REMOTE = "isRemote";
-
-    protected String id;
 
     protected String name;
 
     protected WorkspaceInfo workspace;
 
     // not used, maininting this property for xstream backward compatability
-    protected transient Version sldVersion = null;
+    protected transient Version sldVersion;
 
     protected String format = SLDHandler.FORMAT;
 
@@ -42,12 +38,6 @@ public class StyleInfoImpl implements StyleInfo {
     protected LegendInfo legend;
 
     protected transient Catalog catalog;
-
-    protected MetadataMap metadata = new MetadataMap();
-
-    protected Date dateCreated;
-
-    protected Date dateModified;
 
     protected StyleInfoImpl() {}
 
@@ -61,15 +51,6 @@ public class StyleInfoImpl implements StyleInfo {
 
     public void setCatalog(Catalog catalog) {
         this.catalog = catalog;
-    }
-
-    @Override
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
     }
 
     @Override
@@ -127,8 +108,8 @@ public class StyleInfoImpl implements StyleInfo {
         // for capability document request
         // remote style does not exist in local catalog
         // do not look for this style inside ResourcePool
-        if (metadata != null)
-            if (metadata.containsKey(IS_REMOTE)) return WMSLayerInfoImpl.getStyleInfo(this);
+        if (getMetadata() != null)
+            if (getMetadata().containsKey(IS_REMOTE)) return WMSLayerInfoImpl.getStyleInfo(this);
         return catalog.getResourcePool().getStyle(this);
     }
 
@@ -148,55 +129,18 @@ public class StyleInfoImpl implements StyleInfo {
     }
 
     @Override
-    public MetadataMap getMetadata() {
-        // non nullable
-        checkMetadataNotNull();
-        return metadata;
-    }
-
-    public void setMetadata(MetadataMap metadata) {
-        this.metadata = metadata;
-    }
-
-    private void checkMetadataNotNull() {
-        if (metadata == null) metadata = new MetadataMap();
-    }
-
-    @Override
     public void accept(CatalogVisitor visitor) {
         visitor.visit(this);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(
-                dateCreated,
-                dateModified,
-                filename,
-                format,
-                id,
-                languageVersion,
-                legend,
-                metadata,
-                name,
-                workspace);
+        return StyleInfo.hashCode(this);
     }
 
     @Override
     public boolean equals(Object obj) {
-        if (this == obj) return true;
-        if (!(obj instanceof StyleInfo)) return false;
-        StyleInfo other = (StyleInfo) obj;
-        return Objects.equals(id, other.getId())
-                && Objects.equals(name, other.getName())
-                && Objects.equals(dateCreated, other.getDateCreated())
-                && Objects.equals(dateModified, other.getDateModified())
-                && Objects.equals(filename, other.getFilename())
-                && Objects.equals(format, other.getFormat())
-                && Objects.equals(languageVersion, other.getFormatVersion())
-                && Objects.equals(legend, other.getLegend())
-                && Objects.equals(metadata, other.getMetadata())
-                && Objects.equals(workspace, other.getWorkspace());
+        return StyleInfo.equals(this, obj);
     }
 
     @Override
@@ -217,7 +161,9 @@ public class StyleInfoImpl implements StyleInfo {
         }
     }
 
+    @Override
     protected Object readResolve() {
+        super.readResolve();
         // this check is here to enable smooth migration from old configurations that don't have
         // the version property, and a transition from the deprecated sldVersion property
 
@@ -233,25 +179,5 @@ public class StyleInfoImpl implements StyleInfo {
         }
 
         return this;
-    }
-
-    @Override
-    public Date getDateModified() {
-        return this.dateModified;
-    }
-
-    @Override
-    public Date getDateCreated() {
-        return this.dateCreated;
-    }
-
-    @Override
-    public void setDateCreated(Date dateCreated) {
-        this.dateCreated = dateCreated;
-    }
-
-    @Override
-    public void setDateModified(Date dateModified) {
-        this.dateModified = dateModified;
     }
 }

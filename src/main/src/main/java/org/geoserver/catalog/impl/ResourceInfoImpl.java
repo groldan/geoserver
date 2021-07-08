@@ -8,7 +8,6 @@ package org.geoserver.catalog.impl;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.geoserver.catalog.Catalog;
@@ -33,17 +32,15 @@ import org.opengis.util.InternationalString;
 
 /** Default implementation of {@link ResourceInfo}. */
 @SuppressWarnings("serial")
-public abstract class ResourceInfoImpl implements ResourceInfo {
+public abstract class ResourceInfoImpl extends CatalogInfoImpl implements ResourceInfo {
 
     static final Logger LOGGER = Logging.getLogger(ResourceInfoImpl.class);
-
-    protected String id;
 
     protected String name;
 
     protected String nativeName;
 
-    protected List<String> alias = new ArrayList<>();
+    protected List<String> alias;
 
     protected NamespaceInfo namespace;
 
@@ -53,11 +50,11 @@ public abstract class ResourceInfoImpl implements ResourceInfo {
 
     protected String _abstract;
 
-    protected List<KeywordInfo> keywords = new ArrayList<>();
+    protected List<KeywordInfo> keywords;
 
-    protected List<MetadataLinkInfo> metadataLinks = new ArrayList<>();
+    protected List<MetadataLinkInfo> metadataLinks;
 
-    protected List<DataLinkInfo> dataLinks = new ArrayList<>();
+    protected List<DataLinkInfo> dataLinks;
 
     protected CoordinateReferenceSystem nativeCRS;
 
@@ -73,13 +70,11 @@ public abstract class ResourceInfoImpl implements ResourceInfo {
 
     protected Boolean advertised;
 
-    protected MetadataMap metadata = new MetadataMap();
-
     protected StoreInfo store;
 
     protected boolean serviceConfiguration = false;
 
-    protected List<String> disabledServices = new ArrayList<>();
+    protected List<String> disabledServices;
 
     protected Boolean simpleConversionEnabled = false;
 
@@ -98,15 +93,6 @@ public abstract class ResourceInfoImpl implements ResourceInfo {
     protected ResourceInfoImpl(Catalog catalog, String id) {
         this(catalog);
         setId(id);
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    @Override
-    public String getId() {
-        return id;
     }
 
     @Override
@@ -300,15 +286,6 @@ public abstract class ResourceInfoImpl implements ResourceInfo {
         this.enabled = enabled;
     }
 
-    @Override
-    public MetadataMap getMetadata() {
-        return metadata;
-    }
-
-    public void setMetadata(MetadataMap metaData) {
-        this.metadata = metaData;
-    }
-
     public void setMetadataLinks(List<MetadataLinkInfo> metaDataLinks) {
         this.metadataLinks = metaDataLinks;
     }
@@ -483,67 +460,11 @@ public abstract class ResourceInfoImpl implements ResourceInfo {
 
     @Override
     public int hashCode() {
-        return Objects.hash(
-                _abstract,
-                advertised,
-                alias,
-                dataLinks,
-                description,
-                disabledServices,
-                enabled,
-                id,
-                internationalAbstract,
-                internationalTitle,
-                keywords,
-                latLonBoundingBox,
-                metadata,
-                metadataLinks,
-                name,
-                namespace,
-                nativeBoundingBox,
-                nativeCRS,
-                nativeName,
-                projectionPolicy,
-                serviceConfiguration,
-                simpleConversionEnabled,
-                srs,
-                store,
-                title);
+        return ResourceInfo.hashCode(this);
     }
 
     @Override
     public boolean equals(Object obj) {
-        if (this == obj) return true;
-        if (!(obj instanceof ResourceInfo)) return false;
-        ResourceInfo other = (ResourceInfo) obj;
-        // Note: using accessors instead of direct field access. Some properties are computed on the
-        // fly (e.g. isAdvertised())
-        return Objects.equals(id, other.getId())
-                && isEnabled() == other.isEnabled()
-                && getProjectionPolicy() == other.getProjectionPolicy()
-                && isServiceConfiguration() == other.isServiceConfiguration()
-                && Objects.equals(getAbstract(), other.getAbstract())
-                && Objects.equals(isAdvertised(), other.isAdvertised())
-                && Objects.equals(getAlias(), other.getAlias())
-                && Objects.equals(getDataLinks(), other.getDataLinks())
-                && Objects.equals(getDescription(), other.getDescription())
-                && Objects.equals(getDisabledServices(), other.getDisabledServices())
-                && Objects.equals(getKeywords(), other.getKeywords())
-                && Objects.equals(getLatLonBoundingBox(), other.getLatLonBoundingBox())
-                && Objects.equals(getMetadata(), other.getMetadata())
-                && Objects.equals(getMetadataLinks(), other.getMetadataLinks())
-                && Objects.equals(getName(), other.getName())
-                && Objects.equals(getNamespace(), other.getNamespace())
-                && Objects.equals(getNativeBoundingBox(), other.getNativeBoundingBox())
-                && Objects.equals(getNativeName(), other.getNativeName())
-                && Objects.equals(isSimpleConversionEnabled(), other.isSimpleConversionEnabled())
-                && Objects.equals(getSRS(), other.getSRS())
-                && Objects.equals(getTitle(), other.getTitle())
-                // CRS.equalsIgnoreMetadata accepts null on either arg
-                && CRS.equalsIgnoreMetadata(getNativeCRS(), other.getNativeCRS())
-                // Using getters since value may be computed on the fly
-                && Objects.equals(getInternationalAbstract(), other.getInternationalAbstract())
-                && Objects.equals(getInternationalTitle(), other.getInternationalTitle())
-                && Objects.equals(getStore(), other.getStore());
+        return ResourceInfo.equals(this, obj);
     }
 }

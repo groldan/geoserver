@@ -65,4 +65,20 @@ public interface HTTPStoreInfo extends StoreInfo {
      * @see #setMaxConnections(int)
      */
     public void setUseConnectionPooling(boolean useHttpConnectionPooling);
+
+    /**
+     * Canonical implementation of {@link Object#hashCode()} for {@code HTTPStoreInfo} based on the
+     * interface accessors
+     */
+    public static int hashCode(HTTPStoreInfo o) {
+        throw new UnsupportedOperationException("implement");
+    }
+
+    /**
+     * Canonical implementation of {@link Object#equals(Object)} for a {@code HTTPStoreInfo} and
+     * another object based on the interface accessors
+     */
+    public static boolean equals(HTTPStoreInfo o, Object obj) {
+        throw new UnsupportedOperationException("implement");
+    }
 }

@@ -60,4 +60,22 @@ public interface DataStoreInfo extends StoreInfo {
     /** Returns the feature resources provided by the store. */
     // Iterator<FeatureResource> getResources(ProgressListener monitor)
     //    throws IOException;
+
+    /**
+     * Canonical implementation of {@link Object#hashCode()} for {@code DataStoreInfo} based on the
+     * interface accessors
+     */
+    public static int hashCode(DataStoreInfo o) {
+        return StoreInfo.hashCode(o);
+    }
+
+    /**
+     * Canonical implementation of {@link Object#equals(Object)} for a {@code DataStoreInfo} and
+     * another object based on the interface accessors
+     */
+    public static boolean equals(DataStoreInfo o, Object obj) {
+        if (o == obj) return true;
+        if (!(obj instanceof DataStoreInfo)) return false;
+        return StoreInfo.equals(o, obj);
+    }
 }

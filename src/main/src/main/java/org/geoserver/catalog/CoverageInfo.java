@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.util.factory.Hints;
 import org.opengis.coverage.grid.GridCoverage;
@@ -135,4 +136,46 @@ public interface CoverageInfo extends ResourceInfo {
 
     /** Sets the native coverage name (used to pick up a specific coverage from withing a reader) */
     void setNativeCoverageName(String nativeCoverageName);
+
+    /**
+     * Canonical implementation of {@link Object#hashCode()} for {@code CoverageInfo} based on the
+     * interface accessors
+     */
+    public static int hashCode(CoverageInfo o) {
+        final int prime = 31;
+        return prime * ResourceInfo.hashCode(o)
+                + Objects.hash(
+                        o.getDefaultInterpolationMethod(),
+                        o.getDimensions(),
+                        o.getGrid(),
+                        o.getInterpolationMethods(),
+                        o.getNativeCoverageName(),
+                        o.getNativeFormat(),
+                        o.getParameters(),
+                        o.getRequestSRS(),
+                        o.getResponseSRS(),
+                        o.getSupportedFormats());
+    }
+
+    /**
+     * Canonical implementation of {@link Object#equals(Object)} for a {@code CoverageInfo} and
+     * another object based on the interface accessors
+     */
+    public static boolean equals(CoverageInfo o, Object obj) {
+        if (o == obj) return true;
+        if (!(obj instanceof CoverageInfo)) return false;
+        CoverageInfo other = (CoverageInfo) obj;
+        return ResourceInfo.equals(o, other)
+                && Objects.equals(o.getNativeCoverageName(), other.getNativeCoverageName())
+                && Objects.equals(o.getNativeFormat(), other.getNativeFormat())
+                && Objects.equals(
+                        o.getDefaultInterpolationMethod(), other.getDefaultInterpolationMethod())
+                && Objects.equals(o.getDimensions(), other.getDimensions())
+                && Objects.equals(o.getGrid(), other.getGrid())
+                && Objects.equals(o.getInterpolationMethods(), other.getInterpolationMethods())
+                && Objects.equals(o.getParameters(), other.getParameters())
+                && Objects.equals(o.getRequestSRS(), other.getRequestSRS())
+                && Objects.equals(o.getResponseSRS(), other.getResponseSRS())
+                && Objects.equals(o.getSupportedFormats(), other.getSupportedFormats());
+    }
 }

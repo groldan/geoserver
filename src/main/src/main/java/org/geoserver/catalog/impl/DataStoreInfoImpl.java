@@ -40,12 +40,12 @@ public class DataStoreInfoImpl extends StoreInfoImpl implements DataStoreInfo {
     }
 
     @Override
-    @SuppressWarnings("PMD.OverrideBothEqualsAndHashcode")
-    public boolean equals(Object obj) {
-        if (!(obj instanceof DataStoreInfo)) {
-            return false;
-        }
+    public int hashCode() {
+        return DataStoreInfo.hashCode(this);
+    }
 
-        return super.equals(obj);
+    @Override
+    public boolean equals(Object obj) {
+        return DataStoreInfo.equals(this, obj);
     }
 }

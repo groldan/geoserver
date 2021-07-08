@@ -7,11 +7,8 @@ package org.geoserver.catalog.impl;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CatalogVisitor;
 import org.geoserver.catalog.CoverageDimensionInfo;
@@ -30,7 +27,6 @@ import org.opengis.util.ProgressListener;
  *
  * @author Simone Giannecchini, GeoSolutions SAS
  */
-@SuppressWarnings("deprecation")
 public class CoverageInfoImpl extends ResourceInfoImpl implements CoverageInfo {
 
     /** */
@@ -40,26 +36,28 @@ public class CoverageInfoImpl extends ResourceInfoImpl implements CoverageInfo {
 
     protected GridGeometry grid;
 
-    protected List<String> supportedFormats = new ArrayList<>();
+    protected List<String> supportedFormats;
 
-    protected List<String> interpolationMethods = new ArrayList<>();
+    protected List<String> interpolationMethods;
 
     protected String defaultInterpolationMethod;
 
-    protected List<CoverageDimensionInfo> dimensions = new ArrayList<>();
+    protected List<CoverageDimensionInfo> dimensions;
 
-    protected List<String> requestSRS = new ArrayList<>();
+    protected List<String> requestSRS;
 
-    protected List<String> responseSRS = new ArrayList<>();
+    protected List<String> responseSRS;
 
-    protected Map<String, Serializable> parameters = new HashMap<>();
+    protected Map<String, Serializable> parameters;
 
     protected String nativeCoverageName;
 
-    protected CoverageInfoImpl() {}
+    protected CoverageInfoImpl() {
+        this(null);
+    }
 
     public CoverageInfoImpl(Catalog catalog) {
-        super(catalog);
+        this(catalog, null);
     }
 
     public CoverageInfoImpl(Catalog catalog, String id) {
@@ -202,40 +200,12 @@ public class CoverageInfoImpl extends ResourceInfoImpl implements CoverageInfo {
 
     @Override
     public int hashCode() {
-        final int prime = 31;
-        int result = super.hashCode();
-        result =
-                prime * result
-                        + Objects.hash(
-                                defaultInterpolationMethod,
-                                dimensions,
-                                grid,
-                                interpolationMethods,
-                                nativeCoverageName,
-                                nativeFormat,
-                                parameters,
-                                requestSRS,
-                                responseSRS,
-                                supportedFormats);
-        return result;
+        return CoverageInfo.hashCode(this);
     }
 
     @Override
     public boolean equals(Object obj) {
-        if (this == obj) return true;
-        if (!super.equals(obj)) return false;
-        if (!(obj instanceof CoverageInfo)) return false;
-        CoverageInfo other = (CoverageInfo) obj;
-        return Objects.equals(defaultInterpolationMethod, other.getDefaultInterpolationMethod())
-                && Objects.equals(dimensions, other.getDimensions())
-                && Objects.equals(grid, other.getGrid())
-                && Objects.equals(interpolationMethods, other.getInterpolationMethods())
-                && Objects.equals(nativeCoverageName, other.getNativeCoverageName())
-                && Objects.equals(nativeFormat, other.getNativeFormat())
-                && Objects.equals(parameters, other.getParameters())
-                && Objects.equals(requestSRS, other.getRequestSRS())
-                && Objects.equals(responseSRS, other.getResponseSRS())
-                && Objects.equals(supportedFormats, other.getSupportedFormats());
+        return CoverageInfo.equals(this, obj);
     }
 
     @Override

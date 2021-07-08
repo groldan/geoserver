@@ -5,10 +5,11 @@
  */
 package org.geoserver.catalog;
 
-import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.referencing.CRS;
 import org.opengis.feature.type.Name;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.util.InternationalString;
@@ -290,20 +291,6 @@ public interface ResourceInfo extends CatalogInfo {
     void setProjectionPolicy(ProjectionPolicy policy);
 
     /**
-     * A persistent map of metadata.
-     *
-     * <p>Data in this map is intended to be persisted. Common case of use is to have services
-     * associate various bits of data with a particular resource. An example might include caching
-     * information.
-     *
-     * <p>The key values of this map are of type {@link String} and values are of type {@link
-     * Serializable}.
-     *
-     * @uml.property name="metadata"
-     */
-    MetadataMap getMetadata();
-
-    /**
      * A flag indicating if the resource is enabled or not.
      *
      * @uml.property name="enabled"
@@ -399,4 +386,76 @@ public interface ResourceInfo extends CatalogInfo {
      * compatible output formats.
      */
     void setSimpleConversionEnabled(boolean activateComplexToSimpleOutput);
+
+    /**
+     * Canonical implementation of {@link Object#hashCode()} for {@code ResourceInfo} based on the
+     * interface accessors
+     */
+    public static int hashCode(ResourceInfo o) {
+        final int prime = 31;
+        return prime * CatalogInfo.hashCode(o)
+                + Objects.hash(
+                        o.getTitle(),
+                        o.getAbstract(),
+                        o.isAdvertised(),
+                        o.getAlias(),
+                        o.getDataLinks(),
+                        o.getDescription(),
+                        o.getDisabledServices(),
+                        o.isEnabled(),
+                        o.getInternationalAbstract(),
+                        o.getInternationalTitle(),
+                        o.getKeywords(),
+                        o.getLatLonBoundingBox(),
+                        o.getMetadataLinks(),
+                        o.getName(),
+                        o.getNamespace(),
+                        o.getNativeBoundingBox(),
+                        o.getNativeCRS(),
+                        o.getNativeName(),
+                        o.getProjectionPolicy(),
+                        o.isServiceConfiguration(),
+                        o.isSimpleConversionEnabled(),
+                        o.getSRS(),
+                        o.getStore());
+    }
+
+    /**
+     * Canonical implementation of {@link Object#equals(Object)} for a {@code ResourceInfo} and
+     * another object based on the interface accessors
+     */
+    public static boolean equals(ResourceInfo o, Object obj) {
+        if (o == obj) return true;
+        if (!(obj instanceof ResourceInfo)) return false;
+        ResourceInfo other = (ResourceInfo) obj;
+        // Note: using accessors instead of direct field access. Some properties are computed on the
+        // fly (e.g. isAdvertised())
+        return CatalogInfo.equals(o, other)
+                && o.isEnabled() == other.isEnabled()
+                && o.getProjectionPolicy() == other.getProjectionPolicy()
+                && o.isServiceConfiguration() == other.isServiceConfiguration()
+                && Objects.equals(o.getAbstract(), other.getAbstract())
+                && Objects.equals(o.isAdvertised(), other.isAdvertised())
+                && Objects.equals(o.getAlias(), other.getAlias())
+                && Objects.equals(o.getDataLinks(), other.getDataLinks())
+                && Objects.equals(o.getDescription(), other.getDescription())
+                && Objects.equals(o.getDisabledServices(), other.getDisabledServices())
+                && Objects.equals(o.getKeywords(), other.getKeywords())
+                && Objects.equals(o.getLatLonBoundingBox(), other.getLatLonBoundingBox())
+                && Objects.equals(o.getMetadata(), other.getMetadata())
+                && Objects.equals(o.getMetadataLinks(), other.getMetadataLinks())
+                && Objects.equals(o.getName(), other.getName())
+                && Objects.equals(o.getNamespace(), other.getNamespace())
+                && Objects.equals(o.getNativeBoundingBox(), other.getNativeBoundingBox())
+                && Objects.equals(o.getNativeName(), other.getNativeName())
+                && Objects.equals(o.isSimpleConversionEnabled(), other.isSimpleConversionEnabled())
+                && Objects.equals(o.getSRS(), other.getSRS())
+                && Objects.equals(o.getTitle(), other.getTitle())
+                // CRS.equalsIgnoreMetadata accepts null on either arg
+                && CRS.equalsIgnoreMetadata(o.getNativeCRS(), other.getNativeCRS())
+                // Using getters since value may be computed on the fly
+                && Objects.equals(o.getInternationalAbstract(), other.getInternationalAbstract())
+                && Objects.equals(o.getInternationalTitle(), other.getInternationalTitle())
+                && Objects.equals(o.getStore(), other.getStore());
+    }
 }

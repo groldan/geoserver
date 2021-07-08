@@ -5,6 +5,8 @@
  */
 package org.geoserver.catalog;
 
+import java.util.Objects;
+
 /**
  * Application schema namespace.
  *
@@ -49,14 +51,6 @@ public interface NamespaceInfo extends CatalogInfo {
      */
     void setURI(String uri);
 
-    /**
-     * A persistent map of metadata.
-     *
-     * <p>Data in this map is intended to be persisted. Common case of use is to have services
-     * associate various bits of data with a particular namespace.
-     */
-    MetadataMap getMetadata();
-
     /** Two namespace objects are considred equal if they have the same "prefix" and "uri". */
     @Override
     boolean equals(Object obj);
@@ -86,5 +80,29 @@ public interface NamespaceInfo extends CatalogInfo {
 
     default void setIsolated(boolean isolated) {
         // nothing is done
+    }
+
+    /**
+     * Canonical implementation of {@link Object#hashCode()} for {@link NamespaceInfo} based on the
+     * interface accessors
+     */
+    public static int hashCode(NamespaceInfo o) {
+        final int prime = 31;
+        return prime * CatalogInfo.hashCode(o)
+                + Objects.hash(o.isIsolated(), o.getPrefix(), o.getURI());
+    }
+
+    /**
+     * Canonical implementation of {@link Object#equals(Object)} for a {@link NamespaceInfo} and
+     * another object based on the interface accessors
+     */
+    public static boolean equals(NamespaceInfo o, Object obj) {
+        if (o == obj) return true;
+        if (!(obj instanceof NamespaceInfo)) return false;
+        NamespaceInfo other = (NamespaceInfo) obj;
+        return CatalogInfo.equals(o, obj)
+                && o.isIsolated() == other.isIsolated()
+                && Objects.equals(o.getPrefix(), other.getPrefix())
+                && Objects.equals(o.getURI(), other.getURI());
     }
 }

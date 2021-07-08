@@ -7,24 +7,16 @@ package org.geoserver.catalog.impl;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Date;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Objects;
 import org.geoserver.catalog.Catalog;
-import org.geoserver.catalog.MetadataMap;
 import org.geoserver.catalog.StoreInfo;
 import org.geoserver.catalog.WorkspaceInfo;
-import org.geotools.data.DataAccessFactory.Param;
-import org.geotools.util.Converters;
 import org.opengis.util.ProgressListener;
 
 /** Default implementation of {@link StoreInfo}. */
 @SuppressWarnings("serial")
-public abstract class StoreInfoImpl implements StoreInfo {
-
-    protected String id;
+public abstract class StoreInfoImpl extends CatalogInfoImpl implements StoreInfo {
 
     protected String name;
 
@@ -38,19 +30,13 @@ public abstract class StoreInfoImpl implements StoreInfo {
 
     protected transient Catalog catalog;
 
-    protected Map<String, Serializable> connectionParameters = new HashMap<>();
-
-    protected MetadataMap metadata = new MetadataMap();
+    protected Map<String, Serializable> connectionParameters;
 
     // TODO: REMOVE, this is dead-code. Set by GeoServerLoader, but the accessor is not used
     // throughout the entire codebase
     protected transient Throwable error;
 
     protected boolean _default;
-
-    protected Date dateCreated;
-
-    protected Date dateModified;
 
     protected StoreInfoImpl() {}
 
@@ -61,15 +47,6 @@ public abstract class StoreInfoImpl implements StoreInfo {
     protected StoreInfoImpl(Catalog catalog, String id) {
         this(catalog);
         setId(id);
-    }
-
-    @Override
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
     }
 
     @Override
@@ -141,18 +118,6 @@ public abstract class StoreInfoImpl implements StoreInfo {
     }
 
     @Override
-    public synchronized MetadataMap getMetadata() {
-        if (metadata == null) {
-            metadata = new MetadataMap();
-        }
-        return metadata;
-    }
-
-    public void setMetadata(MetadataMap metadata) {
-        this.metadata = metadata;
-    }
-
-    @Override
     public <T extends Object> T getAdapter(Class<T> adapterClass, Map<?, ?> hints) {
         // subclasses should override
         return null;
@@ -192,80 +157,11 @@ public abstract class StoreInfoImpl implements StoreInfo {
 
     @Override
     public int hashCode() {
-        return Objects.hash(
-                connectionParameters,
-                dateCreated,
-                dateModified,
-                description,
-                enabled,
-                id,
-                metadata,
-                name,
-                type,
-                workspace == null ? null : workspace.getId());
+        return StoreInfo.hashCode(this);
     }
 
     @Override
     public boolean equals(Object obj) {
-        if (this == obj) return true;
-        if (!(obj instanceof StoreInfo)) return false;
-        StoreInfo other = (StoreInfo) obj;
-        return Objects.equals(id, other.getId())
-                && Objects.equals(workspace, other.getWorkspace())
-                && Objects.equals(dateCreated, other.getDateCreated())
-                && Objects.equals(dateModified, other.getDateModified())
-                && Objects.equals(description, other.getDescription())
-                && enabled == other.isEnabled()
-                && Objects.equals(metadata, other.getMetadata())
-                && Objects.equals(name, other.getName())
-                && Objects.equals(type, other.getType())
-                && connectionParametersAreEqual(
-                        connectionParameters, other.getConnectionParameters());
-    }
-
-    /**
-     * Accounts for the fact that parameter values might be equivalent though of different types,
-     * and {@link Param#lookUp(Map) DataAccessFactory$Param#lookUp(Map)} will perform the type
-     * conversion. E.g., a {@code boolean} parameter might have a {@code Boolean} or {@code String}
-     * value in the map.
-     */
-    private boolean connectionParametersAreEqual(Map<String, ?> params1, Map<String, ?> params2) {
-        if (params1 == params2) return true;
-        if (params1 == null || params2 == null) return false;
-        if (!params1.keySet().equals(params2.keySet())) return false;
-        for (Map.Entry<String, ?> e1 : params1.entrySet()) {
-            Object v1 = e1.getValue();
-            Object v2 = params2.get(e1.getKey());
-            if (!Objects.equals(v1, v2)) {
-                String s1 = Converters.convert(v1, String.class);
-                String s2 = Converters.convert(v2, String.class);
-                if ((v1 != null && s1 == null)
-                        || (v2 != null && s2 == null)
-                        || !Objects.equals(s1, s2)) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
-    @Override
-    public Date getDateModified() {
-        return this.dateModified;
-    }
-
-    @Override
-    public Date getDateCreated() {
-        return this.dateCreated;
-    }
-
-    @Override
-    public void setDateCreated(Date dateCreated) {
-        this.dateCreated = dateCreated;
-    }
-
-    @Override
-    public void setDateModified(Date dateModified) {
-        this.dateModified = dateModified;
+        return StoreInfo.equals(this, obj);
     }
 }

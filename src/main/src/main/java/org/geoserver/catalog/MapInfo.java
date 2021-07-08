@@ -6,6 +6,7 @@
 package org.geoserver.catalog;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * A grouping of layers.
@@ -28,4 +29,28 @@ public interface MapInfo extends CatalogInfo {
 
     /** The layers that compose the map. */
     List<LayerInfo> getLayers();
+
+    /**
+     * Canonical implementation of {@link Object#hashCode()} for {@link MapInfo} based on the
+     * interface accessors
+     */
+    public static int hashCode(MapInfo o) {
+        final int prime = 31;
+        return prime * CatalogInfo.hashCode(o)
+                + Objects.hash(o.getName(), o.isEnabled(), o.getLayers());
+    }
+
+    /**
+     * Canonical implementation of {@link Object#equals(Object)} for a {@link MapInfo} and another
+     * object based on the interface accessors
+     */
+    public static boolean equals(MapInfo o, Object obj) {
+        if (o == obj) return true;
+        if (!(obj instanceof MapInfo)) return false;
+        MapInfo other = (MapInfo) obj;
+        return CatalogInfo.equals(o, other)
+                && o.isEnabled() == other.isEnabled()
+                && Objects.equals(o.getName(), other.getName())
+                && Objects.equals(o.getLayers(), other.getLayers());
+    }
 }

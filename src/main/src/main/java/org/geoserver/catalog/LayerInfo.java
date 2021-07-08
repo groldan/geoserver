@@ -5,6 +5,7 @@
  */
 package org.geoserver.catalog;
 
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -162,4 +163,43 @@ public interface LayerInfo extends PublishedInfo {
      * @param interpolationMethod the interpolation method used by default
      */
     void setDefaultWMSInterpolationMethod(WMSInterpolation interpolationMethod);
+
+    /**
+     * Canonical implementation of {@link Object#hashCode()} for {@code LayerInfo} based on the
+     * interface accessors
+     */
+    public static int hashCode(LayerInfo o) {
+        final int prime = 31;
+        return prime * PublishedInfo.hashCode(o)
+                + Objects.hash(
+                        o.getDefaultStyle(),
+                        o.getDefaultWMSInterpolationMethod(),
+                        o.getLegend(),
+                        o.isOpaque(),
+                        o.getPath(),
+                        o.isQueryable(),
+                        o.getResource(),
+                        o.getStyles(),
+                        o.getType());
+    }
+
+    /**
+     * Canonical implementation of {@link Object#equals(Object)} for a {@code LayerInfo} and another
+     * object based on the interface accessors
+     */
+    public static boolean equals(LayerInfo o, Object obj) {
+        if (o == obj) return true;
+        if (!(obj instanceof LayerInfo)) return false;
+        LayerInfo other = (LayerInfo) obj;
+        return PublishedInfo.equals(o, obj)
+                && o.getType() == other.getType()
+                && o.getDefaultWMSInterpolationMethod() == other.getDefaultWMSInterpolationMethod()
+                && Objects.equals(o.getDefaultStyle(), other.getDefaultStyle())
+                && Objects.equals(o.getLegend(), other.getLegend())
+                && Objects.equals(o.isOpaque(), other.isOpaque())
+                && Objects.equals(o.getPath(), other.getPath())
+                && Objects.equals(o.isQueryable(), other.isQueryable())
+                && Objects.equals(o.getStyles(), other.getStyles())
+                && Objects.equals(o.getResource(), other.getResource());
+    }
 }

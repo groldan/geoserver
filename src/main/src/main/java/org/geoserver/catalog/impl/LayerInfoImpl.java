@@ -5,21 +5,12 @@
  */
 package org.geoserver.catalog.impl;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.geoserver.catalog.AttributionInfo;
-import org.geoserver.catalog.AuthorityURLInfo;
 import org.geoserver.catalog.CatalogVisitor;
-import org.geoserver.catalog.LayerIdentifierInfo;
 import org.geoserver.catalog.LayerInfo;
 import org.geoserver.catalog.LegendInfo;
-import org.geoserver.catalog.MetadataMap;
 import org.geoserver.catalog.PublishedType;
 import org.geoserver.catalog.ResourceInfo;
 import org.geoserver.catalog.StyleInfo;
@@ -28,13 +19,12 @@ import org.geotools.util.GrowableInternationalString;
 import org.geotools.util.logging.Logging;
 import org.opengis.util.InternationalString;
 
-public class LayerInfoImpl implements LayerInfo {
+public class LayerInfoImpl extends PublishedInfoImpl implements LayerInfo {
+    private static final long serialVersionUID = 1L;
 
     static final Logger LOGGER = Logging.getLogger(LayerInfoImpl.class);
 
     static final String KEY_ADVERTISED = "advertised";
-
-    protected String id;
 
     // this property has been left to ensure backwards compatibility with xstream but it's marked
     // transient
@@ -48,7 +38,7 @@ public class LayerInfoImpl implements LayerInfo {
 
     protected StyleInfo defaultStyle;
 
-    protected Set<StyleInfo> styles = new HashSet<>();
+    protected Set<StyleInfo> styles;
 
     protected ResourceInfo resource;
 
@@ -70,40 +60,7 @@ public class LayerInfoImpl implements LayerInfo {
 
     protected Boolean opaque;
 
-    protected MetadataMap metadata = new MetadataMap();
-
-    protected AttributionInfo attribution;
-
-    /**
-     * This property is transient in 2.1.x series and stored under the metadata map with key
-     * "authorityURLs", and a not transient in the 2.2.x series.
-     *
-     * @since 2.1.3
-     */
-    protected List<AuthorityURLInfo> authorityURLs = new ArrayList<>(1);
-
-    /**
-     * This property is transient in 2.1.x series and stored under the metadata map with key
-     * "identifiers", and a not transient in the 2.2.x series.
-     *
-     * @since 2.1.3
-     */
-    protected List<LayerIdentifierInfo> identifiers = new ArrayList<>(1);
-
     protected WMSInterpolation defaultWMSInterpolationMethod;
-
-    protected Date dateCreated;
-
-    protected Date dateModified;
-
-    @Override
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
 
     @Override
     public String getName() {
@@ -216,16 +173,6 @@ public class LayerInfoImpl implements LayerInfo {
     }
 
     @Override
-    public AttributionInfo getAttribution() {
-        return attribution;
-    }
-
-    @Override
-    public void setAttribution(AttributionInfo attribution) {
-        this.attribution = attribution;
-    }
-
-    @Override
     public boolean isEnabled() {
         if (resource == null) {
             throw new NullPointerException(
@@ -262,62 +209,18 @@ public class LayerInfoImpl implements LayerInfo {
     }
 
     @Override
-    public MetadataMap getMetadata() {
-        checkMetadataNotNull();
-        return metadata;
-    }
-
-    public void setMetadata(MetadataMap metadata) {
-        this.metadata = metadata;
-    }
-
-    @Override
     public void accept(CatalogVisitor visitor) {
         visitor.visit(this);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(
-                attribution,
-                authorityURLs,
-                dateCreated,
-                dateModified,
-                defaultStyle,
-                defaultWMSInterpolationMethod,
-                id,
-                identifiers,
-                legend,
-                metadata,
-                opaque,
-                path,
-                queryable,
-                resource,
-                styles,
-                type);
+        return LayerInfo.hashCode(this);
     }
 
     @Override
     public boolean equals(Object obj) {
-        if (this == obj) return true;
-        if (!(obj instanceof LayerInfo)) return false;
-        LayerInfo other = (LayerInfo) obj;
-        return Objects.equals(id, other.getId())
-                && Objects.equals(identifiers, other.getIdentifiers())
-                && type == other.getType()
-                && Objects.equals(attribution, other.getAttribution())
-                && Objects.equals(authorityURLs, other.getAuthorityURLs())
-                && Objects.equals(dateCreated, other.getDateCreated())
-                && Objects.equals(dateModified, other.getDateModified())
-                && Objects.equals(defaultStyle, other.getDefaultStyle())
-                && defaultWMSInterpolationMethod == other.getDefaultWMSInterpolationMethod()
-                && Objects.equals(legend, other.getLegend())
-                && Objects.equals(metadata, other.getMetadata())
-                && Objects.equals(opaque, other.isOpaque())
-                && Objects.equals(path, other.getPath())
-                && Objects.equals(queryable, other.isQueryable())
-                && Objects.equals(resource, other.getResource())
-                && Objects.equals(styles, other.getStyles());
+        return LayerInfo.equals(this, obj);
     }
 
     @Override
@@ -379,24 +282,6 @@ public class LayerInfoImpl implements LayerInfo {
     }
 
     @Override
-    public List<AuthorityURLInfo> getAuthorityURLs() {
-        return authorityURLs;
-    }
-
-    public void setAuthorityURLs(List<AuthorityURLInfo> authorities) {
-        this.authorityURLs = authorities;
-    }
-
-    @Override
-    public List<LayerIdentifierInfo> getIdentifiers() {
-        return identifiers;
-    }
-
-    public void setIdentifiers(List<LayerIdentifierInfo> identifiers) {
-        this.identifiers = identifiers;
-    }
-
-    @Override
     public String getTitle() {
         return resource.getTitle();
     }
@@ -424,30 +309,6 @@ public class LayerInfoImpl implements LayerInfo {
     @Override
     public void setDefaultWMSInterpolationMethod(WMSInterpolation interpolationMethod) {
         this.defaultWMSInterpolationMethod = interpolationMethod;
-    }
-
-    @Override
-    public Date getDateModified() {
-        return this.dateModified;
-    }
-
-    @Override
-    public Date getDateCreated() {
-        return this.dateCreated;
-    }
-
-    @Override
-    public void setDateCreated(Date dateCreated) {
-        this.dateCreated = dateCreated;
-    }
-
-    @Override
-    public void setDateModified(Date dateModified) {
-        this.dateModified = dateModified;
-    }
-
-    private void checkMetadataNotNull() {
-        if (metadata == null) metadata = new MetadataMap();
     }
 
     @Override

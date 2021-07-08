@@ -7,6 +7,7 @@ package org.geoserver.catalog;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 
 /**
@@ -182,7 +183,43 @@ public interface LayerGroupInfo extends PublishedInfo {
     }
 
     /**
-     * A way to compare two LayerGroupInfo instances that works around all the wrappers we have
+     * Canonical implementation of {@link Object#hashCode()} for {@code LayerGroupInfo} based on the
+     * interface accessors
+     */
+    public static int hashCode(LayerGroupInfo lg) {
+        final int prime = 31;
+        int result = PublishedInfo.hashCode(lg);
+        result =
+                prime * result
+                        + Objects.hash(
+                                lg.getAbstract(),
+                                lg.isAdvertised(),
+                                lg.getBounds(),
+                                lg.isEnabled(),
+                                lg.getInternationalAbstract(),
+                                lg.getInternationalTitle(),
+                                lg.getKeywords(),
+                                lg.layers(),
+                                lg.getMetadataLinks(),
+                                lg.getMode(),
+                                lg.getName(),
+                                lg.getLayers(),
+                                lg.isQueryDisabled(),
+                                lg.getRootLayer(),
+                                lg.getRootLayerStyle(),
+                                lg.getTitle(),
+                                lg.getWorkspace());
+        // for consistency with equals()
+        List<StyleInfo> styles = canonicalStyles(lg.getStyles(), lg.getLayers());
+        result = prime * result + Objects.hash(styles);
+        return result;
+    }
+
+    /**
+     * Canonical implementation of {@link Object#equals(Object)} for a {@code LayerGroupInfo} and
+     * another object based on the interface accessors
+     *
+     * <p>A way to compare two LayerGroupInfo instances that works around all the wrappers we have
      * around (secured, decorating ecc) all changing some aspects of the bean and breaking usage of
      * "common" equality). This method only uses getters to fetch the fields. Could have been build
      * using EqualsBuilder and reflection, but would have been very slow and we do lots of these
@@ -190,73 +227,35 @@ public interface LayerGroupInfo extends PublishedInfo {
      */
     public static boolean equals(LayerGroupInfo lg, Object obj) {
         if (lg == obj) return true;
-        if (obj == null) return false;
+        if (!PublishedInfo.equals(lg, obj)) return false;
         if (!(obj instanceof LayerGroupInfo)) return false;
         LayerGroupInfo other = (LayerGroupInfo) obj;
-        if (lg.getBounds() == null) {
-            if (other.getBounds() != null) return false;
-        } else if (!lg.getBounds().equals(other.getBounds())) return false;
-        if (lg.getId() == null) {
-            if (other.getId() != null) return false;
-        } else if (!lg.getId().equals(other.getId())) return false;
-        if (lg.getLayers() == null) {
-            if (other.getLayers() != null) return false;
-        } else if (!lg.getLayers().equals(other.getLayers())) return false;
-        if (lg.getMetadata() == null) {
-            if (other.getMetadata() != null) return false;
-        } else if (!lg.getMetadata().equals(other.getMetadata())) return false;
-        if (lg.getName() == null) {
-            if (other.getName() != null) return false;
-        } else if (!lg.getName().equals(other.getName())) return false;
-        if (lg.getMode() == null) {
-            if (other.getMode() != null) return false;
-        } else if (!lg.getMode().equals(other.getMode())) return false;
-        if (lg.getTitle() == null) {
-            if (other.getTitle() != null) {
-                return false;
-            }
-        } else if (!lg.getTitle().equals(other.getTitle())) return false;
-        if (lg.getAbstract() == null) {
-            if (other.getAbstract() != null) {
-                return false;
-            }
-        } else if (!lg.getAbstract().equals(other.getAbstract())) return false;
-        if (lg.getWorkspace() == null) {
-            if (other.getWorkspace() != null) return false;
-        } else if (!lg.getWorkspace().equals(other.getWorkspace())) return false;
+        boolean equals =
+                lg.getMode() == other.getMode()
+                        && Objects.equals(lg.getName(), other.getName())
+                        && Objects.equals(lg.isAdvertised(), other.isAdvertised())
+                        && Objects.equals(lg.isEnabled(), other.isEnabled())
+                        && Objects.equals(lg.isQueryDisabled(), other.isQueryDisabled())
+                        && Objects.equals(lg.getAbstract(), other.getAbstract())
+                        && Objects.equals(lg.getBounds(), other.getBounds())
+                        && Objects.equals(
+                                lg.getInternationalAbstract(), other.getInternationalAbstract())
+                        && Objects.equals(lg.getInternationalTitle(), other.getInternationalTitle())
+                        && Objects.equals(lg.getKeywords(), other.getKeywords())
+                        && Objects.equals(lg.getMetadataLinks(), other.getMetadataLinks())
+                        && Objects.equals(lg.getLayers(), other.getLayers())
+                        && Objects.equals(lg.getRootLayer(), other.getRootLayer())
+                        && Objects.equals(lg.getRootLayerStyle(), other.getRootLayerStyle())
+                        && Objects.equals(lg.getTitle(), other.getTitle())
+                        && Objects.equals(lg.getWorkspace(), other.getWorkspace())
+                        && Objects.equals(lg.layers(), other.layers());
 
-        List<StyleInfo> styles = canonicalStyles(lg.getStyles(), lg.getLayers());
-        List<StyleInfo> otherStyles = canonicalStyles(other.getStyles(), other.getLayers());
-        if (styles == null) {
-            if (otherStyles != null) return false;
-        } else if (!styles.equals(otherStyles)) return false;
-        if (lg.getAuthorityURLs() == null) {
-            if (other.getAuthorityURLs() != null) return false;
-        } else if (!lg.getAuthorityURLs().equals(other.getAuthorityURLs())) return false;
-
-        if (lg.getIdentifiers() == null) {
-            if (other.getIdentifiers() != null) return false;
-        } else if (!lg.getIdentifiers().equals(other.getIdentifiers())) return false;
-
-        if (lg.getRootLayer() == null) {
-            if (other.getRootLayer() != null) return false;
-        } else if (!lg.getRootLayer().equals(other.getRootLayer())) return false;
-
-        if (lg.getRootLayerStyle() == null) {
-            if (other.getRootLayerStyle() != null) return false;
-        } else if (!lg.getRootLayerStyle().equals(other.getRootLayerStyle())) return false;
-
-        if (lg.getAttribution() == null) {
-            if (other.getAttribution() != null) return false;
-        } else if (!lg.getAttribution().equals(other.getAttribution())) return false;
-
-        if (lg.getMetadataLinks() == null) {
-            if (other.getMetadataLinks() != null) return false;
-        } else if (!lg.getMetadataLinks().equals(other.getMetadataLinks())) return false;
-
-        if (!lg.isQueryDisabled() == other.isQueryDisabled()) return false;
-
-        return true;
+        if (equals) {
+            List<StyleInfo> styles = canonicalStyles(lg.getStyles(), lg.getLayers());
+            List<StyleInfo> otherStyles = canonicalStyles(other.getStyles(), other.getLayers());
+            equals = Objects.equals(styles, otherStyles);
+        }
+        return equals;
     }
 
     /**
@@ -291,47 +290,5 @@ public interface LayerGroupInfo extends PublishedInfo {
             canonical.add(s);
         }
         return canonical;
-    }
-
-    /**
-     * A way to build a hash code based only on LayerGroupInfo instances that works around all the
-     * wrappers we have around (secured, decorating ecc) all changing some aspects of the bean and
-     * breaking usage o "common" equality). This method only uses getters to fetch the fields. Could
-     * have been build using HashCodeBuilder and reflection, but would have been very slow and we do
-     * lots of these calls on large catalogs.
-     */
-    public static int hashCode(LayerGroupInfo lg) {
-        final int prime = 31;
-        int result = 1;
-        result = prime * result + ((lg.getBounds() == null) ? 0 : lg.getBounds().hashCode());
-        result = prime * result + ((lg.getId() == null) ? 0 : lg.getId().hashCode());
-        result = prime * result + ((lg.getLayers() == null) ? 0 : lg.getLayers().hashCode());
-        result = prime * result + ((lg.getMetadata() == null) ? 0 : lg.getMetadata().hashCode());
-        result = prime * result + ((lg.getName() == null) ? 0 : lg.getName().hashCode());
-        result = prime * result + ((lg.getMode() == null) ? 0 : lg.getMode().hashCode());
-        result = prime * result + ((lg.getTitle() == null) ? 0 : lg.getTitle().hashCode());
-        result = prime * result + ((lg.getAbstract() == null) ? 0 : lg.getAbstract().hashCode());
-        result = prime * result + ((lg.getWorkspace() == null) ? 0 : lg.getWorkspace().hashCode());
-        result = prime * result + ((lg.getStyles() == null) ? 0 : lg.getStyles().hashCode());
-        result = prime * result + ((lg.getRootLayer() == null) ? 0 : lg.getRootLayer().hashCode());
-        result =
-                prime * result
-                        + ((lg.getRootLayerStyle() == null)
-                                ? 0
-                                : lg.getRootLayerStyle().hashCode());
-        result =
-                prime * result
-                        + ((lg.getAuthorityURLs() == null) ? 0 : lg.getAuthorityURLs().hashCode());
-        result =
-                prime * result
-                        + ((lg.getIdentifiers() == null) ? 0 : lg.getIdentifiers().hashCode());
-        result =
-                prime * result
-                        + ((lg.getAttribution() == null) ? 0 : lg.getAttribution().hashCode());
-        result =
-                prime * result
-                        + ((lg.getMetadataLinks() == null) ? 0 : lg.getMetadataLinks().hashCode());
-        result = prime * result + Boolean.hashCode(lg.isQueryDisabled());
-        return result;
     }
 }

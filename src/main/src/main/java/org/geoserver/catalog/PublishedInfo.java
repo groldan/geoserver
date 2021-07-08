@@ -6,6 +6,7 @@
 package org.geoserver.catalog;
 
 import java.util.List;
+import java.util.Objects;
 import org.opengis.util.InternationalString;
 
 /**
@@ -63,9 +64,6 @@ public interface PublishedInfo extends CatalogInfo {
     /** Sets the internationalAbstract. */
     void setInternationalAbstract(InternationalString internationalAbstract);
 
-    /** A persistent map of metadata. */
-    MetadataMap getMetadata();
-
     /** Returns the list of authority URLs */
     List<AuthorityURLInfo> getAuthorityURLs();
 
@@ -113,4 +111,28 @@ public interface PublishedInfo extends CatalogInfo {
 
     /** Set to true if the layer should be advertised, false otherwise */
     void setAdvertised(boolean advertised);
+
+    /**
+     * Canonical implementation of {@link Object#hashCode()} for {@link PublishedInfo} based on the
+     * interface accessors
+     */
+    public static int hashCode(PublishedInfo o) {
+        final int prime = 31;
+        return prime * CatalogInfo.hashCode(o)
+                + Objects.hash(o.getAttribution(), o.getAuthorityURLs(), o.getIdentifiers());
+    }
+
+    /**
+     * Canonical implementation of {@link Object#equals(Object)} for a {@link PublishedInfo} and
+     * another object based on the interface accessors
+     */
+    public static boolean equals(PublishedInfo o, Object obj) {
+        if (o == obj) return true;
+        if (!(obj instanceof PublishedInfo)) return false;
+        PublishedInfo other = (PublishedInfo) obj;
+        return CatalogInfo.equals(o, obj)
+                && Objects.equals(o.getAttribution(), other.getAttribution())
+                && Objects.equals(o.getAuthorityURLs(), other.getAuthorityURLs())
+                && Objects.equals(o.getIdentifiers(), other.getIdentifiers());
+    }
 }

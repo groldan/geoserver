@@ -5,32 +5,21 @@
  */
 package org.geoserver.catalog.impl;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import org.geoserver.catalog.CatalogVisitor;
 import org.geoserver.catalog.LayerInfo;
 import org.geoserver.catalog.MapInfo;
 
-public class MapInfoImpl implements MapInfo {
+public class MapInfoImpl extends CatalogInfoImpl implements MapInfo {
+    private static final long serialVersionUID = 1L;
 
-    String id;
-    String name;
-    boolean enabled;
+    private String name;
+    private boolean enabled;
 
-    List<LayerInfo> layers;
+    private List<LayerInfo> layers;
 
     public MapInfoImpl() {
-        layers = new ArrayList<>();
-    }
-
-    @Override
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
+        super();
     }
 
     @Override
@@ -78,17 +67,11 @@ public class MapInfoImpl implements MapInfo {
 
     @Override
     public int hashCode() {
-        return Objects.hash(enabled, id, layers, name);
+        return MapInfo.hashCode(this);
     }
 
     @Override
     public boolean equals(Object obj) {
-        if (this == obj) return true;
-        if (!(obj instanceof MapInfo)) return false;
-        MapInfo other = (MapInfo) obj;
-        return Objects.equals(id, other.getId())
-                && Objects.equals(name, other.getName())
-                && enabled == other.isEnabled()
-                && Objects.equals(layers, other.getLayers());
+        return MapInfo.equals(this, obj);
     }
 }

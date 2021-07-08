@@ -69,4 +69,20 @@ public interface WMSLayerInfo extends ResourceInfo {
     public void setMetadataBBoxRespected(boolean metadataBBoxRespected);
 
     public List<StyleInfo> getAllAvailableRemoteStyles();
+
+    /**
+     * Canonical implementation of {@link Object#hashCode()} for {@code WMSLayerInfo} based on the
+     * interface accessors
+     */
+    public static int hashCode(WMSLayerInfo o) {
+        throw new UnsupportedOperationException("implement");
+    }
+
+    /**
+     * Canonical implementation of {@link Object#equals(Object)} for a {@code WMSLayerInfo} and
+     * another object based on the interface accessors
+     */
+    public static boolean equals(WMSLayerInfo o, Object obj) {
+        throw new UnsupportedOperationException("implement");
+    }
 }

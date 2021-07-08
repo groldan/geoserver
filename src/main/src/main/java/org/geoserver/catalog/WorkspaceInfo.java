@@ -5,6 +5,8 @@
  */
 package org.geoserver.catalog;
 
+import java.util.Objects;
+
 /**
  * A container of grouping for store objects.
  *
@@ -18,19 +20,33 @@ public interface WorkspaceInfo extends CatalogInfo {
     /** Sets the name of the workspace. */
     void setName(String name);
 
-    /**
-     * A persistent map of metadata.
-     *
-     * <p>Data in this map is intended to be persisted. Common case of use is to have services
-     * associate various bits of data with a particular workspace.
-     */
-    MetadataMap getMetadata();
-
     default boolean isIsolated() {
         return false;
     }
 
     default void setIsolated(boolean isolated) {
         // nothing is done
+    }
+
+    /**
+     * Canonical implementation of {@link Object#hashCode()} for {@link WorkspaceInfo} based on the
+     * interface accessors
+     */
+    public static int hashCode(WorkspaceInfo o) {
+        final int prime = 31;
+        return prime * CatalogInfo.hashCode(o) + Objects.hash(o.isIsolated(), o.getName());
+    }
+
+    /**
+     * Canonical implementation of {@link Object#equals(Object)} for a {@link WorkspaceInfo} and
+     * another object based on the interface accessors
+     */
+    public static boolean equals(WorkspaceInfo o, Object obj) {
+        if (o == obj) return true;
+        if (!(obj instanceof WorkspaceInfo)) return false;
+        WorkspaceInfo other = (WorkspaceInfo) obj;
+        return CatalogInfo.equals(o, obj)
+                && Objects.equals(o.getName(), other.getName())
+                && o.isIsolated() == other.isIsolated();
     }
 }

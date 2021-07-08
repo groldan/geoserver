@@ -6,6 +6,7 @@
 package org.geoserver.catalog;
 
 import java.io.IOException;
+import java.util.Objects;
 import org.geotools.styling.Style;
 import org.geotools.styling.StyledLayerDescriptor;
 import org.geotools.util.Version;
@@ -97,10 +98,35 @@ public interface StyleInfo extends CatalogInfo {
     String prefixedName();
 
     /**
-     * A persistent map of metadata.
-     *
-     * <p>Data in this map is intended to be persisted. Common case of use is to have services
-     * associate various bits of data with a particular style.
+     * Canonical implementation of {@link Object#hashCode()} for {@code StyleInfo} based on the
+     * interface accessors
      */
-    MetadataMap getMetadata();
+    public static int hashCode(StyleInfo o) {
+        final int prime = 31;
+        return prime * CatalogInfo.hashCode(o)
+                + Objects.hash(
+                        o.getFilename(),
+                        o.getFormat(),
+                        o.getFormatVersion(),
+                        o.getLegend(),
+                        o.getName(),
+                        o.getWorkspace());
+    }
+
+    /**
+     * Canonical implementation of {@link Object#equals(Object)} for a {@code StyleInfo} and another
+     * object based on the interface accessors
+     */
+    public static boolean equals(StyleInfo o, Object obj) {
+        if (o == obj) return true;
+        if (!(obj instanceof StyleInfo)) return false;
+        StyleInfo other = (StyleInfo) obj;
+        return CatalogInfo.equals(o, obj)
+                && Objects.equals(o.getName(), other.getName())
+                && Objects.equals(o.getFilename(), other.getFilename())
+                && Objects.equals(o.getFormat(), other.getFormat())
+                && Objects.equals(o.getFormatVersion(), other.getFormatVersion())
+                && Objects.equals(o.getLegend(), other.getLegend())
+                && Objects.equals(o.getWorkspace(), other.getWorkspace());
+    }
 }

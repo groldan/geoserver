@@ -189,4 +189,20 @@ public interface FeatureTypeInfo extends ResourceInfo {
     default void setEncodeMeasures(boolean encodeMeasures) {
         // nothing to do
     }
+
+    /**
+     * Canonical implementation of {@link Object#hashCode()} for {@code FeatureTypeInfo} based on
+     * the interface accessors
+     */
+    public static int hashCode(FeatureTypeInfo o) {
+        throw new UnsupportedOperationException("implement");
+    }
+
+    /**
+     * Canonical implementation of {@link Object#equals(Object)} for a {@code FeatureTypeInfo} and
+     * another object based on the interface accessors
+     */
+    public static boolean equals(FeatureTypeInfo o, Object obj) {
+        throw new UnsupportedOperationException("implement");
+    }
 }

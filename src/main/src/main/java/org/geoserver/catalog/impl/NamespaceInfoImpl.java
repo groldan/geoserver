@@ -5,14 +5,11 @@
  */
 package org.geoserver.catalog.impl;
 
-import java.util.Objects;
 import org.geoserver.catalog.CatalogVisitor;
-import org.geoserver.catalog.MetadataMap;
 import org.geoserver.catalog.NamespaceInfo;
 
-public class NamespaceInfoImpl implements NamespaceInfo {
-
-    protected String id;
+public class NamespaceInfoImpl extends CatalogInfoImpl implements NamespaceInfo {
+    private static final long serialVersionUID = 1L;
 
     protected String prefix;
 
@@ -20,18 +17,7 @@ public class NamespaceInfoImpl implements NamespaceInfo {
 
     protected boolean _default;
 
-    protected MetadataMap metadata = new MetadataMap();
-
     private boolean isolated;
-
-    @Override
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
 
     public boolean isDefault() {
         return _default;
@@ -67,15 +53,6 @@ public class NamespaceInfoImpl implements NamespaceInfo {
     }
 
     @Override
-    public MetadataMap getMetadata() {
-        return metadata;
-    }
-
-    public void setMetadata(MetadataMap metadata) {
-        this.metadata = metadata;
-    }
-
-    @Override
     public boolean isIsolated() {
         return isolated;
     }
@@ -105,20 +82,13 @@ public class NamespaceInfoImpl implements NamespaceInfo {
     public int hashCode() {
         // Note _default is to be ignored, not part of NamespaceInfo, but merely an implementation
         // detail for the default (data directory) catalog persistence
-        return Objects.hash(id, isolated, metadata, prefix, uri);
+        return NamespaceInfo.hashCode(this);
     }
 
     @Override
     public boolean equals(Object obj) {
         // Note _default is to be ignored, not part of NamespaceInfo, but merely an implementation
         // detail for the default (data directory) catalog persistence
-        if (this == obj) return true;
-        if (!(obj instanceof NamespaceInfo)) return false;
-        NamespaceInfo other = (NamespaceInfo) obj;
-        return Objects.equals(id, other.getId())
-                && isolated == other.isIsolated()
-                && Objects.equals(prefix, other.getPrefix())
-                && Objects.equals(uri, other.getURI())
-                && Objects.equals(metadata, other.getMetadata());
+        return NamespaceInfo.equals(this, obj);
     }
 }
