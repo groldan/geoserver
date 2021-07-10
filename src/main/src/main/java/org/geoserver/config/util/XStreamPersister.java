@@ -352,15 +352,12 @@ public class XStreamPersister {
         // GeoServerInfo
         xs.omitField(impl(GeoServerInfo.class), "clientProperties");
         xs.omitField(impl(GeoServerInfo.class), "geoServer");
-        xs.registerLocalConverter(
-                impl(GeoServerInfo.class), "metadata", new MetadataMapConverter());
 
         // ServiceInfo
         xs.omitField(impl(ServiceInfo.class), "clientProperties");
         xs.omitField(impl(ServiceInfo.class), "geoServer");
         xs.registerLocalConverter(
                 impl(ServiceInfo.class), "workspace", new ReferenceConverter(WorkspaceInfo.class));
-        xs.registerLocalConverter(impl(ServiceInfo.class), "metadata", new MetadataMapConverter());
         xs.registerLocalConverter(impl(ServiceInfo.class), "keywords", new KeywordListConverter());
 
         // Catalog
@@ -384,14 +381,10 @@ public class XStreamPersister {
 
         // WorkspaceInfo
         xs.omitField(impl(WorkspaceInfo.class), "_default");
-        xs.registerLocalConverter(
-                impl(WorkspaceInfo.class), "metadata", new MetadataMapConverter());
 
         // NamespaceInfo
         xs.omitField(impl(NamespaceInfo.class), "catalog");
         xs.omitField(impl(NamespaceInfo.class), "_default");
-        xs.registerLocalConverter(
-                impl(NamespaceInfo.class), "metadata", new MetadataMapConverter());
 
         // StoreInfo
         xs.omitField(impl(StoreInfo.class), "catalog");
@@ -401,7 +394,6 @@ public class XStreamPersister {
                 impl(StoreInfo.class), "workspace", new ReferenceConverter(WorkspaceInfo.class));
         xs.registerLocalConverter(
                 impl(StoreInfo.class), "connectionParameters", new BreifMapConverter());
-        xs.registerLocalConverter(impl(StoreInfo.class), "metadata", new MetadataMapConverter());
         xs.registerLocalConverter(
                 impl(WMSStoreInfo.class), "password", new EncryptedFieldConverter());
         xs.registerLocalConverter(
@@ -411,7 +403,6 @@ public class XStreamPersister {
         xs.omitField(impl(StyleInfo.class), "catalog");
         xs.registerLocalConverter(
                 impl(StyleInfo.class), "workspace", new ReferenceConverter(WorkspaceInfo.class));
-        xs.registerLocalConverter(impl(StyleInfo.class), "metadata", new MetadataMapConverter());
 
         // ResourceInfo
         xs.omitField(impl(ResourceInfo.class), "catalog");
@@ -421,7 +412,6 @@ public class XStreamPersister {
                 impl(ResourceInfo.class), "store", new ReferenceConverter(StoreInfo.class));
         xs.registerLocalConverter(
                 impl(ResourceInfo.class), "namespace", new ReferenceConverter(NamespaceInfo.class));
-        xs.registerLocalConverter(impl(ResourceInfo.class), "metadata", new MetadataMapConverter());
         xs.registerLocalConverter(impl(ResourceInfo.class), "keywords", new KeywordListConverter());
 
         // FeatureTypeInfo
@@ -473,7 +463,6 @@ public class XStreamPersister {
                 impl(LayerInfo.class), "defaultStyle", new ReferenceConverter(StyleInfo.class));
         xs.registerLocalConverter(
                 impl(LayerInfo.class), "styles", new ReferenceCollectionConverter(StyleInfo.class));
-        xs.registerLocalConverter(impl(LayerInfo.class), "metadata", new MetadataMapConverter());
 
         // LayerGroupInfo
         xs.registerLocalConverter(
@@ -499,8 +488,6 @@ public class XStreamPersister {
                 impl(LayerGroupInfo.class),
                 "styles",
                 new ReferenceCollectionConverter(StyleInfo.class));
-        xs.registerLocalConverter(
-                impl(LayerGroupInfo.class), "metadata", new MetadataMapConverter());
         xs.registerLocalConverter(
                 impl(LayerGroupInfo.class), "keywords", new KeywordListConverter());
 
@@ -562,6 +549,7 @@ public class XStreamPersister {
                 "metadata",
                 new SettingsTolerantMapConverter(xs.getMapper(), MetadataMap.class));
         xs.registerConverter(new MeasureConverter());
+        xs.registerConverter(new MetadataMapConverter());
         xs.registerConverter(new MultimapConverter(xs.getMapper()));
         // register Virtual structure handling
         registerBreifMapComplexType("virtualTable", VirtualTable.class);
@@ -1082,28 +1070,18 @@ public class XStreamPersister {
 
         @Override
         public boolean canConvert(@SuppressWarnings("rawtypes") Class type) {
-            return MetadataMap.class.equals(type) || super.canConvert(type);
+            return MetadataMap.class.equals(type);
         }
 
         @Override
         public void marshal(
                 Object source, HierarchicalStreamWriter writer, MarshallingContext context) {
-            if (source instanceof MetadataMap) {
-                MetadataMap mdmap = (MetadataMap) source;
-                source = mdmap.getMap();
-            }
-
-            super.marshal(source, writer, context);
+            super.marshal(((MetadataMap) source).getMap(), writer, context);
         }
 
         @Override
-        @SuppressWarnings("unchecked")
         public Object unmarshal(HierarchicalStreamReader reader, UnmarshallingContext context) {
-            Map map = (Map) super.unmarshal(reader, context);
-            if (!(map instanceof MetadataMap)) {
-                map = new MetadataMap(map);
-            }
-            return map;
+            return (MetadataMap) super.unmarshal(reader, context);
         }
     }
 
