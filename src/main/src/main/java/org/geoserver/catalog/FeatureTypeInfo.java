@@ -195,6 +195,8 @@ public interface FeatureTypeInfo extends ResourceInfo {
     /**
      * Canonical implementation of {@link Object#hashCode()} for {@code FeatureTypeInfo} based on
      * the interface accessors
+     *
+     * @since 20.0
      */
     public static int hashCode(FeatureTypeInfo o) {
         final int prime = 31;
@@ -220,6 +222,7 @@ public interface FeatureTypeInfo extends ResourceInfo {
      *
      * @implNote {@link FeatureTypeInfo#getAttributes()} is compared using {@link
      *     AttributeTypeInfo#equalsIngnoreFeatureType}
+     * @since 20.0
      */
     public static boolean equals(FeatureTypeInfo o, Object obj) {
         if (o == obj) return true;

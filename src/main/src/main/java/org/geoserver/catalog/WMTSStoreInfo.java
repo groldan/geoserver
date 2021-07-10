@@ -41,10 +41,12 @@ public interface WMTSStoreInfo extends HTTPStoreInfo {
     /**
      * Canonical implementation of {@link Object#hashCode()} for {@code WMTSStoreInfo} based on the
      * interface accessors
+     *
+     * @since 20.0
      */
     public static int hashCode(WMTSStoreInfo o) {
         final int prime = 31;
-        return prime * StoreInfo.hashCode(o)
+        return prime * HTTPStoreInfo.hashCode(o)
                 + Objects.hash(
                         o.getCapabilitiesURL(),
                         o.getConnectTimeout(),
@@ -59,12 +61,14 @@ public interface WMTSStoreInfo extends HTTPStoreInfo {
     /**
      * Canonical implementation of {@link Object#equals(Object)} for a {@code WMTSStoreInfo} and
      * another object based on the interface accessors
+     *
+     * @since 20.0
      */
     public static boolean equals(WMTSStoreInfo o, Object obj) {
         if (o == obj) return true;
         if (!(obj instanceof WMTSStoreInfo)) return false;
         WMTSStoreInfo other = (WMTSStoreInfo) obj;
-        return StoreInfo.equals(o, other)
+        return HTTPStoreInfo.equals(o, other)
                 && Objects.equals(o.getCapabilitiesURL(), other.getCapabilitiesURL())
                 && o.getConnectTimeout() == other.getConnectTimeout()
                 && Objects.equals(o.getHeaderName(), other.getHeaderName())

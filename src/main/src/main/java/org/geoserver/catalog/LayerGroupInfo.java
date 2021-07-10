@@ -185,6 +185,8 @@ public interface LayerGroupInfo extends PublishedInfo {
     /**
      * Canonical implementation of {@link Object#hashCode()} for {@code LayerGroupInfo} based on the
      * interface accessors
+     *
+     * @since 20.0
      */
     public static int hashCode(LayerGroupInfo lg) {
         final int prime = 31;
@@ -224,6 +226,8 @@ public interface LayerGroupInfo extends PublishedInfo {
      * "common" equality). This method only uses getters to fetch the fields. Could have been build
      * using EqualsBuilder and reflection, but would have been very slow and we do lots of these
      * calls on large catalogs.
+     *
+     * @since 20.0
      */
     public static boolean equals(LayerGroupInfo lg, Object obj) {
         if (lg == obj) return true;

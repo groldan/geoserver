@@ -116,6 +116,8 @@ public interface StyleInfo extends CatalogInfo {
     /**
      * Canonical implementation of {@link Object#equals(Object)} for a {@code StyleInfo} and another
      * object based on the interface accessors
+     *
+     * @since 20.0
      */
     public static boolean equals(StyleInfo o, Object obj) {
         if (o == obj) return true;

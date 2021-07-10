@@ -140,6 +140,8 @@ public interface CoverageInfo extends ResourceInfo {
     /**
      * Canonical implementation of {@link Object#hashCode()} for {@code CoverageInfo} based on the
      * interface accessors
+     *
+     * @since 20.0
      */
     public static int hashCode(CoverageInfo o) {
         final int prime = 31;
@@ -160,6 +162,8 @@ public interface CoverageInfo extends ResourceInfo {
     /**
      * Canonical implementation of {@link Object#equals(Object)} for a {@code CoverageInfo} and
      * another object based on the interface accessors
+     *
+     * @since 20.0
      */
     public static boolean equals(CoverageInfo o, Object obj) {
         if (o == obj) return true;

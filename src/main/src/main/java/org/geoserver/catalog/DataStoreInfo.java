@@ -48,22 +48,10 @@ public interface DataStoreInfo extends StoreInfo {
     boolean equals(Object obj);
 
     /**
-     * Returns the feature resource from the store with the given name.
-     *
-     * <p><tt>listener</tt> is used to report the progress of finding the resource.
-     *
-     * @throws IOException Any I/O problems.
-     */
-    // FeatureResource getResource(String name, ProgressListener listener)
-    //        throws IOException;
-
-    /** Returns the feature resources provided by the store. */
-    // Iterator<FeatureResource> getResources(ProgressListener monitor)
-    //    throws IOException;
-
-    /**
      * Canonical implementation of {@link Object#hashCode()} for {@code DataStoreInfo} based on the
      * interface accessors
+     *
+     * @since 20.0
      */
     public static int hashCode(DataStoreInfo o) {
         return StoreInfo.hashCode(o);
@@ -72,6 +60,8 @@ public interface DataStoreInfo extends StoreInfo {
     /**
      * Canonical implementation of {@link Object#equals(Object)} for a {@code DataStoreInfo} and
      * another object based on the interface accessors
+     *
+     * @since 20.0
      */
     public static boolean equals(DataStoreInfo o, Object obj) {
         if (o == obj) return true;

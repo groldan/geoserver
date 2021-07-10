@@ -33,6 +33,8 @@ public interface MapInfo extends CatalogInfo {
     /**
      * Canonical implementation of {@link Object#hashCode()} for {@link MapInfo} based on the
      * interface accessors
+     *
+     * @since 20.0
      */
     public static int hashCode(MapInfo o) {
         final int prime = 31;
@@ -43,6 +45,8 @@ public interface MapInfo extends CatalogInfo {
     /**
      * Canonical implementation of {@link Object#equals(Object)} for a {@link MapInfo} and another
      * object based on the interface accessors
+     *
+     * @since 20.0
      */
     public static boolean equals(MapInfo o, Object obj) {
         if (o == obj) return true;

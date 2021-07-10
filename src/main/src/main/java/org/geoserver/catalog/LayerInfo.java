@@ -174,6 +174,7 @@ public interface LayerInfo extends PublishedInfo {
      *     LayerInfo#getTitle() title}, {@link LayerInfo#getAbstract() abstract}, {@link
      *     LayerInfo#getInternationalTitle() internationalTitle}, {@link
      *     LayerInfo#getInternationalAbstract() internationalAbstract},
+     * @since 20.0
      */
     public static int hashCode(LayerInfo o) {
         final int prime = 31;
@@ -200,6 +201,7 @@ public interface LayerInfo extends PublishedInfo {
      *     LayerInfo#getTitle() title}, {@link LayerInfo#getAbstract() abstract}, {@link
      *     LayerInfo#getInternationalTitle() internationalTitle}, {@link
      *     LayerInfo#getInternationalAbstract() internationalAbstract},
+     * @since 20.0
      */
     public static boolean equals(LayerInfo o, Object obj) {
         if (o == obj) return true;

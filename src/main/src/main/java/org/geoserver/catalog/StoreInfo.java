@@ -80,24 +80,6 @@ public interface StoreInfo extends CatalogInfo {
      */
     void setEnabled(boolean enabled);
 
-    /**
-     * The namespace the store is part of.
-     *
-     * <p>This value is often used to set the namespace of {@link ResourceInfo}objects which are
-     * associated to the store.
-     *
-     * @uml.property name="namespace"
-     * @uml.associationEnd inverse="storeInfo:org.geoserver.catalog.NamespaceInfo"
-     */
-    // NamespaceInfo getNamespace();
-
-    /**
-     * Sets the namespace the store is part of.
-     *
-     * @uml.property name="namespace"
-     */
-    // void setNamespace(NamespaceInfo namespace);
-
     /** The workspace the store is part of. */
     WorkspaceInfo getWorkspace();
 
@@ -143,26 +125,10 @@ public interface StoreInfo extends CatalogInfo {
     <T extends Object> T getAdapter(Class<T> adapterClass, Map<?, ?> hints);
 
     /**
-     * @return Returns a resource with the specified name that is provided by the store, or <code>
-     *     null</code> if no such resource exists.
-     *     <p>The monitor is used to report the progress of loading resoures and report any warnings
-     *     / errors that occur in doing so. Monitor may also be null.
-     */
-    // <T extends Resource> T getResource( String name, ProgressListener monitor)
-    //    throws IOException;
-
-    /**
-     * @return Returns the resources provided by this store.
-     *     <p>The monitor is used to report the progress of loading resoures and report any warnings
-     *     / errors that occur in doing so. Monitor may also be null.
-     * @uml.property name="resources"
-     * @uml.associationEnd multiplicity="(0 -1)" inverse="storeInfo:org.geoserver.catalog.Resource"
-     */
-    // <T extends Resource> Iterator<T> getResources(ProgressListener monitor) throws IOException;
-
-    /**
      * Canonical implementation of {@link Object#hashCode()} for {@code StoreInfo} based on the
      * interface accessors
+     *
+     * @since 20.0
      */
     public static int hashCode(StoreInfo o) {
         final int prime = 31;
@@ -179,6 +145,8 @@ public interface StoreInfo extends CatalogInfo {
     /**
      * Canonical implementation of {@link Object#equals(Object)} for a {@code StoreInfo} and another
      * object based on the interface accessors
+     *
+     * @since 20.0
      */
     public static boolean equals(StoreInfo o, Object obj) {
         if (o == obj) return true;

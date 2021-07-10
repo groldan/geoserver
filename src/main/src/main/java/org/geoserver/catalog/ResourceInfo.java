@@ -390,6 +390,8 @@ public interface ResourceInfo extends CatalogInfo {
     /**
      * Canonical implementation of {@link Object#hashCode()} for {@code ResourceInfo} based on the
      * interface accessors
+     *
+     * @since 20.0
      */
     public static int hashCode(ResourceInfo o) {
         final int prime = 31;
@@ -423,6 +425,8 @@ public interface ResourceInfo extends CatalogInfo {
     /**
      * Canonical implementation of {@link Object#equals(Object)} for a {@code ResourceInfo} and
      * another object based on the interface accessors
+     *
+     * @since 20.0
      */
     public static boolean equals(ResourceInfo o, Object obj) {
         if (o == obj) return true;

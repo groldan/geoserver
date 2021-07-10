@@ -33,10 +33,12 @@ public interface WMSStoreInfo extends HTTPStoreInfo {
     /**
      * Canonical implementation of {@link Object#hashCode()} for {@code WMSStoreInfo} based on the
      * interface accessors
+     *
+     * @since 20.0
      */
     public static int hashCode(WMSStoreInfo o) {
         final int prime = 31;
-        return prime * StoreInfo.hashCode(o)
+        return prime * HTTPStoreInfo.hashCode(o)
                 + Objects.hash(
                         o.getCapabilitiesURL(),
                         o.getConnectTimeout(),
@@ -49,12 +51,14 @@ public interface WMSStoreInfo extends HTTPStoreInfo {
     /**
      * Canonical implementation of {@link Object#equals(Object)} for a {@code WMSStoreInfo} and
      * another object based on the interface accessors
+     *
+     * @since 20.0
      */
     public static boolean equals(WMSStoreInfo o, Object obj) {
         if (o == obj) return true;
         if (!(obj instanceof WMSStoreInfo)) return false;
         WMSStoreInfo other = (WMSStoreInfo) obj;
-        return StoreInfo.equals(o, other)
+        return HTTPStoreInfo.equals(o, other)
                 && o.getConnectTimeout() == other.getConnectTimeout()
                 && o.getMaxConnections() == other.getMaxConnections()
                 && o.getReadTimeout() == other.getReadTimeout()

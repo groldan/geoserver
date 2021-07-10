@@ -51,40 +51,15 @@ public interface NamespaceInfo extends CatalogInfo {
      */
     void setURI(String uri);
 
-    /** Two namespace objects are considred equal if they have the same "prefix" and "uri". */
-    @Override
-    boolean equals(Object obj);
+    boolean isIsolated();
 
-    // /**
-    // * The resources which fall into this namespace.
-    // * @uml.property name="resources"
-    // * @uml.associationEnd multiplicity="(0 -1)"
-    // container="java.util.Iterator" aggregation="composite"
-    // inverse="namespace:org.geoserver.catalog.ResourceInfo"
-    // */
-    // Iterator/*<ResourceInfo>*/ resources();
-    //
-    // /**
-    // * Adds a resource to the namespace.
-    // */
-    // void add( ResourceInfo resource );
-    //
-    // /**
-    // * Removes a resource from the namespace.
-    // */
-    // void remove( ResourceInfo resource );
-
-    default boolean isIsolated() {
-        return false;
-    }
-
-    default void setIsolated(boolean isolated) {
-        // nothing is done
-    }
+    void setIsolated(boolean isolated);
 
     /**
      * Canonical implementation of {@link Object#hashCode()} for {@link NamespaceInfo} based on the
      * interface accessors
+     *
+     * @since 20.0
      */
     public static int hashCode(NamespaceInfo o) {
         final int prime = 31;
@@ -95,6 +70,8 @@ public interface NamespaceInfo extends CatalogInfo {
     /**
      * Canonical implementation of {@link Object#equals(Object)} for a {@link NamespaceInfo} and
      * another object based on the interface accessors
+     *
+     * @since 20.0
      */
     public static boolean equals(NamespaceInfo o, Object obj) {
         if (o == obj) return true;

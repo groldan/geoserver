@@ -69,6 +69,8 @@ public interface HTTPStoreInfo extends StoreInfo {
     /**
      * Canonical implementation of {@link Object#hashCode()} for {@code HTTPStoreInfo} based on the
      * interface accessors
+     *
+     * @since 20.0
      */
     public static int hashCode(HTTPStoreInfo o) {
         throw new UnsupportedOperationException("implement");
@@ -77,6 +79,8 @@ public interface HTTPStoreInfo extends StoreInfo {
     /**
      * Canonical implementation of {@link Object#equals(Object)} for a {@code HTTPStoreInfo} and
      * another object based on the interface accessors
+     *
+     * @since 20.0
      */
     public static boolean equals(HTTPStoreInfo o, Object obj) {
         throw new UnsupportedOperationException("implement");

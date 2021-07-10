@@ -115,6 +115,8 @@ public interface PublishedInfo extends CatalogInfo {
     /**
      * Canonical implementation of {@link Object#hashCode()} for {@link PublishedInfo} based on the
      * interface accessors
+     *
+     * @since 20.0
      */
     public static int hashCode(PublishedInfo o) {
         final int prime = 31;
@@ -125,6 +127,8 @@ public interface PublishedInfo extends CatalogInfo {
     /**
      * Canonical implementation of {@link Object#equals(Object)} for a {@link PublishedInfo} and
      * another object based on the interface accessors
+     *
+     * @since 20.0
      */
     public static boolean equals(PublishedInfo o, Object obj) {
         if (o == obj) return true;

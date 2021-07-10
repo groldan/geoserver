@@ -52,6 +52,8 @@ public interface CoverageStoreInfo extends StoreInfo {
      *
      * <p>Note {@link CoverageStoreInfo#getFormat()} is not used as it's not a configuration
      * property but a data access method
+     *
+     * @since 20.0
      */
     public static int hashCode(CoverageStoreInfo o) {
         final int prime = 31;
@@ -64,6 +66,8 @@ public interface CoverageStoreInfo extends StoreInfo {
      *
      * <p>Note {@link CoverageStoreInfo#getFormat()} is not used as it's not a configuration
      * property but a data access method
+     *
+     * @since 20.0
      */
     public static boolean equals(CoverageStoreInfo o, Object obj) {
         if (o == obj) return true;
