@@ -4,6 +4,8 @@
  */
 package org.geoserver.catalog;
 
+import java.util.Objects;
+
 /**
  * A store backed by a remote HTTP service.
  *
@@ -73,7 +75,15 @@ public interface HTTPStoreInfo extends StoreInfo {
      * @since 20.0
      */
     public static int hashCode(HTTPStoreInfo o) {
-        throw new UnsupportedOperationException("implement");
+        final int prime = 31;
+        return prime * StoreInfo.hashCode(o)
+                + Objects.hash(
+                        o.getCapabilitiesURL(),
+                        o.getConnectTimeout(),
+                        o.getMaxConnections(),
+                        o.getPassword(),
+                        o.getReadTimeout(),
+                        o.getUsername());
     }
 
     /**
@@ -83,6 +93,15 @@ public interface HTTPStoreInfo extends StoreInfo {
      * @since 20.0
      */
     public static boolean equals(HTTPStoreInfo o, Object obj) {
-        throw new UnsupportedOperationException("implement");
+        if (o == obj) return true;
+        if (!(obj instanceof HTTPStoreInfo)) return false;
+        HTTPStoreInfo other = (HTTPStoreInfo) obj;
+        return StoreInfo.equals(o, other)
+                && Objects.equals(o.getCapabilitiesURL(), other.getCapabilitiesURL())
+                && o.getConnectTimeout() == other.getConnectTimeout()
+                && o.getMaxConnections() == other.getMaxConnections()
+                && Objects.equals(o.getPassword(), other.getPassword())
+                && o.getReadTimeout() == other.getReadTimeout()
+                && Objects.equals(o.getUsername(), other.getUsername());
     }
 }

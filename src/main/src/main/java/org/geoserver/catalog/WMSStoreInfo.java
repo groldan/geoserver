@@ -6,7 +6,6 @@
 package org.geoserver.catalog;
 
 import java.io.IOException;
-import java.util.Objects;
 import org.geotools.ows.wms.WebMapServer;
 import org.opengis.util.ProgressListener;
 
@@ -38,14 +37,7 @@ public interface WMSStoreInfo extends HTTPStoreInfo {
      */
     public static int hashCode(WMSStoreInfo o) {
         final int prime = 31;
-        return prime * HTTPStoreInfo.hashCode(o)
-                + Objects.hash(
-                        o.getCapabilitiesURL(),
-                        o.getConnectTimeout(),
-                        o.getMaxConnections(),
-                        o.getPassword(),
-                        o.getReadTimeout(),
-                        o.getUsername());
+        return prime * HTTPStoreInfo.hashCode(o);
     }
 
     /**
@@ -58,12 +50,6 @@ public interface WMSStoreInfo extends HTTPStoreInfo {
         if (o == obj) return true;
         if (!(obj instanceof WMSStoreInfo)) return false;
         WMSStoreInfo other = (WMSStoreInfo) obj;
-        return HTTPStoreInfo.equals(o, other)
-                && o.getConnectTimeout() == other.getConnectTimeout()
-                && o.getMaxConnections() == other.getMaxConnections()
-                && o.getReadTimeout() == other.getReadTimeout()
-                && Objects.equals(o.getCapabilitiesURL(), other.getCapabilitiesURL())
-                && Objects.equals(o.getUsername(), other.getUsername())
-                && Objects.equals(o.getPassword(), other.getPassword());
+        return HTTPStoreInfo.equals(o, other);
     }
 }

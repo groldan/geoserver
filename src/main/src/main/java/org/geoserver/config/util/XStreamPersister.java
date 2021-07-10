@@ -77,6 +77,7 @@ import org.geoserver.catalog.CoverageView.InputCoverageBand;
 import org.geoserver.catalog.DataLinkInfo;
 import org.geoserver.catalog.DataStoreInfo;
 import org.geoserver.catalog.FeatureTypeInfo;
+import org.geoserver.catalog.HTTPStoreInfo;
 import org.geoserver.catalog.Info;
 import org.geoserver.catalog.Keyword;
 import org.geoserver.catalog.KeywordInfo;
@@ -108,6 +109,7 @@ import org.geoserver.catalog.impl.DataStoreInfoImpl;
 import org.geoserver.catalog.impl.DefaultCatalogFacade;
 import org.geoserver.catalog.impl.DimensionInfoImpl;
 import org.geoserver.catalog.impl.FeatureTypeInfoImpl;
+import org.geoserver.catalog.impl.HTTPStoreInfoImpl;
 import org.geoserver.catalog.impl.LayerGroupInfoImpl;
 import org.geoserver.catalog.impl.LayerIdentifier;
 import org.geoserver.catalog.impl.LayerInfoImpl;
@@ -394,6 +396,8 @@ public class XStreamPersister {
                 impl(StoreInfo.class), "workspace", new ReferenceConverter(WorkspaceInfo.class));
         xs.registerLocalConverter(
                 impl(StoreInfo.class), "connectionParameters", new BreifMapConverter());
+        xs.registerLocalConverter(
+                impl(HTTPStoreInfo.class), "password", new EncryptedFieldConverter());
         xs.registerLocalConverter(
                 impl(WMSStoreInfo.class), "password", new EncryptedFieldConverter());
         xs.registerLocalConverter(
@@ -761,6 +765,9 @@ public class XStreamPersister {
         }
         if (interfce == ResourceInfo.class) {
             return ResourceInfoImpl.class;
+        }
+        if (interfce == HTTPStoreInfo.class) {
+            return HTTPStoreInfoImpl.class;
         }
 
         Class<?> clazz = getXStream().getMapper().defaultImplementationOf(interfce);

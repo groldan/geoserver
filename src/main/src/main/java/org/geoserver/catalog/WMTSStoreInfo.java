@@ -47,15 +47,7 @@ public interface WMTSStoreInfo extends HTTPStoreInfo {
     public static int hashCode(WMTSStoreInfo o) {
         final int prime = 31;
         return prime * HTTPStoreInfo.hashCode(o)
-                + Objects.hash(
-                        o.getCapabilitiesURL(),
-                        o.getConnectTimeout(),
-                        o.getHeaderName(),
-                        o.getHeaderValue(),
-                        o.getMaxConnections(),
-                        o.getPassword(),
-                        o.getReadTimeout(),
-                        o.getUsername());
+                + Objects.hash(o.getHeaderName(), o.getHeaderValue());
     }
 
     /**
@@ -69,13 +61,7 @@ public interface WMTSStoreInfo extends HTTPStoreInfo {
         if (!(obj instanceof WMTSStoreInfo)) return false;
         WMTSStoreInfo other = (WMTSStoreInfo) obj;
         return HTTPStoreInfo.equals(o, other)
-                && Objects.equals(o.getCapabilitiesURL(), other.getCapabilitiesURL())
-                && o.getConnectTimeout() == other.getConnectTimeout()
                 && Objects.equals(o.getHeaderName(), other.getHeaderName())
-                && Objects.equals(o.getHeaderValue(), other.getHeaderValue())
-                && o.getMaxConnections() == other.getMaxConnections()
-                && Objects.equals(o.getPassword(), other.getPassword())
-                && o.getReadTimeout() == other.getReadTimeout()
-                && Objects.equals(o.getUsername(), other.getUsername());
+                && Objects.equals(o.getHeaderValue(), other.getHeaderValue());
     }
 }
