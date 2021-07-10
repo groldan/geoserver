@@ -78,5 +78,4 @@ public class HashCodeTest {
     public void hashCodeWMTSLayerInfo() {
         support.testHashCode(WMTSLayerInfoImpl.class);
     }
-
 }

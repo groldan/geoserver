@@ -78,5 +78,4 @@ public class EqualsTest {
     public void equalsWMTSLayerInfo() {
         support.testEquals(WMTSLayerInfoImpl.class);
     }
-
 }
