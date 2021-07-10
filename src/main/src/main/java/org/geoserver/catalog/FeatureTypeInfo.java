@@ -7,6 +7,8 @@ package org.geoserver.catalog;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.ListIterator;
+import java.util.Objects;
 import org.geoserver.config.GeoServerInfo;
 import org.geotools.data.FeatureSource;
 import org.geotools.measure.Measure;
@@ -195,14 +197,66 @@ public interface FeatureTypeInfo extends ResourceInfo {
      * the interface accessors
      */
     public static int hashCode(FeatureTypeInfo o) {
-        throw new UnsupportedOperationException("implement");
+        final int prime = 31;
+        return prime * ResourceInfo.hashCode(o)
+                + Objects.hash(
+                        o.getAttributes(),
+                        o.isCircularArcPresent(),
+                        o.getCqlFilter(),
+                        o.getEncodeMeasures(),
+                        o.getForcedDecimal(),
+                        o.getLinearizationTolerance(),
+                        o.getMaxFeatures(),
+                        o.getNumDecimals(),
+                        o.isOverridingServiceSRS(),
+                        o.getPadWithZeros(),
+                        o.getResponseSRS(),
+                        o.getSkipNumberMatched());
     }
 
     /**
      * Canonical implementation of {@link Object#equals(Object)} for a {@code FeatureTypeInfo} and
      * another object based on the interface accessors
+     *
+     * @implNote {@link FeatureTypeInfo#getAttributes()} is compared using {@link
+     *     AttributeTypeInfo#equalsIngnoreFeatureType}
      */
     public static boolean equals(FeatureTypeInfo o, Object obj) {
-        throw new UnsupportedOperationException("implement");
+        if (o == obj) return true;
+        if (!(obj instanceof FeatureTypeInfo)) return false;
+        FeatureTypeInfo other = (FeatureTypeInfo) obj;
+        return ResourceInfo.equals(o, other)
+                && attributesEquals(o.getAttributes(), other.getAttributes())
+                && o.isCircularArcPresent() == other.isCircularArcPresent()
+                && o.getForcedDecimal() == other.getForcedDecimal()
+                && o.getMaxFeatures() == other.getMaxFeatures()
+                && o.getNumDecimals() == other.getNumDecimals()
+                && o.isOverridingServiceSRS() == other.isOverridingServiceSRS()
+                && o.getPadWithZeros() == other.getPadWithZeros()
+                && o.getSkipNumberMatched() == other.getSkipNumberMatched()
+                && Objects.equals(o.getCqlFilter(), other.getCqlFilter())
+                && Objects.equals(o.getEncodeMeasures(), other.getEncodeMeasures())
+                && Objects.equals(o.getLinearizationTolerance(), other.getLinearizationTolerance())
+                && Objects.equals(o.getResponseSRS(), other.getResponseSRS());
+    }
+
+    static boolean attributesEquals(
+            List<AttributeTypeInfo> attributes, List<AttributeTypeInfo> otherAttributes) {
+
+        if (otherAttributes == attributes) return true;
+        ListIterator<AttributeTypeInfo> attributesIterator = attributes.listIterator();
+        ListIterator<AttributeTypeInfo> otherAttributesIterator = otherAttributes.listIterator();
+        while (attributesIterator.hasNext() && otherAttributesIterator.hasNext()) {
+            AttributeTypeInfo attr = attributesIterator.next();
+            AttributeTypeInfo otherAttr = otherAttributesIterator.next();
+
+            if (attr == null) {
+                if (otherAttr != null) return false;
+            } else if (!attr.equalsIngnoreFeatureType(otherAttr)) {
+                return false;
+            }
+        }
+        if (attributesIterator.hasNext() || otherAttributesIterator.hasNext()) return false;
+        return true;
     }
 }

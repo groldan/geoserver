@@ -5,7 +5,6 @@
  */
 package org.geoserver.catalog.impl;
 
-import com.google.common.base.Objects;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -45,22 +44,32 @@ public class WMSLayerInfoImpl extends ResourceInfoImpl implements WMSLayerInfo {
     protected String forcedRemoteStyle = "";
     protected String preferredFormat = DEFAULT_FORMAT;
 
-    private List<String> selectedRemoteFormats = new ArrayList<>();
+    private List<String> selectedRemoteFormats;
 
-    private List<String> selectedRemoteStyles = new ArrayList<>();
+    private List<String> selectedRemoteStyles;
 
-    private Double minScale = null;
+    private Double minScale;
 
-    private Double maxScale = null;
+    private Double maxScale;
 
-    private boolean metadataBBoxRespected = false;
+    private boolean metadataBBoxRespected;
 
-    private List<StyleInfo> allAvailableRemoteStyles = new ArrayList<>();
+    private List<StyleInfo> allAvailableRemoteStyles;
 
     protected WMSLayerInfoImpl() {}
 
     public WMSLayerInfoImpl(Catalog catalog) {
         super(catalog);
+    }
+
+    /**
+     * Override to initialize {@link #allAvailableRemoteStyles}, won't be catch by {@code
+     * OWSUtils#resolveCollections()} as it has no setter
+     */
+    @Override
+    protected Object readResolve() {
+        allAvailableRemoteStyles = new ArrayList<>();
+        return super.readResolve();
     }
 
     @Override
@@ -164,14 +173,11 @@ public class WMSLayerInfoImpl extends ResourceInfoImpl implements WMSLayerInfo {
 
     @Override
     public Set<StyleInfo> getStyles() {
-        // no remote styles were read from this server
-        if (allAvailableRemoteStyles == null) return null;
-        else
-            return allAvailableRemoteStyles
-                    .stream()
-                    .filter(s -> !forcedRemoteStyle.equalsIgnoreCase(s.getName()))
-                    .filter(s -> selectedRemoteStyles.contains(s.getName()))
-                    .collect(Collectors.toSet());
+        return allAvailableRemoteStyles
+                .stream()
+                .filter(s -> !forcedRemoteStyle.equalsIgnoreCase(s.getName()))
+                .filter(s -> selectedRemoteStyles.contains(s.getName()))
+                .collect(Collectors.toSet());
     }
 
     @Override
@@ -311,51 +317,18 @@ public class WMSLayerInfoImpl extends ResourceInfoImpl implements WMSLayerInfo {
 
     @Override
     public List<StyleInfo> getAllAvailableRemoteStyles() {
-        if (allAvailableRemoteStyles == null) allAvailableRemoteStyles = new ArrayList<>();
+        if (null == allAvailableRemoteStyles) throw new IllegalStateException();
         return allAvailableRemoteStyles;
     }
 
     @Override
     public int hashCode() {
-        final int prime = 31;
-        int result = super.hashCode();
-        result = prime * result + ((forcedRemoteStyle == null) ? 0 : forcedRemoteStyle.hashCode());
-        result = prime * result + ((preferredFormat == null) ? 0 : preferredFormat.hashCode());
-        result =
-                prime * result
-                        + ((selectedRemoteFormats == null) ? 0 : selectedRemoteFormats.hashCode());
-        result =
-                prime * result
-                        + ((selectedRemoteStyles == null) ? 0 : selectedRemoteStyles.hashCode());
-        result =
-                prime * result
-                        + ((allAvailableRemoteStyles == null)
-                                ? 0
-                                : allAvailableRemoteStyles.hashCode());
-        result = prime * result + ((minScale == null) ? 0 : minScale.hashCode());
-        result = prime * result + ((maxScale == null) ? 0 : maxScale.hashCode());
-        result = prime * result + Boolean.hashCode(metadataBBoxRespected);
-
-        return result;
+        return WMSLayerInfo.hashCode(this);
     }
 
     @Override
     public boolean equals(Object obj) {
-        if (!(obj instanceof WMSLayerInfo)) return false;
-        if (!super.equals(obj)) return false;
-
-        WMSLayerInfo other = (WMSLayerInfo) obj;
-        if (!Objects.equal(forcedRemoteStyle, other.getForcedRemoteStyle())) return false;
-        if (!Objects.equal(preferredFormat, other.getPreferredFormat())) return false;
-        if (!Objects.equal(selectedRemoteFormats, other.getSelectedRemoteFormats())) return false;
-        if (!Objects.equal(selectedRemoteStyles, other.getSelectedRemoteStyles())) return false;
-        if (!Objects.equal(allAvailableRemoteStyles, other.getAllAvailableRemoteStyles()))
-            return false;
-        if (!Objects.equal(minScale, other.getMinScale())) return false;
-        if (!Objects.equal(maxScale, other.getMaxScale())) return false;
-        if (!(other.isMetadataBBoxRespected() == this.metadataBBoxRespected)) return false;
-
-        return true;
+        return WMSLayerInfo.equals(this, obj);
     }
 
     @Override

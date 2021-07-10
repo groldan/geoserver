@@ -167,6 +167,13 @@ public interface LayerInfo extends PublishedInfo {
     /**
      * Canonical implementation of {@link Object#hashCode()} for {@code LayerInfo} based on the
      * interface accessors
+     *
+     * @implNote the following properties are derived from {@link LayerInfo#getResource()} and hence
+     *     not used directly within this method: {@link LayerInfo#getName() name}, {@link
+     *     LayerInfo#isEnabled() enabled}, {@link LayerInfo#isAdvertised() advertised}, {@link
+     *     LayerInfo#getTitle() title}, {@link LayerInfo#getAbstract() abstract}, {@link
+     *     LayerInfo#getInternationalTitle() internationalTitle}, {@link
+     *     LayerInfo#getInternationalAbstract() internationalAbstract},
      */
     public static int hashCode(LayerInfo o) {
         final int prime = 31;
@@ -186,6 +193,13 @@ public interface LayerInfo extends PublishedInfo {
     /**
      * Canonical implementation of {@link Object#equals(Object)} for a {@code LayerInfo} and another
      * object based on the interface accessors
+     *
+     * @implNote the following properties are derived from {@link LayerInfo#getResource()} and hence
+     *     not used directly within this method: {@link LayerInfo#getName() name}, {@link
+     *     LayerInfo#isEnabled() enabled}, {@link LayerInfo#isAdvertised() advertised}, {@link
+     *     LayerInfo#getTitle() title}, {@link LayerInfo#getAbstract() abstract}, {@link
+     *     LayerInfo#getInternationalTitle() internationalTitle}, {@link
+     *     LayerInfo#getInternationalAbstract() internationalAbstract},
      */
     public static boolean equals(LayerInfo o, Object obj) {
         if (o == obj) return true;

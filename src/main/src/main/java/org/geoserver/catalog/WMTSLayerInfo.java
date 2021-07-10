@@ -21,7 +21,8 @@ public interface WMTSLayerInfo extends ResourceInfo {
      * interface accessors
      */
     public static int hashCode(WMTSLayerInfo o) {
-        throw new UnsupportedOperationException("implement");
+        final int prime = 31;
+        return prime * ResourceInfo.hashCode(o);
     }
 
     /**
@@ -29,6 +30,8 @@ public interface WMTSLayerInfo extends ResourceInfo {
      * another object based on the interface accessors
      */
     public static boolean equals(WMTSLayerInfo o, Object obj) {
-        throw new UnsupportedOperationException("implement");
+        if (o == obj) return true;
+        if (!(obj instanceof WMTSLayerInfo)) return false;
+        return ResourceInfo.equals(o, obj);
     }
 }

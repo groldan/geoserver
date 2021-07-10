@@ -7,6 +7,7 @@ package org.geoserver.catalog;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import org.geotools.ows.wms.Layer;
@@ -75,7 +76,17 @@ public interface WMSLayerInfo extends ResourceInfo {
      * interface accessors
      */
     public static int hashCode(WMSLayerInfo o) {
-        throw new UnsupportedOperationException("implement");
+        final int prime = 31;
+        return prime * ResourceInfo.hashCode(o)
+                + Objects.hash(
+                        o.getAllAvailableRemoteStyles(),
+                        o.getForcedRemoteStyle(),
+                        o.getMaxScale(),
+                        o.isMetadataBBoxRespected(),
+                        o.getMinScale(),
+                        o.getPreferredFormat(),
+                        o.getSelectedRemoteFormats(),
+                        o.getSelectedRemoteStyles());
     }
 
     /**
@@ -83,6 +94,18 @@ public interface WMSLayerInfo extends ResourceInfo {
      * another object based on the interface accessors
      */
     public static boolean equals(WMSLayerInfo o, Object obj) {
-        throw new UnsupportedOperationException("implement");
+        if (o == obj) return true;
+        if (!(obj instanceof WMSLayerInfo)) return false;
+        WMSLayerInfo other = (WMSLayerInfo) obj;
+        return ResourceInfo.equals(o, other)
+                && Objects.equals(
+                        o.getAllAvailableRemoteStyles(), other.getAllAvailableRemoteStyles())
+                && Objects.equals(o.getForcedRemoteStyle(), other.getForcedRemoteStyle())
+                && Objects.equals(o.getMaxScale(), other.getMaxScale())
+                && o.isMetadataBBoxRespected() == other.isMetadataBBoxRespected()
+                && Objects.equals(o.getMinScale(), other.getMinScale())
+                && Objects.equals(o.getPreferredFormat(), other.getPreferredFormat())
+                && Objects.equals(o.getSelectedRemoteFormats(), other.getSelectedRemoteFormats())
+                && Objects.equals(o.getSelectedRemoteStyles(), other.getSelectedRemoteStyles());
     }
 }

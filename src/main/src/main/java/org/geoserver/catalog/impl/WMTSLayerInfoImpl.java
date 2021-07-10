@@ -38,14 +38,11 @@ public class WMTSLayerInfoImpl extends ResourceInfoImpl implements WMTSLayerInfo
 
     @Override
     public int hashCode() {
-        return super.hashCode();
+        return WMTSLayerInfo.hashCode(this);
     }
 
     @Override
     public boolean equals(Object obj) {
-        if (this == obj) return true;
-        if (!super.equals(obj)) return false;
-        if (!(obj instanceof WMTSLayerInfo)) return false;
-        return true;
+        return WMTSLayerInfo.equals(this, obj);
     }
 }

@@ -6,10 +6,7 @@
 package org.geoserver.catalog.impl;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.ListIterator;
-import java.util.Objects;
 import org.geoserver.catalog.AttributeTypeInfo;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CatalogVisitor;
@@ -38,8 +35,8 @@ public class FeatureTypeInfoImpl extends ResourceInfoImpl implements FeatureType
     protected boolean padWithZeros;
     protected boolean forcedDecimal;
 
-    protected List<AttributeTypeInfo> attributes = new ArrayList<>();
-    protected List<String> responseSRS = new ArrayList<>();
+    protected List<AttributeTypeInfo> attributes;
+    protected List<String> responseSRS;
 
     boolean overridingServiceSRS;
     boolean skipNumberMatched = false;
@@ -177,69 +174,12 @@ public class FeatureTypeInfoImpl extends ResourceInfoImpl implements FeatureType
 
     @Override
     public int hashCode() {
-        final int prime = 31;
-        int result = super.hashCode();
-        result =
-                prime * result
-                        + Objects.hash(
-                                attributes,
-                                circularArcPresent,
-                                cqlFilter,
-                                encodeMeasures,
-                                forcedDecimal,
-                                linearizationTolerance,
-                                maxFeatures,
-                                numDecimals,
-                                overridingServiceSRS,
-                                padWithZeros,
-                                responseSRS,
-                                skipNumberMatched);
-        return result;
+        return FeatureTypeInfo.hashCode(this);
     }
 
-    /**
-     * @implNote Beware {@link #getAttributes()} is compared using {@link
-     *     AttributeTypeInfo#equalsIngnoreFeatureType}
-     */
     @Override
     public boolean equals(Object obj) {
-        if (this == obj) return true;
-        if (!super.equals(obj)) return false;
-        if (!(obj instanceof FeatureTypeInfo)) return false;
-        FeatureTypeInfo other = (FeatureTypeInfo) obj;
-
-        return this.attributesEquals(getAttributes(), other.getAttributes())
-                && isCircularArcPresent() == other.isCircularArcPresent()
-                && getForcedDecimal() == other.getForcedDecimal()
-                && getMaxFeatures() == other.getMaxFeatures()
-                && getNumDecimals() == other.getNumDecimals()
-                && isOverridingServiceSRS() == other.isOverridingServiceSRS()
-                && getPadWithZeros() == other.getPadWithZeros()
-                && getSkipNumberMatched() == other.getSkipNumberMatched()
-                && Objects.equals(getCqlFilter(), other.getCqlFilter())
-                && Objects.equals(getEncodeMeasures(), other.getEncodeMeasures())
-                && Objects.equals(getLinearizationTolerance(), other.getLinearizationTolerance())
-                && Objects.equals(getResponseSRS(), other.getResponseSRS());
-    }
-
-    private boolean attributesEquals(
-            List<AttributeTypeInfo> attributes, List<AttributeTypeInfo> otherAttributes) {
-
-        if (otherAttributes == attributes) return true;
-        ListIterator<AttributeTypeInfo> attributesIterator = attributes.listIterator();
-        ListIterator<AttributeTypeInfo> otherAttributesIterator = otherAttributes.listIterator();
-        while (attributesIterator.hasNext() && otherAttributesIterator.hasNext()) {
-            AttributeTypeInfo attr = attributesIterator.next();
-            AttributeTypeInfo otherAttr = otherAttributesIterator.next();
-
-            if (attr == null) {
-                if (otherAttr != null) return false;
-            } else if (!attr.equalsIngnoreFeatureType(otherAttr)) {
-                return false;
-            }
-        }
-        if (attributesIterator.hasNext() || otherAttributesIterator.hasNext()) return false;
-        return true;
+        return FeatureTypeInfo.equals(this, obj);
     }
 
     @Override
