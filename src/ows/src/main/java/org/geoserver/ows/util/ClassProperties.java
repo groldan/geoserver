@@ -1,13 +1,11 @@
-/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
- * (c) 2001 - 2013 OpenPlans
- * This code is licensed under the GPL 2.0 license, available at the root
- * application directory.
+/*
+ * (c) 2014 Open Source Geospatial Foundation - all rights reserved (c) 2001 - 2013 OpenPlans This
+ * code is licensed under the GPL 2.0 license, available at the root application directory.
  */
 package org.geoserver.ows.util;
 
-import com.google.common.collect.ImmutableMultimap;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Multimaps;
+import static com.google.common.collect.Multimaps.newListMultimap;
+import static java.lang.String.CASE_INSENSITIVE_ORDER;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -16,6 +14,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import org.geotools.util.logging.Logging;
+import com.google.common.collect.ImmutableListMultimap;
+import com.google.common.collect.ListMultimap;
 
 /**
  * Provides lookup information about java bean properties in a class.
@@ -24,43 +27,117 @@ import java.util.TreeMap;
  * @author Andrea Aime, OpenGEO
  */
 public class ClassProperties {
-    private static final Multimap<String, Method> EMPTY = ImmutableMultimap.of();
-
+    static final Logger LOGGER = Logging.getLogger(ClassProperties.class);
+    
     private static final Set<String> COMMON_DERIVED_PROPERTIES =
             new HashSet<>(Arrays.asList("prefixedName"));
-    Multimap<String, Method> methods;
-    Multimap<String, Method> getters;
-    Multimap<String, Method> setters;
+    final ListMultimap<String, Method> methods;
+    final ListMultimap<String, Method> getters;
+    final ListMultimap<String, Method> setters;
 
     public ClassProperties(Class<?> clazz) {
-        methods =
-                Multimaps.newListMultimap(
-                        new TreeMap<>(String.CASE_INSENSITIVE_ORDER), () -> new ArrayList<>());
-        getters =
-                Multimaps.newListMultimap(
-                        new TreeMap<>(String.CASE_INSENSITIVE_ORDER), () -> new ArrayList<>());
-        setters =
-                Multimaps.newListMultimap(
-                        new TreeMap<>(String.CASE_INSENSITIVE_ORDER), () -> new ArrayList<>());
-        for (Method method : clazz.getMethods()) {
-            final String name = method.getName();
-            methods.put(name, method);
-            final Class<?>[] params = method.getParameterTypes();
-            if ((name.startsWith("get")
-                            || name.startsWith("is")
-                            || COMMON_DERIVED_PROPERTIES.contains(name))
-                    && params.length == 0) {
-                getters.put(gp(method), method);
-            } else if (name.startsWith("set") && params.length == 1) {
-                setters.put(name.substring(3), method);
-            }
+        LOGGER.warning(()->"Creating class properties of " + clazz.getSimpleName());
+
+        ListMultimap<String, Method> methods = newCaseInsensitiveListMultimap();
+        ListMultimap<String, Method> getters = newCaseInsensitiveListMultimap();
+        ListMultimap<String, Method> setters = newCaseInsensitiveListMultimap();
+
+        if(clazz.isInterface()) {
+            addInterfacesMethods(methods, getters, setters, clazz);
+        }else {
+            addDeclaredMethods(methods, getters, setters, clazz);
+            Class<?> superclass = clazz.getSuperclass();
+            if(null != superclass && !Object.class.equals(superclass))
+                addDeclaredMethods(methods, getters, setters, superclass);
+            addInterfacesMethods(methods, getters, setters, clazz.getInterfaces());
+            addDeclaredMethods(methods, getters, setters, Object.class);
         }
+            
+//        for(Class<?> iface : clazz.getInterfaces()) {
+//            Class<?>[] interfaces = iface.getInterfaces();
+//        }
+
+        // for (Method method : clazz.getMethods()) {
+        // methods.put(method.getName(), method);
+        // if (isGetter(method)) {
+        // getters.put(asPropertyName(method), method);
+        // } else if (isSetter(method)) {
+        // setters.put(asPropertyName(method), method);
+        // }
+        // }
 
         // avoid keeping lots of useless empty arrays in memory for
         // the long term, use just one
-        if (methods.size() == 0) methods = EMPTY;
-        if (getters.size() == 0) getters = EMPTY;
-        if (setters.size() == 0) setters = EMPTY;
+        this.methods = methods.isEmpty() ? ImmutableListMultimap.of() : methods;
+        this.getters = getters.isEmpty() ? ImmutableListMultimap.of() : getters;
+        this.setters = setters.isEmpty() ? ImmutableListMultimap.of() : setters;
+        System.err.printf("%s getters: %n\t%s%n", clazz.getSimpleName(), getters.values().stream().map(
+                m->String.format("%s.%s():%s [synthetic: %s, bridge: %s]",
+                        m.getDeclaringClass().getSimpleName(), m.getName(),
+                        m.getReturnType().getSimpleName(), m.isSynthetic(),
+                        m.isBridge())).collect(Collectors.joining("\n\t")) );
+    }
+
+    private void addInterfacesMethods(ListMultimap<String, Method> methods,
+            ListMultimap<String, Method> getters, ListMultimap<String, Method> setters,
+            Class<?>... interfaces) {
+        
+        for (Class<?> iface : interfaces) {
+            if(null==iface)continue;
+            addDeclaredMethods(methods, getters, setters, iface);
+            Class<?>[] superInterfaces = iface.getInterfaces();
+            if (superInterfaces != null) {
+                addInterfacesMethods(methods, getters, setters, superInterfaces);
+            }
+        }        
+    }
+
+    private void addDeclaredMethods(ListMultimap<String, Method> methods,
+            ListMultimap<String, Method> getters, ListMultimap<String, Method> setters,
+            Class<?>... classes) {
+
+        for (Class<?> clazz : classes) {
+            if(null==clazz)continue;
+            Method[] declaredMethods = clazz.getDeclaredMethods();
+            System.err.printf("Adding methods of %s:%n", clazz.getSimpleName());
+            for (Method method : declaredMethods) {
+                String signature = String.format("%s.%s():%s [synthetic: %s, bridge: %s]%n",
+                        method.getDeclaringClass().getSimpleName(), method.getName(),
+                        method.getReturnType().getSimpleName(), method.isSynthetic(),
+                        method.isBridge());
+                if(method.isSynthetic()) {
+                    if (method.getName().startsWith("get") || method.getName().startsWith("set"))
+                        System.err.printf("---" + signature);
+                    continue;
+                }else{
+                    if (method.getName().startsWith("get") || method.getName().startsWith("set"))
+                        System.err.printf("+++" + signature);
+                }
+
+                methods.put(method.getName(), method);
+                if (isGetter(method)) {
+                    getters.put(asPropertyName(method), method);
+                } else if (isSetter(method)) {
+                    setters.put(asPropertyName(method), method);
+                }
+            }
+        }
+
+    }
+
+    private boolean isSetter(Method method) {
+        return method.getName().startsWith("set") && 1 == method.getParameterCount();
+    }
+
+    private boolean isGetter(Method method) {
+        String name = method.getName();
+        int paramCount = method.getParameterCount();
+        return 0 == paramCount && (name.startsWith("get") || name.startsWith("is")
+                || COMMON_DERIVED_PROPERTIES.contains(name));
+    }
+
+    private ListMultimap<String, Method> newCaseInsensitiveListMultimap() {
+        return newListMultimap(new TreeMap<>(CASE_INSENSITIVE_ORDER), ArrayList::new);
     }
 
     /**
@@ -83,7 +160,8 @@ public class ClassProperties {
     /**
      * Looks up a setter method by property name.
      *
-     * <p>setter("foo",Integer) --&gt; void setFoo(Integer);
+     * <p>
+     * setter("foo",Integer) --&gt; void setFoo(Integer);
      *
      * @param property The property.
      * @param type The type of the property.
@@ -116,25 +194,25 @@ public class ClassProperties {
     /**
      * Looks up a getter method by its property name.
      *
-     * <p>getter("foo",Integer) --&gt; Integer getFoo();
+     * <p>
+     * getter("foo",Integer) --&gt; Integer getFoo();
      *
      * @param property The property.
      * @param type The type of the property.
      * @return The getter for the property, or null if it does not exist.
      */
     public Method getter(String property, Class<?> type) {
-        Collection<Method> methods = getters.get(property);
-        if (methods != null) {
-            for (Method getter : methods) {
-                if (type == null) {
+        List<Method> methods = getters.get(property);
+        // MultiMap never returns null
+        for (Method getter : methods) {
+            if (type == null) {
+                return getter;
+            } else {
+                Class<?> target = getter.getReturnType();
+                if (type.isAssignableFrom(target)
+                        || (target.isPrimitive() && type == wrapper(target))
+                        || (type.isPrimitive() && target == wrapper(type))) {
                     return getter;
-                } else {
-                    Class<?> target = getter.getReturnType();
-                    if (type.isAssignableFrom(target)
-                            || (target.isPrimitive() && type == wrapper(target))
-                            || (type.isPrimitive() && target == wrapper(type))) {
-                        return getter;
-                    }
                 }
             }
         }
@@ -151,7 +229,8 @@ public class ClassProperties {
     /**
      * Does some checks on the property name to turn it into a java bean property.
      *
-     * <p>Checks include collapsing any "_" characters.
+     * <p>
+     * Checks include collapsing any "_" characters.
      */
     static String lax(String property) {
         return property.replaceAll("_", "");
@@ -194,20 +273,18 @@ public class ClassProperties {
 
     /** Looks up a method by name. */
     public Method method(String name) {
-        Collection<Method> results = methods.get(name);
-        if (results.isEmpty()) {
+        List<Method> results = methods.get(name);
+        if (results.isEmpty())
             return null;
-        } else {
-            return results.iterator().next();
-        }
+        return results.get(0);
     }
 
     /** Returns the name of the property corresponding to the getter method. */
-    String gp(Method getter) {
+    String asPropertyName(Method getter) {
         String name = getter.getName();
         if (COMMON_DERIVED_PROPERTIES.contains(name)) {
             return name;
         }
-        return name.substring(name.startsWith("get") ? 3 : 2);
+        return name.substring(name.startsWith("get") || name.startsWith("set") ? 3 : 2);
     }
 }
