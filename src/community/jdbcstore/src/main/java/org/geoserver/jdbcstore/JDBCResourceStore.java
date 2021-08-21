@@ -14,6 +14,7 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.apache.commons.io.output.ProxyOutputStream;
@@ -60,7 +61,8 @@ public class JDBCResourceStore implements ResourceStore {
         this.cache = cache;
     }
 
-    LockProvider getLockProvider() {
+    @Override
+    public LockProvider getLockProvider() {
         return lockProvider;
     }
 
@@ -69,7 +71,9 @@ public class JDBCResourceStore implements ResourceStore {
      *
      * @param lockProvider LockProvider used for Resource#out()
      */
+    @Override
     public void setLockProvider(LockProvider lockProvider) {
+        Objects.requireNonNull(lockProvider);
         this.lockProvider = lockProvider;
     }
 

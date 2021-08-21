@@ -7,6 +7,7 @@ package org.geoserver.gwc;
 
 import org.geoserver.platform.resource.LockProvider;
 import org.geoserver.platform.resource.Paths;
+import org.geoserver.platform.resource.ResourceStore;
 import org.geowebcache.GeoWebCacheException;
 
 /**
@@ -19,12 +20,13 @@ import org.geowebcache.GeoWebCacheException;
  */
 public class GeoServerLockProvider implements org.geowebcache.locks.LockProvider {
 
-    LockProvider delegate;
+    ResourceStore delegate;
 
     @Override
     public Lock getLock(String lockKey) throws GeoWebCacheException {
         String path = Paths.convert(lockKey);
-        final org.geoserver.platform.resource.Resource.Lock lock = delegate.acquire(path);
+        LockProvider lockProvider = delegate.getLockProvider();
+        final org.geoserver.platform.resource.Resource.Lock lock = lockProvider.acquire(path);
         return new Lock() {
 
             @Override
@@ -43,11 +45,11 @@ public class GeoServerLockProvider implements org.geowebcache.locks.LockProvider
         };
     }
 
-    public LockProvider getDelegate() {
+    public ResourceStore getDelegate() {
         return delegate;
     }
 
-    public void setDelegate(LockProvider delegate) {
+    public void setDelegate(ResourceStore delegate) {
         this.delegate = delegate;
     }
 }

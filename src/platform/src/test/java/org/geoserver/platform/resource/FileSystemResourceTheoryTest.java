@@ -92,8 +92,8 @@ public class FileSystemResourceTheoryTest extends ResourceTheoryTest {
 
     @After
     public void after() throws Exception {
-        if (store != null && store.watcher.get() != null) {
-            store.watcher.get().destroy();
+        if (store != null) {
+            store.release();
         }
     }
 
@@ -105,7 +105,7 @@ public class FileSystemResourceTheoryTest extends ResourceTheoryTest {
 
     @Test
     public void fileEvents() throws Exception {
-        File fileD = Paths.toFile(store.baseDirectory, "DirC/FileD");
+        File fileD = Paths.toFile(store.getBaseDirectory(), "DirC/FileD");
 
         AwaitResourceListener listener = new AwaitResourceListener();
 
@@ -184,8 +184,8 @@ public class FileSystemResourceTheoryTest extends ResourceTheoryTest {
 
     @Test
     public void directoryEvents() throws Exception {
-        File fileA = Paths.toFile(store.baseDirectory, "FileA");
-        File fileB = Paths.toFile(store.baseDirectory, "FileB");
+        File fileA = Paths.toFile(store.getBaseDirectory(), "FileA");
+        File fileB = Paths.toFile(store.getBaseDirectory(), "FileB");
 
         AwaitResourceListener listener = new AwaitResourceListener();
         store.get(Paths.BASE).addListener(listener);
@@ -227,7 +227,7 @@ public class FileSystemResourceTheoryTest extends ResourceTheoryTest {
     @Test
     public void emptyDirectoryCreateEventShouldNotBeRaised() throws Exception {
         final String dirName = testName.getMethodName();
-        File watchedDir = Paths.toFile(store.baseDirectory, dirName);
+        File watchedDir = Paths.toFile(store.getBaseDirectory(), dirName);
 
         FileSystemWatcher watcher = (FileSystemWatcher) store.getResourceNotificationDispatcher();
         // set a shorter poll delay
@@ -247,7 +247,7 @@ public class FileSystemResourceTheoryTest extends ResourceTheoryTest {
     @Test
     public void directoryCreateEventWithContents() throws Exception {
         final String dirName = testName.getMethodName();
-        File watchedDir = Paths.toFile(store.baseDirectory, dirName);
+        File watchedDir = Paths.toFile(store.getBaseDirectory(), dirName);
         File fileA = new File(watchedDir, "FileA");
 
         FileSystemWatcher watcher = (FileSystemWatcher) store.getResourceNotificationDispatcher();
@@ -275,7 +275,7 @@ public class FileSystemResourceTheoryTest extends ResourceTheoryTest {
     @Test
     public void dynamicAsyncDirectoryEvents() throws Exception {
         final String dirName = testName.getMethodName();
-        final File watchedDir = Paths.toFile(store.baseDirectory, dirName);
+        final File watchedDir = Paths.toFile(store.getBaseDirectory(), dirName);
 
         FileSystemWatcher watcher = (FileSystemWatcher) store.getResourceNotificationDispatcher();
         // set a shorter poll delay

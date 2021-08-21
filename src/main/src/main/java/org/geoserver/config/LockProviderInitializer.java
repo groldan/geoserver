@@ -5,10 +5,12 @@
 package org.geoserver.config;
 
 import java.util.List;
+import java.util.Objects;
+import javax.annotation.Nullable;
 import org.geoserver.platform.GeoServerExtensions;
-import org.geoserver.platform.resource.GlobalLockProvider;
 import org.geoserver.platform.resource.LockProvider;
 import org.geoserver.platform.resource.NullLockProvider;
+import org.geoserver.platform.resource.ResourceStore;
 
 /**
  * Initializes LockProvider based on configuration settings.
@@ -54,11 +56,14 @@ public class LockProviderInitializer implements GeoServerInitializer {
         geoServer.addListener(listener);
     }
 
-    public static void setLockProvider(String lockProviderName) {
-        LockProvider delegate;
+    public static void setLockProvider(@Nullable String lockProviderName) {
+        ResourceStore store = (ResourceStore) GeoServerExtensions.bean("resourceStore");
+        Objects.requireNonNull(store);
+
+        final LockProvider lockProvider;
         if (lockProviderName == null) {
             // for backwards compatibility
-            delegate = new NullLockProvider();
+            lockProvider = NullLockProvider.instance();
         } else {
             Object provider = GeoServerExtensions.bean(lockProviderName);
             if (provider == null) {
@@ -74,12 +79,11 @@ public class LockProviderInitializer implements GeoServerInitializer {
                                 + provider.getClass().getName()
                                 + ") in application context, but it was not a LockProvider");
             }
-            delegate = (LockProvider) provider;
+            lockProvider = (LockProvider) provider;
         }
-        GlobalLockProvider lockProvider =
-                (GlobalLockProvider) GeoServerExtensions.bean("lockProvider");
-        if (lockProvider.getDelegate() != delegate) {
-            lockProvider.setDelegate(delegate);
+
+        if (lockProvider != store.getLockProvider()) {
+            store.setLockProvider(lockProvider);
         }
     }
 }
