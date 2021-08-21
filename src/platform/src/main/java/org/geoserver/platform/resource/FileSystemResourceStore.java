@@ -20,6 +20,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
@@ -31,25 +32,33 @@ public class FileSystemResourceStore implements ResourceStore {
 
     static final Logger LOGGER = Logging.getLogger(FileSystemResource.class);
 
-    public static final String GS_LOCK_TRACE = "gs.lock.trace";
+    private static final String GS_LOCK_TRACE = "gs.lock.trace";
     /**
      * When true, the stack trace that got an input stream that wasn't closed is recorded and then
      * printed out when warning the user about this.
      */
-    protected static final Boolean TRACE_ENABLED =
+    private static final Boolean TRACE_ENABLED =
             "true".equalsIgnoreCase(System.getProperty(GS_LOCK_TRACE));
 
     /** LockProvider used to secure resources for exclusive access */
-    protected LockProvider lockProvider = new NullLockProvider();
+    private LockProvider lockProvider = NullLockProvider.instance();
 
     /** Base directory for ResourceStore content */
-    protected File baseDirectory = null;
+    private File baseDirectory = null;
 
     // lazily initialized by getResourceNotificationDispatcher()
     final AtomicReference<FileSystemWatcher> watcher = new AtomicReference<>(null);
 
     protected FileSystemResourceStore() {
         // Used by Spring, baseDirectory set by subclass
+    }
+
+    public FileSystemResourceStore(File resourceDirectory) {
+        setBaseDirectory(resourceDirectory);
+    }
+
+    public File getBaseDirectory() {
+        return this.baseDirectory;
     }
 
     /**
@@ -72,7 +81,11 @@ public class FileSystemResourceStore implements ResourceStore {
      * @return LockProvider used for {@link Resource#out}
      */
     public LockProvider getLockProvider() {
-        return lockProvider;
+        LockProvider provider = this.lockProvider;
+        if (null == provider) {
+            throw new IllegalStateException("lockProvider is not initialized");
+        }
+        return provider;
     }
 
     /**
@@ -81,10 +94,19 @@ public class FileSystemResourceStore implements ResourceStore {
      * @param lockProvider LockProvider used for Resource#out()
      */
     public void setLockProvider(LockProvider lockProvider) {
+        Objects.requireNonNull(lockProvider);
+        LockProvider current = this.lockProvider;
+        if (current != null) {
+            LOGGER.info(
+                    "Replacing log provider "
+                            + current.getClass().getSimpleName()
+                            + " with "
+                            + lockProvider.getClass().getSimpleName());
+        }
         this.lockProvider = lockProvider;
     }
 
-    public FileSystemResourceStore(File resourceDirectory) {
+    protected void setBaseDirectory(File resourceDirectory) {
         if (resourceDirectory == null) {
             throw new NullPointerException("root resource directory required");
         }
@@ -554,5 +576,12 @@ public class FileSystemResourceStore implements ResourceStore {
                                             : v);
         }
         return instance;
+    }
+
+    public void release() throws Exception {
+        FileSystemWatcher fsWatcher = this.watcher.getAndSet(null);
+        if (null != fsWatcher) {
+            fsWatcher.destroy();
+        }
     }
 }
