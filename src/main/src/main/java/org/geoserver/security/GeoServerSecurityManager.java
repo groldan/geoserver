@@ -42,6 +42,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.SortedSet;
@@ -67,6 +68,7 @@ import org.geoserver.platform.GeoServerResourceLoader;
 import org.geoserver.platform.resource.Files;
 import org.geoserver.platform.resource.Paths;
 import org.geoserver.platform.resource.Resource;
+import org.geoserver.platform.resource.Resource.Lock;
 import org.geoserver.platform.resource.Resource.Type;
 import org.geoserver.security.auth.AuthenticationCache;
 import org.geoserver.security.auth.GeoServerRootAuthenticationProvider;
@@ -289,20 +291,6 @@ public class GeoServerSecurityManager implements ApplicationContextAware, Applic
 
     public GeoServerSecurityManager(GeoServerDataDirectory dataDir) throws Exception {
         this.dataDir = dataDir;
-
-        /*
-         * JD we have to ensure that the master password is initialized first thing, before the
-         * catalog since we need to decrypt configuration the passwords, the rest of the security
-         * initializes occurs at the end of startup
-         */
-        Resource masterpw = security().get(MASTER_PASSWD_CONFIG_FILENAME);
-        if (masterpw.getType() == Type.RESOURCE) {
-            init(loadMasterPasswordConfig());
-        }
-        // if it doesn't exist this must be a migration startup... and this case should be
-        // handled during migration where all the datastore passwords are processed
-        // explicitly
-
         configPasswordEncryptionHelper = new ConfigurationPasswordEncryptionHelper(this);
     }
 
@@ -376,11 +364,45 @@ public class GeoServerSecurityManager implements ApplicationContextAware, Applic
     /**
      * Reload the configuration which may have been updated in the meanwhile; after a restore as an
      * instance.
+     *
+     * <p>Called upon a {@link ContextLoadedEvent} at {@link #onApplicationEvent}
      */
     public void reload() {
+        LOGGER.info("Loading security configuration");
+        // grab a lock on the root 'security' folder during the reload process to avoid concurrent
+        // instances startup race conditions (provided there's a properly configured LockProvider)
+        final Resource security = security();
+        final Lock securityLock = security.lock();
         try {
+            LOGGER.info("Acquired lock on " + security.path() + ", proceeding...");
+            doReload();
+            LOGGER.info(
+                    "Releasing lock on " + security.path() + ". Security configuration loaded.");
+        } catch (RuntimeException e) {
+            LOGGER.log(Level.SEVERE, "Error loading security configuration, releasing lock.", e);
+            throw e;
+        } finally {
+            securityLock.release();
+            LOGGER.info("Released lock on " + security.path());
+        }
+    }
+
+    private void doReload() {
+        try {
+            /*
+             * JD we have to ensure that the master password is initialized first thing, before the
+             * catalog since we need to decrypt configuration the passwords, the rest of the security
+             * initializes occurs at the end of startup
+             */
+            Resource masterpw = security().get(MASTER_PASSWD_CONFIG_FILENAME);
+            boolean masterpwExists = masterpw.getType() == Type.RESOURCE;
+            if (masterpwExists) {
+                init(loadMasterPasswordConfig());
+            }
+
             Resource masterPasswordInfo = security().get(MASTER_PASSWD_INFO_FILENAME);
-            if (masterPasswordInfo.getType() != Type.UNDEFINED) {
+            boolean masterPwdInfoExists = masterPasswordInfo.getType() == Type.RESOURCE;
+            if (masterPwdInfoExists) {
                 LOGGER.warning(
                         masterPasswordInfo.path()
                                 + " is a security risk. Please read this file and remove it afterward");
@@ -391,27 +413,46 @@ public class GeoServerSecurityManager implements ApplicationContextAware, Applic
 
         // migrate from old security config
         try {
-            Version securityVersion = getSecurityVersion();
-
+            final Version securityVersion = getSecurityVersion();
+            if (securityVersion.compareTo(CURR_VERSION) < 0) {
+                LOGGER.info("Security version is outdated: " + securityVersion);
+            }
             boolean migratedFrom21 = false;
             if (securityVersion.compareTo(VERSION_2_2) < 0) {
+                LOGGER.info(
+                        "Migrating configuration from " + securityVersion + " to " + VERSION_2_2);
                 migratedFrom21 = migrateFrom21();
             }
             if (securityVersion.compareTo(VERSION_2_3) < 0) {
+                LOGGER.info("Migrating configuration from " + VERSION_2_2 + " to " + VERSION_2_3);
                 removeErroneousAccessDeniedPage();
                 migrateFrom22(migratedFrom21);
             }
             if (securityVersion.compareTo(VERSION_2_4) < 0) {
+                LOGGER.info("Migrating configuration from " + VERSION_2_3 + " to " + VERSION_2_4);
                 migrateFrom23();
             }
             if (securityVersion.compareTo(VERSION_2_5) < 0) {
+                LOGGER.info("Migrating configuration from " + VERSION_2_4 + " to " + VERSION_2_5);
                 migrateFrom24();
             }
             if (securityVersion.compareTo(CURR_VERSION) < 0) {
+                LOGGER.info(
+                        "Saving current configuration version "
+                                + CURR_VERSION
+                                + ". Migrated from "
+                                + securityVersion);
                 writeCurrentVersion();
             }
-        } catch (Exception e1) {
-            throw new RuntimeException(e1);
+            final Version finalVersion = getSecurityVersion();
+            if (CURR_VERSION.equals(finalVersion)) {
+                LOGGER.info("Security version is up to date: " + finalVersion);
+            } else {
+                throw new IllegalStateException(
+                        "Expected security version " + CURR_VERSION + ", got " + finalVersion);
+            }
+        } catch (Exception e) {
+            throw e instanceof RuntimeException ? (RuntimeException) e : new RuntimeException(e);
         }
 
         // read config and initialize... we do this now since we can be ensured that the spring
@@ -419,7 +460,7 @@ public class GeoServerSecurityManager implements ApplicationContextAware, Applic
         // plugins
         KeyStoreProvider keyStoreProvider = getKeyStoreProvider();
         try {
-            // check for an outstanding masster password change
+            // check for an outstanding master password change
             keyStoreProvider.commitMasterPasswordChange();
             // check if there is an outstanding master password change in case of SPrin injection
             init();
@@ -435,6 +476,7 @@ public class GeoServerSecurityManager implements ApplicationContextAware, Applic
     private Version getSecurityVersion() throws IOException {
         Resource security = security();
         if (security.getType() == Type.UNDEFINED) {
+            LOGGER.info("No security configuration exists, assuming version " + BASE_VERSION);
             return BASE_VERSION;
         }
         Resource properties = security.get(VERSION_PROPERTIES);
@@ -653,6 +695,7 @@ public class GeoServerSecurityManager implements ApplicationContextAware, Applic
     }
 
     void init(MasterPasswordConfig config) {
+        Objects.requireNonNull(config, "MasterPasswordConfig can't be null");
         this.masterPasswordConfig = new MasterPasswordConfig(config);
     }
 
@@ -2685,7 +2728,12 @@ public class GeoServerSecurityManager implements ApplicationContextAware, Applic
      * loads the global security config
      */
     public SecurityManagerConfig loadSecurityConfig() throws IOException {
-        return (SecurityManagerConfig) loadConfigFile(security(), globalPersister());
+        SecurityManagerConfig config =
+                (SecurityManagerConfig) loadConfigFile(security(), globalPersister());
+        if (config == null) {
+            config = new SecurityManagerConfig();
+        }
+        return config;
     }
 
     /*
@@ -2693,23 +2741,44 @@ public class GeoServerSecurityManager implements ApplicationContextAware, Applic
      */
     public MasterPasswordConfig loadMasterPasswordConfig() throws IOException {
         Resource resource = security().get(MASTER_PASSWD_CONFIG_FILENAME);
-        return loadConfig(MasterPasswordConfig.class, resource, globalPersister());
+        boolean resourceExists = resource.getType() == Type.RESOURCE;
+        if (resourceExists) {
+            return loadConfig(MasterPasswordConfig.class, resource, globalPersister());
+        }
+        return new MasterPasswordConfig();
     }
 
     /** reads a config file from the specified directly using the specified xstream persister */
     <T extends SecurityConfig> T loadConfig(Class<T> config, Resource resource, XStreamPersister xp)
             throws IOException {
-        try (InputStream in = resource.in()) {
-            Object loaded = xp.load(in, SecurityConfig.class).clone(true);
-            return config.cast(loaded);
+        boolean resourceExists = resource.getType() == Type.RESOURCE;
+        if (resourceExists) {
+            try (InputStream in = resource.in()) {
+                Object loaded = xp.load(in, SecurityConfig.class).clone(true);
+                return config.cast(loaded);
+            }
         }
+        return null;
     }
-    /** reads a config file from the specified directly using the specified xstream persister */
+
+    /**
+     * Reads a config file from the specified directly using the specified xstream persister
+     *
+     * @return {@code null} if the resource does not exist, the config object parsed with the
+     *     xstream persister using the {@link Resource#in() contents} otherwise
+     * @throws IOException if such happens while opening the resource stream or {@link
+     *     XStreamPersister#load parsing} its contents
+     */
     SecurityConfig loadConfigFile(Resource directory, String filename, XStreamPersister xp)
             throws IOException {
-        try (InputStream fin = directory.get(filename).in()) {
-            return xp.load(fin, SecurityConfig.class).clone(true);
+        Resource resource = directory.get(filename);
+        boolean resourceExists = resource.getType() == Type.RESOURCE;
+        if (resourceExists) {
+            try (InputStream fin = resource.in()) {
+                return xp.load(fin, SecurityConfig.class).clone(true);
+            }
         }
+        return null;
     }
 
     /**
