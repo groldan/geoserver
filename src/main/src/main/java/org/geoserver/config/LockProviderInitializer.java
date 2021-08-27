@@ -6,11 +6,13 @@ package org.geoserver.config;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.logging.Logger;
 import javax.annotation.Nullable;
 import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.platform.resource.LockProvider;
 import org.geoserver.platform.resource.NullLockProvider;
 import org.geoserver.platform.resource.ResourceStore;
+import org.geotools.util.logging.Logging;
 
 /**
  * Initializes LockProvider based on configuration settings.
@@ -20,6 +22,8 @@ import org.geoserver.platform.resource.ResourceStore;
  * @author Jody Garnett (Boundless)
  */
 public class LockProviderInitializer implements GeoServerInitializer {
+
+    private static final Logger LOGGER = Logging.getLogger(LockProviderInitializer.class);
 
     ConfigurationListenerAdapter listener =
             new ConfigurationListenerAdapter() {
@@ -51,7 +55,13 @@ public class LockProviderInitializer implements GeoServerInitializer {
         // Consider moving earlier to make use of the requested LockProvider during initial
         // configuration
         String lockProviderName = geoServer.getGlobal().getLockProviderName();
-        setLockProvider(lockProviderName);
+        if (lockProviderName != null) {
+            LOGGER.info(
+                    "Setting Lock provider "
+                            + lockProviderName
+                            + " as instructed by configuration");
+            setLockProvider(lockProviderName);
+        }
 
         geoServer.addListener(listener);
     }
@@ -62,6 +72,15 @@ public class LockProviderInitializer implements GeoServerInitializer {
 
         final LockProvider lockProvider;
         if (lockProviderName == null) {
+            if (store.getLockProvider() != null) {
+                // a NullLockProvider, unless explicitly requested, would do more harm than good,
+                // given the ResourceStore implementation should know what kind of locking to use by
+                // default depending on its specific needs/underlying platform.
+                LOGGER.warning(
+                        "Ignoring request to set ResourceStore lock provider to null, it's currently using "
+                                + store.getLockProvider().getClass().getSimpleName());
+                return;
+            }
             // for backwards compatibility
             lockProvider = NullLockProvider.instance();
         } else {

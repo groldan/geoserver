@@ -98,7 +98,7 @@ public class FileSystemResourceStore implements ResourceStore {
         LockProvider current = this.lockProvider;
         if (current != null) {
             LOGGER.info(
-                    "Replacing log provider "
+                    "Replacing lock provider "
                             + current.getClass().getSimpleName()
                             + " with "
                             + lockProvider.getClass().getSimpleName());
