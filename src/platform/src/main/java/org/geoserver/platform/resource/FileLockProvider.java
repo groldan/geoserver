@@ -11,8 +11,10 @@
 package org.geoserver.platform.resource;
 
 import java.io.File;
+import java.io.FileDescriptor;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
 import java.util.logging.Level;
@@ -59,6 +61,13 @@ public class FileLockProvider implements LockProvider, ServletContextAware {
 
         // then synch up between different processes
         final File file = getFile(lockKey);
+        final boolean deleteFile;
+        try {
+            deleteFile = file.createNewFile();
+        } catch (IOException e) {
+            throw new IllegalStateException("Unable to create lock file " + file);
+        }
+
         if (LOGGER.isLoggable(Level.FINE))
             LOGGER.fine(
                     "Mapped lock key "
@@ -118,6 +127,23 @@ public class FileLockProvider implements LockProvider, ServletContextAware {
                 currFos = null;
                 currLock = null;
 
+                Field f;
+                try {
+                    f = FileDescriptor.class.getDeclaredField("fd");
+                    f.setAccessible(true);
+                    int fd = f.getInt(fos.getFD());
+                    LOGGER.warning(
+                            "Lock "
+                                    + lockKey
+                                    + " acquired on file "
+                                    + file.getName()
+                                    + ". File descriptor:"
+                                    + fd);
+                } catch (Exception e1) {
+                    // TODO Auto-generated catch block
+                    e1.printStackTrace();
+                }
+
                 return new Resource.Lock() {
 
                     boolean released;
@@ -150,7 +176,14 @@ public class FileLockProvider implements LockProvider, ServletContextAware {
                             try {
                                 lock.release();
                                 IOUtils.closeQuietly(fos);
-                                file.delete();
+                                if (deleteFile) {
+                                    boolean deleted = file.delete();
+                                    LOGGER.warning(
+                                            "Lock file deleted at release() "
+                                                    + file.getName()
+                                                    + ": "
+                                                    + deleted);
+                                }
 
                                 if (LOGGER.isLoggable(Level.FINE)) {
                                     LOGGER.fine(
@@ -180,9 +213,16 @@ public class FileLockProvider implements LockProvider, ServletContextAware {
                 if (currLock != null) {
                     currLock.release();
                     memoryLock.release();
+                    IOUtils.closeQuietly(currFos);
+                    if (deleteFile) {
+                        boolean deleted = file.delete();
+                        LOGGER.warning(
+                                "Lock file deleted at finally block: "
+                                        + file.getName()
+                                        + ": "
+                                        + deleted);
+                    }
                 }
-                IOUtils.closeQuietly(currFos);
-                file.delete();
             }
         } catch (IOException e) {
             throw new IllegalStateException(
