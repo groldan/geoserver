@@ -1,6 +1,4 @@
 /* (c) 2014 Open Source Geospatial Foundation - all rights reserved
- * (c) 2014 OpenPlans
- * (c) 2008-2010 GeoSolutions
  *
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
@@ -11,18 +9,11 @@
 package org.geoserver.platform.resource;
 
 import java.io.File;
-import java.io.FileDescriptor;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.lang.reflect.Field;
-import java.nio.channels.FileLock;
-import java.nio.channels.OverlappingFileLockException;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.servlet.ServletContext;
-import org.apache.commons.codec.digest.DigestUtils;
 import org.geoserver.platform.GeoServerResourceLoader;
-import org.geoserver.util.IOUtils;
 import org.geotools.util.logging.Logging;
 import org.springframework.web.context.ServletContextAware;
 
@@ -35,206 +26,27 @@ public class FileLockProvider implements LockProvider, ServletContextAware {
 
     static final Logger LOGGER = Logging.getLogger(FileLockProvider.class.getName());
 
-    private File root;
-    /** The wait to occur in case the lock cannot be acquired */
-    int waitBeforeRetry = 20;
-    /** max lock attempts */
-    int maxLockAttempts = 120 * 1000 / waitBeforeRetry;
+    private DoubleLockProvider delegate;
 
-    MemoryLockProvider memoryProvider = new MemoryLockProvider();
+    private File root;
 
     public FileLockProvider() {
-        // base directory obtained from servletContext
+        this(null); // base directory obtained from servletContext
     }
 
     public FileLockProvider(File basePath) {
         this.root = basePath;
+        // first off, synchronize among threads in the same jvm (the nio locks won't lock threads in
+        // the same JVM)
+        LockProvider memory = new MemoryLockProvider();
+        // then synch up between different processes
+        LockProvider file = new NioFileLockProvider(this::getLocksDirectory);
+        this.delegate = new DoubleLockProvider(memory, file);
     }
 
     @Override
-    @SuppressWarnings({"PMD.CloseResource", "PMD.UseTryWithResources"})
-    // complex but apparently correct handling
     public Resource.Lock acquire(final String lockKey) {
-        // first off, synchronize among threads in the same jvm (the nio locks won't lock
-        // threads in the same JVM)
-        final Resource.Lock memoryLock = memoryProvider.acquire(lockKey);
-
-        // then synch up between different processes
-        final File file = getFile(lockKey);
-        final boolean deleteFile;
-        try {
-            deleteFile = file.createNewFile();
-        } catch (IOException e) {
-            throw new IllegalStateException("Unable to create lock file " + file);
-        }
-
-        if (LOGGER.isLoggable(Level.FINE))
-            LOGGER.fine(
-                    "Mapped lock key "
-                            + lockKey
-                            + " to lock file "
-                            + file
-                            + ". Attempting to lock on it.");
-        try {
-            FileOutputStream currFos = null;
-            FileLock currLock = null;
-            try {
-                // try to lock
-                int count = 0;
-                while (currLock == null && count < maxLockAttempts) {
-                    // the file output stream can also fail to be acquired due to the
-                    // other nodes deleting the file
-                    currFos = new FileOutputStream(file);
-                    try {
-                        currLock = currFos.getChannel().lock();
-                    } catch (OverlappingFileLockException | IOException e) {
-                        IOUtils.closeQuietly(currFos);
-                        try {
-                            Thread.sleep(20);
-                        } catch (InterruptedException ie) {
-                            // ok, moving on
-                        }
-                    } // this one is also thrown with a message "avoided fs deadlock"
-
-                    count++;
-                }
-
-                // verify we managed to get the FS lock
-                if (count >= maxLockAttempts) {
-                    throw new IllegalStateException(
-                            "Failed to get a lock on key "
-                                    + lockKey
-                                    + " after "
-                                    + count
-                                    + " attempts");
-                }
-
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.fine(
-                            "Lock "
-                                    + lockKey
-                                    + " acquired by thread "
-                                    + Thread.currentThread().getId()
-                                    + " on file "
-                                    + file);
-                }
-
-                // store the results in a final variable for the inner class to use
-                final FileOutputStream fos = currFos;
-                final FileLock lock = currLock;
-
-                // nullify so that we don't close them, the locking occurred as expected
-                currFos = null;
-                currLock = null;
-
-                Field f;
-                try {
-                    f = FileDescriptor.class.getDeclaredField("fd");
-                    f.setAccessible(true);
-                    int fd = f.getInt(fos.getFD());
-                    LOGGER.warning(
-                            "Lock "
-                                    + lockKey
-                                    + " acquired on file "
-                                    + file.getName()
-                                    + ". File descriptor:"
-                                    + fd);
-                } catch (Exception e1) {
-                    // TODO Auto-generated catch block
-                    e1.printStackTrace();
-                }
-
-                return new Resource.Lock() {
-
-                    boolean released;
-
-                    @Override
-                    public void release() {
-                        if (released) {
-                            return;
-                        }
-
-                        try {
-                            released = true;
-                            if (!lock.isValid()) {
-                                // do not crap out, locks usage is only there to prevent duplication
-                                // of work
-                                if (LOGGER.isLoggable(Level.FINE)) {
-                                    LOGGER.fine(
-                                            "Lock key "
-                                                    + lockKey
-                                                    + " for releasing lock is unknown, it means "
-                                                    + "this lock was never acquired, or was released twice. "
-                                                    + "Current thread is: "
-                                                    + Thread.currentThread().getId()
-                                                    + ". "
-                                                    + "Are you running two instances in the same JVM using NIO locks? "
-                                                    + "This case is not supported and will generate exactly this error message");
-                                    return;
-                                }
-                            }
-                            try {
-                                lock.release();
-                                IOUtils.closeQuietly(fos);
-                                if (deleteFile) {
-                                    boolean deleted = file.delete();
-                                    LOGGER.warning(
-                                            "Lock file deleted at release() "
-                                                    + file.getName()
-                                                    + ": "
-                                                    + deleted);
-                                }
-
-                                if (LOGGER.isLoggable(Level.FINE)) {
-                                    LOGGER.fine(
-                                            "Lock "
-                                                    + lockKey
-                                                    + " mapped onto "
-                                                    + file
-                                                    + " released by thread "
-                                                    + Thread.currentThread().getId());
-                                }
-                            } catch (IOException e) {
-                                throw new IllegalStateException(
-                                        "Failure while trying to release lock for key " + lockKey,
-                                        e);
-                            }
-                        } finally {
-                            memoryLock.release();
-                        }
-                    }
-
-                    @Override
-                    public String toString() {
-                        return "FileLock " + file.getName();
-                    }
-                };
-            } finally {
-                if (currLock != null) {
-                    currLock.release();
-                    memoryLock.release();
-                    IOUtils.closeQuietly(currFos);
-                    if (deleteFile) {
-                        boolean deleted = file.delete();
-                        LOGGER.warning(
-                                "Lock file deleted at finally block: "
-                                        + file.getName()
-                                        + ": "
-                                        + deleted);
-                    }
-                }
-            }
-        } catch (IOException e) {
-            throw new IllegalStateException(
-                    "Failure while trying to get lock for key " + lockKey, e);
-        }
-    }
-
-    private File getFile(String lockKey) {
-        File locks = new File(root, "filelocks"); // avoid same directory as GWC
-        locks.mkdirs();
-        String sha1 = DigestUtils.sha1Hex(lockKey);
-        return new File(locks, sha1 + ".lock");
+        return delegate.acquire(lockKey);
     }
 
     @Override
@@ -245,6 +57,23 @@ public class FileLockProvider implements LockProvider, ServletContextAware {
         } else {
             throw new IllegalStateException("Unable to determine data directory");
         }
+    }
+
+    private File getLocksDirectory() {
+        Objects.requireNonNull(this.root, "Root directory not set");
+        File locksDir = new File(this.root, "filelocks");
+        if (!locksDir.isDirectory()) {
+            boolean created = locksDir.mkdirs();
+            if (created && LOGGER.isLoggable(Level.FINE)) {
+                LOGGER.fine("Created locks directory " + locksDir);
+            }
+            // check again in case it was created by another process/thread
+            if (!locksDir.isDirectory()) {
+                throw new IllegalStateException(
+                        "Locks file is not a directory or can't be created: " + locksDir);
+            }
+        }
+        return locksDir;
     }
 
     @Override
