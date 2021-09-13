@@ -80,6 +80,7 @@ public class FileSystemResourceStore implements ResourceStore {
      *
      * @return LockProvider used for {@link Resource#out}
      */
+    @Override
     public LockProvider getLockProvider() {
         LockProvider provider = this.lockProvider;
         if (null == provider) {
@@ -93,6 +94,7 @@ public class FileSystemResourceStore implements ResourceStore {
      *
      * @param lockProvider LockProvider used for Resource#out()
      */
+    @Override
     public void setLockProvider(LockProvider lockProvider) {
         Objects.requireNonNull(lockProvider);
         LockProvider current = this.lockProvider;
