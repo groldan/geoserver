@@ -26,7 +26,7 @@
     <property name="cache" ref="resourceCache" />
     <property name="resourceNotificationDispatcher" ref="resourceNotificationDispatcher"/>
     <!-- Use cluster-friendly, database backed distributed locks by default -->
-    <property name="lockProvider" ref="jdbcLockProvider"/>
+    <property name="lockProvider" ref="jdbcStoreLockProvider"/>
   </bean>
 
   <!-- GeoServer LockProvider using the lock registry providing database backed distributed locks -->
