@@ -25,7 +25,9 @@ import org.geoserver.jdbcconfig.internal.ConfigDatabase;
 import org.geoserver.jdbcconfig.internal.JDBCConfigProperties;
 import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.platform.GeoServerResourceLoader;
+import org.geoserver.platform.resource.LockProvider;
 import org.geoserver.platform.resource.Resource;
+import org.geoserver.platform.resource.Resource.Lock;
 import org.geotools.util.logging.Logging;
 
 public class JDBCGeoServerLoader extends DefaultGeoServerLoader {
@@ -57,8 +59,17 @@ public class JDBCGeoServerLoader extends DefaultGeoServerLoader {
         ConfigDatabase configDatabase = ((JDBCCatalogFacade) catalogFacade).getConfigDatabase();
 
         Resource initScript = config.isInitDb() ? config.getInitScript() : null;
-        configDatabase.initDb(initScript);
 
+        final LockProvider lockProvider = this.resourceLoader.getLockProvider();
+        LOGGER.info("Acquiring lock on root resource before initializing database...");
+        final Lock lock = lockProvider.acquire("/");
+        try {
+            LOGGER.info("Lock on root resource acquired, initializing database...");
+            configDatabase.initDb(initScript);
+        } finally {
+            lock.release();
+            LOGGER.info("Released lock on root resource.");
+        }
         config.setInitDb(false);
         config.save();
     }
