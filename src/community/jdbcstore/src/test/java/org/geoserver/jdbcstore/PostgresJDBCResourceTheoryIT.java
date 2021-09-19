@@ -5,7 +5,7 @@
 package org.geoserver.jdbcstore;
 
 import static org.easymock.EasyMock.replay;
-import org.geoserver.jdbcstore.JDBCResourceStore;
+
 import org.geoserver.jdbcstore.cache.SimpleResourceCache;
 import org.geoserver.jdbcstore.internal.JDBCResourceStoreProperties;
 import org.geoserver.jdbcstore.it.PostgresContainerTestSupport;
