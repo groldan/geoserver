@@ -15,6 +15,7 @@ import java.util.logging.Logger;
 import javax.servlet.ServletContext;
 import org.geoserver.platform.GeoServerResourceLoader;
 import org.geotools.util.logging.Logging;
+import org.springframework.beans.factory.DisposableBean;
 import org.springframework.web.context.ServletContextAware;
 
 /**
@@ -22,11 +23,12 @@ import org.springframework.web.context.ServletContextAware;
  *
  * @author Andrea Aime - GeoSolutions
  */
-public class FileLockProvider implements LockProvider, ServletContextAware {
+public class FileLockProvider implements LockProvider, ServletContextAware, DisposableBean {
 
     static final Logger LOGGER = Logging.getLogger(FileLockProvider.class.getName());
 
     private DoubleLockProvider delegate;
+    private NioFileLockProvider fileLockProvider;
 
     private File root;
 
@@ -40,13 +42,22 @@ public class FileLockProvider implements LockProvider, ServletContextAware {
         // the same JVM)
         LockProvider memory = new MemoryLockProvider();
         // then synch up between different processes
-        LockProvider file = new NioFileLockProvider(this::getLocksDirectory);
-        this.delegate = new DoubleLockProvider(memory, file);
+        this.fileLockProvider = new NioFileLockProvider(this::getLocksFile);
+        this.delegate = new DoubleLockProvider(memory, fileLockProvider);
     }
 
     @Override
     public Resource.Lock acquire(final String lockKey) {
         return delegate.acquire(lockKey);
+    }
+
+    @Override
+    public void destroy() throws Exception {
+        NioFileLockProvider flp = this.fileLockProvider;
+        this.fileLockProvider = null;
+        if (flp != null) {
+            flp.close();
+        }
     }
 
     @Override
@@ -59,7 +70,7 @@ public class FileLockProvider implements LockProvider, ServletContextAware {
         }
     }
 
-    private File getLocksDirectory() {
+    private File getLocksFile() {
         Objects.requireNonNull(this.root, "Root directory not set");
         File locksDir = new File(this.root, "filelocks");
         if (!locksDir.isDirectory()) {
@@ -73,7 +84,7 @@ public class FileLockProvider implements LockProvider, ServletContextAware {
                         "Locks file is not a directory or can't be created: " + locksDir);
             }
         }
-        return locksDir;
+        return new File(locksDir, "resourcestore.locks");
     }
 
     @Override
