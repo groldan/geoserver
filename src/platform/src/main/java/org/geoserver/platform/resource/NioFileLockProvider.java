@@ -1,4 +1,6 @@
 /* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2014 OpenPlans
+ * (c) 2008-2010 GeoSolutions
  *
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
@@ -8,14 +10,17 @@
 
 package org.geoserver.platform.resource;
 
-import static java.lang.String.format;
-
+import java.io.Closeable;
 import java.io.File;
-import java.io.FileOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.nio.channels.ClosedChannelException;
+import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -30,36 +35,41 @@ import org.geotools.util.logging.Logging;
  * @see FileLockProvider
  * @see DoubleLockProvider
  */
-class NioFileLockProvider implements LockProvider {
+class NioFileLockProvider implements LockProvider, Closeable {
 
     static final Logger LOGGER = Logging.getLogger(NioFileLockProvider.class.getName());
 
-    private Supplier<File> locksDirectory;
+    private static final int MAX_LOCKS = 1024;
+
+    private Supplier<File> locksFile;
+
+    private FileChannel channel;
+
     /** The wait to occur in case the lock cannot be acquired */
-    private int waitBeforeRetry = 20;
+    private int waitBeforeRetry = 50;
     /** max lock attempts */
     private int maxLockAttempts = 120 * 1000 / waitBeforeRetry;
 
     public NioFileLockProvider(Supplier<File> locksFilesDirectory) {
-        this.locksDirectory = locksFilesDirectory;
+        this.locksFile = locksFilesDirectory;
     }
 
     @Override
     public Resource.Lock acquire(final String lockKey) {
-        final File file = getFile(lockKey);
-        final NioFileLock fileLock = new NioFileLock(lockKey, file);
+        final int bucket = getBucket(lockKey);
+        final File file = getFile();
+        finer("Mapped lock key %s to bucket %,d on locks file %s", lockKey, bucket, file);
 
         for (int count = 0; count < maxLockAttempts; count++) {
-            try {
-                fileLock.acquire();
-                return fileLock;
-            } catch (IOException e) {
-                try {
-                    Thread.sleep(waitBeforeRetry);
-                } catch (InterruptedException ie) {
-                    // ok, moving on
-                }
+            Optional<FileLock> lock = acquire(bucket);
+            if (lock.isPresent()) {
+                fine("Acquired lock on %s", lockKey);
+                return new FileLockAdapter(lockKey, lock.get());
             }
+            finest(
+                    "Unable to lock on %s (bucket %,d), retrying in %dms (attempt %d/%d)...",
+                    lockKey, bucket, waitBeforeRetry, count + 1, maxLockAttempts);
+            sleep(waitBeforeRetry);
         }
 
         throw new IllegalStateException(
@@ -68,6 +78,90 @@ class NioFileLockProvider implements LockProvider {
                         + " after "
                         + maxLockAttempts
                         + " attempts");
+    }
+
+    @Override
+    public void close() {
+        FileChannel channel = this.channel;
+        this.channel = null;
+        IOUtils.closeQuietly(channel);
+    }
+
+    private static void fine(String msg, Object... msgArgs) {
+        log(Level.FINE, msg, msgArgs);
+    }
+
+    private static void finer(String msg, Object... msgArgs) {
+        log(Level.FINER, msg, msgArgs);
+    }
+
+    private static void finest(String msg, Object... msgArgs) {
+        log(Level.FINEST, msg, msgArgs);
+    }
+
+    private static void log(Level level, String msg, Object... msgArgs) {
+        if (LOGGER.isLoggable(level)) {
+            LOGGER.log(level, String.format(msg, msgArgs));
+        }
+    }
+
+    private void sleep(long waitBeforeRetry) {
+        try {
+            Thread.sleep(waitBeforeRetry);
+        } catch (InterruptedException ie) {
+            // ok, moving on
+        }
+    }
+
+    private Optional<FileLock> acquire(final int bucket) {
+        FileChannel channel = getChannel();
+        final long size = Integer.BYTES;
+        final long position = size * bucket;
+        final boolean shared = false;
+        FileLock lock = null;
+        try {
+            // if tryLock returns null, the lock is held by another process
+            lock = channel.tryLock(position, size, shared);
+        } catch (OverlappingFileLockException heldByAnotherThreadOnThisJVM) {
+            fine("FileLock is held by another thread");
+        } catch (ClosedChannelException e) {
+            throw new IllegalStateException("Locks file channel was closed unexpectedly", e);
+        } catch (IOException e) {
+            throw new IllegalStateException("Unexpected error acquiring lock", e);
+        }
+        return Optional.ofNullable(lock);
+    }
+
+    private FileChannel getChannel() {
+        FileChannel channel = this.channel;
+        if (channel == null || !channel.isOpen()) {
+            final File file = getFile();
+            synchronized (this) {
+                if (this.channel == null) {
+                    channel = openChannel(file);
+                    this.channel = channel;
+                } else {
+                    channel = this.channel;
+                }
+            }
+        }
+        return channel;
+    }
+
+    @SuppressWarnings("resource")
+    private FileChannel openChannel(File file) {
+        try {
+            return new RandomAccessFile(file, "rw").getChannel();
+        } catch (FileNotFoundException e) {
+            throw new IllegalStateException("Locks file does not exist: " + file, e);
+        }
+    }
+
+    private int getBucket(String lockKey) {
+        // Simply hashing the lock key generated a significant number of collisions,
+        // doing the SHA1 digest of it provides a much better distribution
+        int idx = Math.abs(DigestUtils.sha1Hex(lockKey).hashCode() % MAX_LOCKS);
+        return idx;
     }
 
     public void setWaitBeforeRetry(int millis) {
@@ -82,107 +176,66 @@ class NioFileLockProvider implements LockProvider {
         this.maxLockAttempts = maxAttempts;
     }
 
-    private File getLocksDirectory() {
-        final File locksDir = locksDirectory.get();
-        Objects.requireNonNull(locksDir, "Locks directory not provided");
-        if (!locksDir.isDirectory()) {
-            throw new IllegalStateException(
-                    "Locks directory does not exist or is not a directory: " + locksDir);
+    private File getFile() {
+        final File locksFile = this.locksFile.get();
+        Objects.requireNonNull(locksFile, "Locks file not provided");
+        if (!locksFile.exists()) {
+            File parent = locksFile.getParentFile();
+            parent.mkdirs();
+            if (!parent.isDirectory()) {
+                throw new IllegalStateException(
+                        "Locks directory does not exist or is not a directory: " + parent);
+            }
+            try {
+                locksFile.createNewFile();
+            } catch (IOException e) {
+                throw new IllegalStateException("Error creating locks file " + locksFile, e);
+            }
         }
-        return locksDir;
-    }
-
-    private File getFile(String lockKey) {
-        File locks = getLocksDirectory();
-        String sha1 = DigestUtils.sha1Hex(lockKey);
-        File file = new File(locks, sha1 + ".lock");
-        if (LOGGER.isLoggable(Level.FINE))
-            LOGGER.fine(
-                    format(
-                            "Mapped lock key %s to lock file %s. Attempting to lock on it.",
-                            lockKey, file));
-        return file;
+        if (!locksFile.isFile()) {
+            throw new IllegalStateException(
+                    "Locks file is not a file or cannot be created: " + locksFile);
+        }
+        return locksFile;
     }
 
     @Override
     public String toString() {
-        return getClass().getSimpleName() + " " + locksDirectory;
+        return getClass().getSimpleName() + " " + locksFile;
     }
 
-    static class NioFileLock implements Resource.Lock {
+    static class FileLockAdapter implements Resource.Lock {
 
         private final String lockKey;
-        private final File file;
-        private FileOutputStream fileStream;
         private FileLock fileLock;
 
-        NioFileLock(String lockKey, File file) {
+        FileLockAdapter(String lockKey, FileLock fileLock) {
             this.lockKey = lockKey;
-            this.file = file;
-        }
-
-        void acquire() throws IOException {
-            // The file output stream can also fail to be acquired due to the other
-            // nodes deleting the file, in which case the IOException is propagated for the caller
-            // to retry
-            this.fileStream = new FileOutputStream(file);
-            try { // try to lock.
-                this.fileLock = this.fileStream.getChannel().lock();
-            } catch (OverlappingFileLockException | IOException e) {
-                IOUtils.closeQuietly(this.fileStream);
-                if (e instanceof IOException) {
-                    throw (IOException) e;
-                }
-                throw new IOException(e);
-            } // this one is also thrown with a message "avoided fs deadlock"
-
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.fine(
-                        format(
-                                "Lock %s acquired by thread %s on file %s",
-                                lockKey, Thread.currentThread().getId(), file));
-            }
+            this.fileLock = fileLock;
         }
 
         @Override
-        @SuppressWarnings({"PMD.CloseResource", "PMD.UseTryWithResources"})
         public void release() {
-            final FileLock lock = this.fileLock;
-            final FileOutputStream fileStream = this.fileStream;
+            FileLock lock = this.fileLock;
             this.fileLock = null;
-            this.fileStream = null;
-            if (lock == null) {
-                return;
-            }
-
-            try {
+            if (lock != null) {
                 if (lock.isValid()) {
-                    lock.release();
-                    file.delete();
-                } else if (LOGGER.isLoggable(Level.FINE)) {
-                    // do not crap out, locks usage is only there to prevent duplication of work
-                    LOGGER.fine(
-                            "Lock key "
-                                    + lockKey
-                                    + " for releasing lock is unknown, it means "
-                                    + "this lock was never acquired, or was released twice. "
-                                    + "Current thread is: "
-                                    + Thread.currentThread().getId()
-                                    + ". "
-                                    + "Are you running two instances in the same JVM using NIO locks? "
-                                    + "This case is not supported and will generate exactly this error message");
+                    try {
+                        finer("Releasing lock on %s", lockKey);
+                        lock.release();
+                        finest("Released lock on %s", lockKey);
+                    } catch (IOException e) {
+                        fine("Error released lock on %s: %s", lockKey, e.getMessage());
+                        throw new IllegalStateException(
+                                "Failure while trying to release lock for key " + lockKey, e);
+                    }
                 }
-            } catch (IOException e) {
-                throw new IllegalStateException(
-                        "Failure while trying to release lock for key " + lockKey, e);
-            } finally {
-                IOUtils.closeQuietly(fileStream);
             }
         }
 
         @Override
         public String toString() {
-            return "FileLock " + file.getName();
+            return "FileLock " + lockKey;
         }
     }
 }
