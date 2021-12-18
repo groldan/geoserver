@@ -291,6 +291,19 @@ public class GeoServerSecurityManager implements ApplicationContextAware, Applic
 
     public GeoServerSecurityManager(GeoServerDataDirectory dataDir) throws Exception {
         this.dataDir = dataDir;
+        /*
+         * JD we have to ensure that the master password is initialized first thing, before the
+         * catalog since we need to decrypt configuration the passwords, the rest of the security
+         * initializes occurs at the end of startup
+         */
+        Resource masterpw = security().get(MASTER_PASSWD_CONFIG_FILENAME);
+        if (masterpw.getType() == Type.RESOURCE) {
+            init(loadMasterPasswordConfig());
+        }
+        // if it doesn't exist this must be a migration startup... and this case should be
+        // handled during migration where all the datastore passwords are processed
+        // explicitly
+
         configPasswordEncryptionHelper = new ConfigurationPasswordEncryptionHelper(this);
     }
 
@@ -389,11 +402,6 @@ public class GeoServerSecurityManager implements ApplicationContextAware, Applic
 
     private void doReload() {
         try {
-            /*
-             * JD we have to ensure that the master password is initialized first thing, before the
-             * catalog since we need to decrypt configuration the passwords, the rest of the security
-             * initializes occurs at the end of startup
-             */
             Resource masterpw = security().get(MASTER_PASSWD_CONFIG_FILENAME);
             boolean masterpwExists = masterpw.getType() == Type.RESOURCE;
             if (masterpwExists) {
