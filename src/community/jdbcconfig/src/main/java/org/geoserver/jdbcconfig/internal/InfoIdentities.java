@@ -21,6 +21,7 @@ import org.geoserver.catalog.ResourceInfo;
 import org.geoserver.catalog.StoreInfo;
 import org.geoserver.catalog.StyleInfo;
 import org.geoserver.catalog.WorkspaceInfo;
+import org.geoserver.config.SettingsInfo;
 
 public final class InfoIdentities {
 
@@ -39,7 +40,9 @@ public final class InfoIdentities {
                 ResourceInfo.class,
                 StoreInfo.class,
                 StyleInfo.class,
-                WorkspaceInfo.class
+                WorkspaceInfo.class,
+                // GeoServerInfo root classes
+                SettingsInfo.class
             };
 
     @SuppressWarnings("unchecked")
@@ -94,5 +97,7 @@ public final class InfoIdentities {
         put(StoreInfo.class, new String[] {"name"}, new String[] {"workspace.id", "name"});
         put(StyleInfo.class, new String[] {"name"}, new String[] {"workspace.id", "name"});
         put(WorkspaceInfo.class, new String[] {"name"});
+
+        put(SettingsInfo.class, new String[] {"workspace.id"});
     }
 }

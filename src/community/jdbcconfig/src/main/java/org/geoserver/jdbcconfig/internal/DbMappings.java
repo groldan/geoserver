@@ -620,7 +620,7 @@ public class DbMappings {
 
     private void log(String msg, Object... msgArgs) {
         if (LOGGER.isLoggable(Level.FINER)) {
-            LOGGER.finer(msg);
+            LOGGER.finer(String.format(msg, msgArgs));
         }
     }
 
