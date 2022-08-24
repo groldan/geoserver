@@ -669,5 +669,11 @@
         <module>libdeflate</module>
       </modules>
     </profile>
+    <profile>
+      <id>datadir-catalog-loader</id>
+      <modules>
+        <module>datadir-catalog-loader</module>
+      </modules>
+    </profile>
   </profiles>
 </project>
