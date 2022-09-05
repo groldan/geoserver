@@ -22,13 +22,13 @@ import org.geoserver.web.wicket.SRSToCRSModel;
 import org.geotools.gce.imagemosaic.ImageMosaicReader;
 import org.geotools.referencing.CRS;
 import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * a Panel with PGRaster automatic configuration options TODO: 1) Add numeric validator for PORT 2)
  * change text description on the GUI (right now there is the name of the params)
  */
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class PGRasterPanel extends Panel {
 
     private static final long serialVersionUID = -8845475833628642890L;
@@ -69,8 +69,6 @@ public class PGRasterPanel extends Panel {
     static {
         try {
             DEFAULT_CRS = CRS.decode("EPSG:4326");
-        } catch (NoSuchAuthorityCodeException e) {
-            LOGGER.log(Level.FINER, e.getMessage(), e);
         } catch (FactoryException e) {
             LOGGER.log(Level.FINER, e.getMessage(), e);
         }
