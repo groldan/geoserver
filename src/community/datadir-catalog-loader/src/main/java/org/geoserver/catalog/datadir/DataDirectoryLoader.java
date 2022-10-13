@@ -259,11 +259,15 @@ class DataDirectoryLoader {
         stream.parallel()
                 .forEach(
                         storeDir -> {
-                            StoreInfo store = depersist(storeDir.storeFile);
-                            synchronized (catalog) {
-                                catalog.add(store);
+                            try {
+                                StoreInfo store = depersist(storeDir.storeFile);
+                                synchronized (catalog) {
+                                    catalog.add(store);
+                                }
+                                loadLayers(storeDir.layers());
+                            } catch (Exception e) {
+                                e.printStackTrace();
                             }
-                            loadLayers(storeDir.layers());
                         });
     }
 
@@ -271,13 +275,17 @@ class DataDirectoryLoader {
         layers.parallel()
                 .forEach(
                         layerDir -> {
-                            ResourceInfo resource = depersist(layerDir.resourceFile);
-                            synchronized (catalog) {
-                                catalog.add(resource);
-                            }
-                            LayerInfo layer = depersist(layerDir.layerFile);
-                            synchronized (catalog) {
-                                catalog.add(layer);
+                            try {
+                                ResourceInfo resource = depersist(layerDir.resourceFile);
+                                synchronized (catalog) {
+                                    catalog.add(resource);
+                                }
+                                LayerInfo layer = depersist(layerDir.layerFile);
+                                synchronized (catalog) {
+                                    catalog.add(layer);
+                                }
+                            } catch (Exception e) {
+                                e.printStackTrace();
                             }
                         });
     }
