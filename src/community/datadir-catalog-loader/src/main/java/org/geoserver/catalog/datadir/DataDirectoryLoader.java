@@ -139,11 +139,9 @@ class DataDirectoryLoader {
 
     private void loadRootServices(GeoServer geoServer) {
         Resource baseDirectory = resourceStore.get("");
-
         for (XStreamServiceLoader<ServiceInfo> loader : serviceLoaders) {
             loadService(loader, baseDirectory, geoServer).ifPresent(geoServer::add);
         }
-        serviceLoaders.forEach(l -> loadService(l, baseDirectory, geoServer));
     }
 
     private void loadServices(WorkspaceDirectory ws, GeoServerImpl gs) {
@@ -213,6 +211,7 @@ class DataDirectoryLoader {
                 .map(Optional::get)
                 .map(this::depersist)
                 .map(SettingsInfo.class::cast)
+                .collect(Collectors.toList())
                 .forEach(gs::add);
     }
 
@@ -243,9 +242,10 @@ class DataDirectoryLoader {
     private void loadWorkspace(WorkspaceDirectory wsdir) {
         WorkspaceInfo wsinfo = depersist(wsdir.workspaceFile);
         NamespaceInfo nsinfo = depersist(wsdir.namespaceFile);
-        catalog.add(wsinfo);
-        catalog.add(nsinfo);
-
+        synchronized (catalog) {
+            catalog.add(wsinfo);
+            catalog.add(nsinfo);
+        }
         loadStyles(wsdir.styles().stream());
         loadStores(wsdir.stores());
         loadLayerGroups(wsdir.layerGroups().stream());
@@ -260,7 +260,9 @@ class DataDirectoryLoader {
                 .forEach(
                         storeDir -> {
                             StoreInfo store = depersist(storeDir.storeFile);
-                            catalog.add(store);
+                            synchronized (catalog) {
+                                catalog.add(store);
+                            }
                             loadLayers(storeDir.layers());
                         });
     }
@@ -270,9 +272,13 @@ class DataDirectoryLoader {
                 .forEach(
                         layerDir -> {
                             ResourceInfo resource = depersist(layerDir.resourceFile);
-                            catalog.add(resource);
+                            synchronized (catalog) {
+                                catalog.add(resource);
+                            }
                             LayerInfo layer = depersist(layerDir.layerFile);
-                            catalog.add(layer);
+                            synchronized (catalog) {
+                                catalog.add(layer);
+                            }
                         });
     }
 
