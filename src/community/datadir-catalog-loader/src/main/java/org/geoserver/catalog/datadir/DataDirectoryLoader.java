@@ -49,6 +49,7 @@ import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.platform.resource.FileSystemResourceStore;
 import org.geoserver.platform.resource.Resource;
 import org.geoserver.platform.resource.Resources;
+import org.geoserver.security.CatalogFilter;
 import org.geotools.util.logging.Logging;
 import org.opengis.filter.Filter;
 import org.springframework.util.StringUtils;
@@ -134,7 +135,17 @@ class DataDirectoryLoader {
 
     private void loadServices(GeoServerImpl gs) {
         loadRootServices(gs);
-        fileWalk.workspaces().stream().parallel().forEach(ws -> loadServices(ws, gs));
+        GeoServerExtensions.extensions(CatalogFilter.class);
+        fileWalk.workspaces().stream()
+                .parallel()
+                .forEach(
+                        ws -> {
+                            try {
+                                loadServices(ws, gs);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        });
     }
 
     private void loadRootServices(GeoServer geoServer) {
@@ -160,7 +171,9 @@ class DataDirectoryLoader {
                             s -> {
                                 WorkspaceInfo workspace = s.getWorkspace();
                                 if (null != workspace) {
-                                    gs.add(s);
+                                    synchronized (gs) {
+                                        gs.add(s);
+                                    }
                                 } else {
                                     LOGGER.warning(
                                             String.format(
@@ -211,8 +224,12 @@ class DataDirectoryLoader {
                 .map(Optional::get)
                 .map(this::depersist)
                 .map(SettingsInfo.class::cast)
-                .collect(Collectors.toList())
-                .forEach(gs::add);
+                .forEach(
+                        ws -> {
+                            synchronized (gs) {
+                                gs.add(ws);
+                            }
+                        });
     }
 
     private void tryDispose() {
