@@ -15,12 +15,15 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -39,7 +42,8 @@ class NioFileLockProvider implements LockProvider, Closeable {
 
     static final Logger LOGGER = Logging.getLogger(NioFileLockProvider.class.getName());
 
-    private static final int MAX_LOCKS = 1024;
+    private static final int LOCK_SIZE = Byte.BYTES;
+    private static final int MAX_LOCKS = 1024 * 1024;
 
     private Supplier<File> locksFile;
 
@@ -54,17 +58,20 @@ class NioFileLockProvider implements LockProvider, Closeable {
         this.locksFile = locksFilesDirectory;
     }
 
+    private static Map<Long, String> bucketsHeldForKey = new ConcurrentHashMap<>();
+
     @Override
     public Resource.Lock acquire(final String lockKey) {
-        final int bucket = getBucket(lockKey);
+        final long bucket = getBucket(lockKey);
         final File file = getFile();
         finer("Mapped lock key %s to bucket %,d on locks file %s", lockKey, bucket, file);
 
         for (int count = 0; count < maxLockAttempts; count++) {
-            Optional<FileLock> lock = acquire(bucket);
+            Optional<FileLock> lock = acquire(bucket, lockKey);
             if (lock.isPresent()) {
                 fine("Acquired lock on %s", lockKey);
-                return new FileLockAdapter(lockKey, lock.get());
+                bucketsHeldForKey.put(bucket, lockKey);
+                return new FileLockAdapter(bucket, lockKey, lock.get());
             }
             finest(
                     "Unable to lock on %s (bucket %,d), retrying in %dms (attempt %d/%d)...",
@@ -87,35 +94,9 @@ class NioFileLockProvider implements LockProvider, Closeable {
         IOUtils.closeQuietly(channel);
     }
 
-    private static void fine(String msg, Object... msgArgs) {
-        log(Level.FINE, msg, msgArgs);
-    }
-
-    private static void finer(String msg, Object... msgArgs) {
-        log(Level.FINER, msg, msgArgs);
-    }
-
-    private static void finest(String msg, Object... msgArgs) {
-        log(Level.FINEST, msg, msgArgs);
-    }
-
-    private static void log(Level level, String msg, Object... msgArgs) {
-        if (LOGGER.isLoggable(level)) {
-            LOGGER.log(level, String.format(msg, msgArgs));
-        }
-    }
-
-    private void sleep(long waitBeforeRetry) {
-        try {
-            Thread.sleep(waitBeforeRetry);
-        } catch (InterruptedException ie) {
-            // ok, moving on
-        }
-    }
-
-    private Optional<FileLock> acquire(final int bucket) {
+    private Optional<FileLock> acquire(final long bucket, final String lockKey) {
         FileChannel channel = getChannel();
-        final long size = Integer.BYTES;
+        final long size = LOCK_SIZE;
         final long position = size * bucket;
         final boolean shared = false;
         FileLock lock = null;
@@ -123,7 +104,18 @@ class NioFileLockProvider implements LockProvider, Closeable {
             // if tryLock returns null, the lock is held by another process
             lock = channel.tryLock(position, size, shared);
         } catch (OverlappingFileLockException heldByAnotherThreadOnThisJVM) {
-            fine("FileLock is held by another thread");
+            String lockedKey = bucketsHeldForKey.get(bucket);
+            if (!lockedKey.equals(lockedKey)) {
+                LOGGER.severe(
+                        "Lock collision: lock for bucket "
+                                + bucket
+                                + " is held for key "
+                                + lockedKey
+                                + ". Can't lock key "
+                                + lockKey);
+            } else {
+                fine("FileLock is held by another thread");
+            }
         } catch (ClosedChannelException e) {
             throw new IllegalStateException("Locks file channel was closed unexpectedly", e);
         } catch (IOException e) {
@@ -157,10 +149,12 @@ class NioFileLockProvider implements LockProvider, Closeable {
         }
     }
 
-    private int getBucket(String lockKey) {
+    private long getBucket(String lockKey) {
         // Simply hashing the lock key generated a significant number of collisions,
         // doing the SHA1 digest of it provides a much better distribution
-        int idx = Math.abs(DigestUtils.sha1Hex(lockKey).hashCode() % MAX_LOCKS);
+        byte[] sha1 = DigestUtils.sha1(lockKey);
+        long hash = ByteBuffer.wrap(sha1).getLong();
+        long idx = Math.abs(hash) % MAX_LOCKS;
         return idx;
     }
 
@@ -208,8 +202,10 @@ class NioFileLockProvider implements LockProvider, Closeable {
 
         private final String lockKey;
         private FileLock fileLock;
+        private long bucket;
 
-        FileLockAdapter(String lockKey, FileLock fileLock) {
+        FileLockAdapter(long bucket, String lockKey, FileLock fileLock) {
+            this.bucket = bucket;
             this.lockKey = lockKey;
             this.fileLock = fileLock;
         }
@@ -223,6 +219,16 @@ class NioFileLockProvider implements LockProvider, Closeable {
                     try {
                         finer("Releasing lock on %s", lockKey);
                         lock.release();
+                        String heldKey = bucketsHeldForKey.remove(bucket);
+                        if (!lockKey.equals(heldKey)) {
+                            LOGGER.warning(
+                                    "Released lock on "
+                                            + lockKey
+                                            + " for bucket "
+                                            + bucket
+                                            + " but it was registered for key "
+                                            + heldKey);
+                        }
                         finest("Released lock on %s", lockKey);
                     } catch (IOException e) {
                         fine("Error released lock on %s: %s", lockKey, e.getMessage());
@@ -236,6 +242,32 @@ class NioFileLockProvider implements LockProvider, Closeable {
         @Override
         public String toString() {
             return "FileLock " + lockKey;
+        }
+    }
+
+    private static void fine(String msg, Object... msgArgs) {
+        log(Level.FINE, msg, msgArgs);
+    }
+
+    private static void finer(String msg, Object... msgArgs) {
+        log(Level.FINER, msg, msgArgs);
+    }
+
+    private static void finest(String msg, Object... msgArgs) {
+        log(Level.FINEST, msg, msgArgs);
+    }
+
+    private static void log(Level level, String msg, Object... msgArgs) {
+        if (LOGGER.isLoggable(level)) {
+            LOGGER.log(level, String.format(msg, msgArgs));
+        }
+    }
+
+    private void sleep(long waitBeforeRetry) {
+        try {
+            Thread.sleep(waitBeforeRetry);
+        } catch (InterruptedException ie) {
+            // ok, moving on
         }
     }
 }
