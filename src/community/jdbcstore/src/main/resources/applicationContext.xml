@@ -24,8 +24,27 @@
     <constructor-arg ref="jdbcStoreDataSource" />
     <constructor-arg ref="jdbcStoreProperties" />
     <property name="cache" ref="resourceCache" />
-    <property name="lockProvider" ref="lockProvider"/>
     <property name="resourceNotificationDispatcher" ref="resourceNotificationDispatcher"/>
+    <!-- Use cluster-friendly, database backed distributed locks by default -->
+    <property name="lockProvider" ref="jdbcStoreLockProvider"/>
   </bean>
 
+  <!-- GeoServer LockProvider using the lock registry providing database backed distributed locks -->
+  <bean id="jdbcStoreLockProvider" class="org.geoserver.jdbcstore.locks.LockRegistryAdapter">
+    <constructor-arg ref="jdbcLockRegistry"/>
+  </bean>
+  
+  <!-- spring-integration LockRegistry backed by the distributed locks repository -->
+  <bean id="jdbcLockRegistry" class="org.springframework.integration.jdbc.lock.JdbcLockRegistry">
+    <constructor-arg ref="jdbcLockRepository"/>
+  </bean>
+  
+  <!-- Database backed distributed locking repository provided by spring-integration-jdbc -->
+  <bean id="jdbcLockRepository" class="org.springframework.integration.jdbc.lock.DefaultLockRepository">
+    <constructor-arg ref="jdbcStoreDataSource"/>
+    <!-- override default table prefix "INT" by "RESOURCE_" (matching table definition RESOURCE_LOCK in init.XXX.sql -->
+    <property name="prefix" value="RESOURCE_"/>
+    <!-- time in ms to expire dead locks (10k is the default) -->
+    <property name="timeToLive" value="10000"/>
+  </bean>
 </beans>

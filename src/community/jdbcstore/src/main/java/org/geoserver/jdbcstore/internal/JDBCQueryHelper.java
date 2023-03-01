@@ -4,12 +4,16 @@
  */
 package org.geoserver.jdbcstore.internal;
 
+import com.google.common.io.ByteStreams;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.SQLTimeoutException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -19,7 +23,6 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
-import org.apache.commons.io.input.ProxyInputStream;
 import org.geoserver.jdbcconfig.internal.Util;
 import org.geoserver.platform.resource.Resource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
@@ -471,36 +474,33 @@ public class JDBCQueryHelper {
     public InputStream anyBlobQuery(QueryBuilder query, Field<InputStream> field) {
         LOGGER.log(Level.FINEST, query.toString());
 
-        Connection c;
-        boolean closeConnection = false;
-        try {
-            c = ds.getConnection();
-        } catch (SQLException ex) {
+        try (Connection c = ds.getConnection();
+                PreparedStatement stmt = query.toStatement(c);
+                ResultSet rs = stmt.executeQuery()) {
+            if (rs.next()) {
+                assert (rs.isLast());
+                try (InputStream is = field.getValue(rs)) {
+                    ByteArrayOutputStreamEx out = ByteArrayOutputStreamEx.readFully(is);
+                    return new ByteArrayInputStream(out.getBuffer(), 0, out.size());
+                }
+            }
+        } catch (SQLTimeoutException ex) {
             throw new IllegalStateException("Could not connect to DataSource.", ex);
-        }
-        try {
-            try (PreparedStatement stmt = query.toStatement(c)) {
-                try (ResultSet rs = stmt.executeQuery()) {
-                    if (rs.next()) {
-                        assert (rs.isLast());
-                        InputStream is = field.getValue(rs);
-                        return is == null ? null : new ClosingInputStreamWrapper(is, c);
-                    } else {
-                        closeConnection = true;
-                        return null;
-                    }
-                }
-            }
-        } catch (SQLException ex) {
+        } catch (SQLException | IOException ex) {
             throw new IllegalStateException("BlobQuery Failed", ex);
-        } finally {
-            if (closeConnection) {
-                try {
-                    c.close();
-                } catch (SQLException ex) {
-                    throw new IllegalArgumentException("Error while closing connection.", ex);
-                }
-            }
+        }
+        return null;
+    }
+
+    private static class ByteArrayOutputStreamEx extends ByteArrayOutputStream {
+        public byte[] getBuffer() {
+            return buf;
+        }
+
+        public static ByteArrayOutputStreamEx readFully(InputStream is) throws IOException {
+            ByteArrayOutputStreamEx out = new ByteArrayOutputStreamEx();
+            ByteStreams.copy(is, out);
+            return out;
         }
     }
 
@@ -511,29 +511,6 @@ public class JDBCQueryHelper {
             Util.runScript(in, template.getJdbcOperations(), null);
         } catch (IOException ex) {
             throw new IllegalArgumentException("Could not execute provided sql script", ex);
-        }
-    }
-
-    /** Ensures the connection is closed after returned inputstream of BLOB is closed. */
-    protected static class ClosingInputStreamWrapper extends ProxyInputStream {
-        Connection conn;
-
-        public ClosingInputStreamWrapper(InputStream proxy, Connection conn) {
-            super(proxy);
-            this.conn = conn;
-        }
-
-        @Override
-        public void close() throws IOException {
-            try {
-                super.close();
-            } finally {
-                try {
-                    conn.close();
-                } catch (SQLException ex) {
-                    throw new IOException("Exception while closing connection", ex);
-                }
-            }
         }
     }
 }

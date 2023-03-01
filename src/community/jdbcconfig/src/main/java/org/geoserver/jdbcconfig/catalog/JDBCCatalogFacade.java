@@ -338,10 +338,16 @@ public class JDBCCatalogFacade implements CatalogFacade {
     /** @see org.geoserver.catalog.CatalogFacade#getLayers(org.geoserver.catalog.ResourceInfo) */
     @Override
     public List<LayerInfo> getLayers(ResourceInfo resource) {
+        // Filter filter = equal("resource.id", resource.getId());
+        // return db.queryAsList(LayerInfo.class, filter, null, null, null);
 
-        Filter filter = equal("resource.id", resource.getId());
-
-        return db.queryAsList(LayerInfo.class, filter, null, null, null);
+        // technically, the right thing to do is the above commented out query
+        // this is an optimization abusing the fact that only one layer can exist by ResourceInfo
+        // and avoid the extra db roundtrip since the filter query wouldn't be found in the cache,
+        // which is a noticeable performance hit under concurrency
+        String resourceId = resource.getId();
+        LayerInfo layer = db.getByIdentity(LayerInfo.class, "resource.id", resourceId);
+        return layer == null ? Collections.emptyList() : Collections.singletonList(layer);
     }
 
     /** @see org.geoserver.catalog.CatalogFacade#getLayers(org.geoserver.catalog.StyleInfo) */

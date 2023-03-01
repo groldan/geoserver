@@ -63,7 +63,7 @@ import org.springframework.context.support.ClassPathXmlApplicationContext;
  */
 public abstract class AbstractJDBCResourceStoreTest {
 
-    DatabaseTestSupport support;
+    protected DatabaseTestSupport support;
 
     @After
     public void cleanUp() throws Exception {

@@ -20,3 +20,13 @@ INSERT INTO resources (oid, name, parent, content) VALUES (0, '', NULL, NULL);
 
 ALTER TABLE resources ALTER COLUMN oid RESTART WITH 1;
 
+-- only the required table(s) to support distributed locking, from 
+-- spring-integration-jdbc-<version>.jar/org/springframework/integration/jdbc/schema-h2.sql
+-- Table named RESOURCE_LOCK instead of INT_LOCK
+CREATE TABLE RESOURCE_LOCK  (
+	LOCK_KEY CHAR(36) NOT NULL,
+	REGION VARCHAR(100) NOT NULL,
+	CLIENT_ID CHAR(36),
+	CREATED_DATE TIMESTAMP NOT NULL,
+	constraint LOCK_PK primary key (LOCK_KEY, REGION)
+);
