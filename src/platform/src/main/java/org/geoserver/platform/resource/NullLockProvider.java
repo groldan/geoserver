@@ -17,6 +17,12 @@ package org.geoserver.platform.resource;
  */
 public class NullLockProvider implements LockProvider {
 
+    private static final NullLockProvider INSTANCE = new NullLockProvider();
+
+    public static NullLockProvider instance() {
+        return INSTANCE;
+    }
+
     @Override
     public Resource.Lock acquire(final String lockKey) {
         return new Resource.Lock() {
