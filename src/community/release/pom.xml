@@ -436,6 +436,11 @@
       <artifactId>gs-vector-mosaic</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>org.geoserver.community</groupId>
+      <artifactId>gs-acl</artifactId>
+      <version>${project.version}</version>
+    </dependency>
   </dependencies>
 
   <build>
