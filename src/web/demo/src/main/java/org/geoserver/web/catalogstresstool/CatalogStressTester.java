@@ -5,6 +5,8 @@
  */
 package org.geoserver.web.catalogstresstool;
 
+import static java.lang.String.format;
+
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterators;
@@ -13,10 +15,14 @@ import java.io.Serializable;
 import java.text.MessageFormat;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.wicket.Application;
 import org.apache.wicket.Session;
+import org.apache.wicket.ThreadContext;
 import org.apache.wicket.ajax.AjaxRequestTarget;
+import org.apache.wicket.ajax.AjaxSelfUpdatingTimerBehavior;
 import org.apache.wicket.ajax.form.OnChangeAjaxBehavior;
 import org.apache.wicket.ajax.markup.html.form.AjaxButton;
 import org.apache.wicket.markup.html.basic.Label;
@@ -28,6 +34,7 @@ import org.apache.wicket.markup.html.form.TextField;
 import org.apache.wicket.model.IModel;
 import org.apache.wicket.model.LoadableDetachableModel;
 import org.apache.wicket.model.Model;
+import org.apache.wicket.util.time.Duration;
 import org.apache.wicket.validation.validator.RangeValidator;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CatalogInfo;
@@ -64,7 +71,7 @@ import org.geoserver.web.ToolPage;
 import org.geotools.util.logging.Logging;
 import org.opengis.filter.Filter;
 
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "serial"})
 public class CatalogStressTester extends GeoServerSecuredPage {
 
     static final Logger LOGGER = Logging.getLogger(CatalogStressTester.class);
@@ -84,6 +91,8 @@ public class CatalogStressTester extends GeoServerSecuredPage {
     AjaxButton startLink;
 
     private CheckBox recursive;
+
+    private String progressMessage = "0/0";
 
     /**
      * DropDown choice model object becuase dbconfig freaks out if using the CatalogInfo objects
@@ -189,8 +198,26 @@ public class CatalogStressTester extends GeoServerSecuredPage {
         sufix.setRequired(true);
         form.add(sufix);
 
-        progress = new Label("progress", new Model<>("0/0"));
+        progress =
+                new Label(
+                        "progress",
+                        new IModel<>() {
+
+                            @Override
+                            public void detach() {}
+
+                            @Override
+                            public Object getObject() {
+                                return progressMessage;
+                            }
+
+                            @Override
+                            public void setObject(Object object) {
+                                progressMessage = (String) object;
+                            }
+                        });
         progress.setOutputMarkupId(true);
+        progress.add(new AjaxSelfUpdatingTimerBehavior(Duration.seconds(1)));
         form.add(progress);
 
         form.add(
@@ -213,87 +240,73 @@ public class CatalogStressTester extends GeoServerSecuredPage {
                         startLink.setVisible(false);
                         target.add(startLink);
                         target.add(progress);
-                        try {
-                            startCopy(target, form);
-                        } catch (Exception e) {
-                            form.error(e.getMessage());
-                            target.add(form);
-                        } finally {
-                            startLink.setVisible(true);
-                            target.add(startLink);
-                            target.add(progress);
-                        }
+                        final Catalog catalog = getCatalog();
+                        Application application = getApplication();
+                        Session session = getSession();
+                        CompletableFuture.runAsync(
+                                () -> {
+                                    try {
+                                        // for #getLocalizer() to work
+                                        attachToCurrentThread(application, session);
+                                        startCopy(catalog);
+                                    } catch (Exception e) {
+                                        e.printStackTrace();
+                                        form.error(e.getMessage());
+                                        target.add(form);
+                                    } finally {
+                                        startLink.setVisible(true);
+                                        target.add(startLink);
+                                        target.add(progress);
+                                        dettachApplication();
+                                    }
+                                });
                     }
                 };
         form.add(startLink);
         startLink.setOutputMarkupId(true);
     }
 
-    private void startCopy(AjaxRequestTarget target, Form<?> form) {
-        Session.get().getFeedbackMessages().clear();
-        addFeedbackPanels(target);
+    private Application attachToCurrentThread(Application application, Session session) {
+        ThreadContext.setApplication(application);
+        ThreadContext.setSession(session);
+        return application;
+    }
+
+    private void dettachApplication() {
+        ThreadContext.detach();
+    }
+
+    private void startCopy(Catalog catalog) {
+        //        Session.get().getFeedbackMessages().clear();
+        //        addFeedbackPanels(target);
 
         final boolean recursive = this.recursive.getModelObject();
         final int numCopies = duplicateCount.getModelObject();
         final String s = sufix.getModelObject();
-
-        LayerInfo layer = null;
-
-        CatalogInfo original;
-        {
-            Tuple modelObject = resourceAndLayer.getModelObject();
-            if (modelObject != null) {
-                original = getCatalog().getResource(modelObject.id, ResourceInfo.class);
-                List<LayerInfo> layers = getCatalog().getLayers((ResourceInfo) original);
-                if (!layers.isEmpty()) {
-                    layer = layers.get(0);
-                }
-
-            } else {
-                modelObject = store.getModelObject();
-                if (modelObject != null) {
-                    original = getCatalog().getStore(modelObject.id, StoreInfo.class);
-                } else {
-                    modelObject = workspace.getModelObject();
-                    if (modelObject != null) {
-                        original = getCatalog().getWorkspace(modelObject.id);
-                    } else {
-                        throw new IllegalStateException();
-                    }
-                }
-            }
-        }
+        final CatalogInfo original = getOriginal(catalog);
 
         LOGGER.info("Creating " + numCopies + " copies of " + original + " with sufix " + s);
 
-        final Catalog catalog = getCatalog();
-
-        final Class<? extends CatalogInfo> clazz = interfaceOf(original);
-
         Stopwatch globalTime = Stopwatch.createUnstarted();
-        Stopwatch sw = Stopwatch.createUnstarted();
-        sw.start();
+        Stopwatch batchTime = Stopwatch.createUnstarted();
         final int padLength = (int) Math.ceil(Math.log10(numCopies));
-        for (int curr = 0; curr < numCopies; curr++) {
+        for (int curr = 1; curr <= numCopies; curr++) {
             String paddedIndex = Strings.padStart(String.valueOf(curr), padLength, '0');
             String nameSuffix = s + paddedIndex;
-            copyOne(
-                    catalog,
-                    original,
-                    (Class<CatalogInfo>) clazz,
-                    layer,
-                    nameSuffix,
-                    globalTime,
-                    recursive,
-                    null);
-            if ((curr + 1) % 100 == 0) {
-                sw.stop();
-                LOGGER.info(
-                        String.format(
+            CatalogInfo parent = null;
+
+            batchTime.start();
+            copyOne(catalog, original, nameSuffix, globalTime, recursive, parent);
+            batchTime.stop();
+
+            if (curr % 10 == 0) {
+                String msg =
+                        format(
                                 "inserted %s so far in %s (last 100 in %s)\n",
-                                (curr + 1), globalTime, sw));
-                sw.reset();
-                sw.start();
+                                curr, globalTime, batchTime);
+                LOGGER.info(msg);
+                batchTime.reset();
+                progressMessage = msg;
             }
         }
 
@@ -303,13 +316,34 @@ public class CatalogStressTester extends GeoServerSecuredPage {
                                 "CatalogStressTester.progressStatusMessage",
                                 this,
                                 "Inserted {0} copies of {1} in {2}");
-        String progressMessage =
-                MessageFormat.format(localizerString, numCopies, original, globalTime);
+        progressMessage = MessageFormat.format(localizerString, numCopies, original, globalTime);
 
         LOGGER.info(progressMessage);
-        progress.setDefaultModelObject(progressMessage);
 
-        target.add(progress);
+        //        target.add(progress);
+    }
+
+    private CatalogInfo getOriginal(Catalog catalog) {
+        CatalogInfo original;
+        {
+            Tuple modelObject = resourceAndLayer.getModelObject();
+            if (modelObject != null) {
+                original = catalog.getResource(modelObject.id, ResourceInfo.class);
+            } else {
+                modelObject = store.getModelObject();
+                if (modelObject != null) {
+                    original = catalog.getStore(modelObject.id, StoreInfo.class);
+                } else {
+                    modelObject = workspace.getModelObject();
+                    if (modelObject != null) {
+                        original = catalog.getWorkspace(modelObject.id);
+                    } else {
+                        throw new IllegalStateException();
+                    }
+                }
+            }
+        }
+        return original;
     }
 
     private Class<? extends CatalogInfo> interfaceOf(CatalogInfo original) {
@@ -326,9 +360,9 @@ public class CatalogStressTester extends GeoServerSecuredPage {
             FeatureTypeInfo.class,
             WMSLayerInfo.class
         };
-        for (Class c : interfaces) {
+        for (Class<?> c : interfaces) {
             if (c.isAssignableFrom(original.getClass())) {
-                return c;
+                return (Class<? extends CatalogInfo>) c;
             }
         }
         throw new IllegalArgumentException();
@@ -337,13 +371,12 @@ public class CatalogStressTester extends GeoServerSecuredPage {
     private void copyOne(
             Catalog catalog,
             final CatalogInfo original,
-            final Class<CatalogInfo> clazz,
-            final LayerInfo layer,
             final String nameSuffix,
             final Stopwatch sw,
             boolean recursive,
             CatalogInfo parent) {
 
+        final Class<? extends CatalogInfo> clazz = interfaceOf(original);
         CatalogInfo prototype = prototype(original, catalog);
 
         try {
@@ -370,15 +403,7 @@ public class CatalogStressTester extends GeoServerSecuredPage {
                     for (StoreInfo store :
                             catalog.getStoresByWorkspace(
                                     (WorkspaceInfo) original, StoreInfo.class)) {
-                        copyOne(
-                                catalog,
-                                store,
-                                (Class<CatalogInfo>) interfaceOf(store),
-                                null,
-                                nameSuffix,
-                                sw,
-                                true,
-                                prototype);
+                        copyOne(catalog, store, nameSuffix, sw, true, prototype);
                     }
                 }
             } else if (prototype instanceof StoreInfo) {
@@ -397,16 +422,7 @@ public class CatalogStressTester extends GeoServerSecuredPage {
                 if (recursive) {
                     for (ResourceInfo resource :
                             catalog.getResourcesByStore((StoreInfo) original, ResourceInfo.class)) {
-                        LayerInfo resourceLayer = catalog.getLayerByName(resource.prefixedName());
-                        copyOne(
-                                catalog,
-                                resource,
-                                (Class<CatalogInfo>) interfaceOf(resource),
-                                resourceLayer,
-                                nameSuffix,
-                                sw,
-                                true,
-                                prototype);
+                        copyOne(catalog, resource, nameSuffix, sw, true, prototype);
                     }
                 }
 
@@ -426,6 +442,7 @@ public class CatalogStressTester extends GeoServerSecuredPage {
                 String id = prototype.getId();
                 prototype = catalog.getResource(id, ResourceInfo.class);
 
+                LayerInfo layer = resolveLayer(catalog, (ResourceInfo) original);
                 if (layer == null) {
                     return;
                 }
@@ -444,6 +461,11 @@ public class CatalogStressTester extends GeoServerSecuredPage {
             LOGGER.log(Level.WARNING, "", e);
             throw new RuntimeException(e.getMessage(), e);
         }
+    }
+
+    private LayerInfo resolveLayer(Catalog catalog, final ResourceInfo original) {
+        String prefixedName = ((ResourceInfo) original).prefixedName();
+        return catalog.getLayerByName(prefixedName);
     }
 
     private CatalogInfo prototype(CatalogInfo original, Catalog catalog) {
