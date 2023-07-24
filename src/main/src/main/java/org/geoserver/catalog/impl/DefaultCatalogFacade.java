@@ -5,8 +5,7 @@
  */
 package org.geoserver.catalog.impl;
 
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Ordering;
+import static java.util.Objects.requireNonNull;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
@@ -43,6 +42,8 @@ import org.opengis.feature.type.Name;
 import org.opengis.filter.Filter;
 import org.opengis.filter.sort.SortBy;
 import org.opengis.filter.sort.SortOrder;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Ordering;
 
 /**
  * Default catalog facade implementation in which all objects are stored in memory.
@@ -246,7 +247,7 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
             ws = workspace;
         }
 
-        List<T> matches = stores.list(clazz, s -> ws.equals(s.getWorkspace()));
+        List<T> matches = stores.list(clazz, s -> idEquals(ws, s.getWorkspace()));
         return ModificationProxy.createList(matches, clazz);
     }
 
@@ -371,7 +372,7 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
             ns = namespace;
         }
 
-        List<T> matches = resources.list(clazz, r -> ns.equals(r.getNamespace()));
+        List<T> matches = resources.list(clazz, r -> idEquals(ns, r.getNamespace()));
         return ModificationProxy.createList(matches, clazz);
     }
 
@@ -384,7 +385,7 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
                 && store.getWorkspace().getName() != null
                 && (ns = getNamespaceByPrefix(store.getWorkspace().getName())) != null) {
             resource = resources.findByName(new NameImpl(ns.getId(), name), clazz);
-            if (resource != null && !(store.equals(resource.getStore()))) {
+            if (resource != null && !idEquals(store, resource.getStore())) {
                 return null;
             }
         } else {
@@ -393,7 +394,7 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
             // or stores without workspaces
             resource =
                     resources.findFirst(
-                            clazz, r -> name.equals(r.getName()) && store.equals(r.getStore()));
+                            clazz, r -> name.equals(r.getName()) && idEquals(store, r.getStore()));
         }
         return wrapInModificationProxy(resource, clazz);
     }
@@ -408,7 +409,7 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
 
     @Override
     public <T extends ResourceInfo> List<T> getResourcesByStore(StoreInfo store, Class<T> clazz) {
-        List<T> matches = resources.list(clazz, r -> store.equals(r.getStore()));
+        List<T> matches = resources.list(clazz, r -> idEquals(store, r.getStore()));
         return ModificationProxy.createList(matches, clazz);
     }
 
@@ -487,7 +488,8 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
         List<LayerInfo> matches =
                 layers.list(
                         LayerInfo.class,
-                        li -> style.equals(li.getDefaultStyle()) || li.getStyles().contains(style));
+                        li -> idEquals(style, li.getDefaultStyle()) 
+                        || li.getStyles().stream().anyMatch(s -> idEquals(style, s)));
         return ModificationProxy.createList(matches, LayerInfo.class);
     }
 
@@ -627,7 +629,7 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
         if (workspace == NO_WORKSPACE) {
             predicate = lg -> lg.getWorkspace() == null;
         } else {
-            predicate = lg -> ws.equals(lg.getWorkspace());
+            predicate = lg -> idEquals(ws, lg.getWorkspace());
         }
 
         List<LayerGroupInfo> matches = layerGroups.list(LayerGroupInfo.class, predicate);
@@ -940,7 +942,7 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
                 ws = workspace;
             }
 
-            matches = styles.list(StyleInfo.class, s -> ws.equals(s.getWorkspace()));
+            matches = styles.list(StyleInfo.class, s -> idEquals(ws, s.getWorkspace()));
         }
 
         return ModificationProxy.createList(matches, StyleInfo.class);
@@ -1229,5 +1231,11 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
             Comparable c2 = (Comparable) v2;
             return c1.compareTo(c2);
         };
+    }
+
+    private <C extends CatalogInfo> boolean idEquals(C c1, C c2) {
+        requireNonNull(c1);
+        requireNonNull(c2);
+        return c1.getId().equals(c2.getId());
     }
 }
