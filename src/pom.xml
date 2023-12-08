@@ -147,7 +147,7 @@
     <mysql.jdbc.version>8.0.28</mysql.jdbc.version>
     <solrj.version>7.2.1</solrj.version>
     <mockito.version>3.12.4</mockito.version>
-    <jacoco.version>0.8.6</jacoco.version>
+    <jacoco.version>0.8.11</jacoco.version>
     <hazelcast.version>5.3.6</hazelcast.version>
     <xalan.version>2.7.3</xalan.version>
     <argLine>-Xmx${test.maxHeapSize} -enableassertions ${jvm.opts} -Djava.awt.headless=${java.awt.headless} -Dsun.java2d.d3d=${sun.java2d.d3d} -DremoteOwsTests=${remoteOwsTests} -DquietTests=${quietTests} -Dorg.geotools.image.test.enabled=${image.tests} -Dorg.geotools.image.test.interactive=${interactive.image} -Duser.timezone=${user.timezone} -Dwindows.leniency=${windows.leniency} -XX:+TieredCompilation -XX:TieredStopAtLevel=1</argLine>
@@ -163,6 +163,7 @@
     <checkstyle.skip>false</checkstyle.skip>
     <qa>false</qa>
     <lint>deprecation,unchecked</lint>
+    <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
   </properties>
 
   <dependencyManagement>
@@ -2409,6 +2410,11 @@
     <!-- code coverage -->
     <profile>
       <id>jacoco</id>
+      <activation>
+        <property>
+          <name>coverage</name>
+        </property>
+      </activation>
       <build>
         <plugins>
           <plugin>

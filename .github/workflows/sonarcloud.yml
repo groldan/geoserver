@@ -1,0 +1,57 @@
+# Builds and pushes docker images on main and tags
+
+name: SonarCloud QA
+on:
+  push:
+    branches:
+      - branch-sonarcloud
+    paths:
+      - ".github/workflows/sonarcloud.yml"
+      - "src/**"
+  pull_request:
+    types: [opened, synchronize, reopened]
+    
+jobs:
+  build:
+    name: Build and Analyze
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # Only analyze with Sonar on non-fork repos:
+    # https://github.community/t/how-to-detect-a-pull-request-from-a-fork/18363/4
+    # if: github.event.pull_request.head.repo.fork != true
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 500  # Shallow clones should be disabled for a better relevancy of analysis
+        submodules: recursive
+        show-progress: 'false'
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        cache: 'maven'
+    - name: Cache SonarCloud packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.sonar/cache
+        key: ${{ runner.os }}-sonar
+        restore-keys: ${{ runner.os }}-sonar
+
+    - name: Analyze with Sonar
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      run: |
+        mvn verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+        -f src/pom.xml \
+        -Prelease \
+        -Dcoverage \
+        -Dsonar.host.url=https://sonarcloud.io \
+        -Dsonar.projectKey=groldan_geoserver \
+        -Dsonar.organization=groldan \
+        -Dmaven.javadoc.skip=true \
+        -ntp \
+        -T1C
+
