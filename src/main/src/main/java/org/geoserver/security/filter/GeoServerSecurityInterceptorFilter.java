@@ -39,6 +39,7 @@ public class GeoServerSecurityInterceptorFilter extends GeoServerCompositeFilter
         RoleVoter roleVoter = new RoleVoter();
         roleVoter.setRolePrefix("");
         voters.add(roleVoter);
+        voters.add(new WorkspaceAdminRestAuthorizer());
         voters.add(new AuthenticatedVoter());
         AffirmativeBased accessDecisionManager = new AffirmativeBased(voters);
         accessDecisionManager.setAllowIfAllAbstainDecisions(
