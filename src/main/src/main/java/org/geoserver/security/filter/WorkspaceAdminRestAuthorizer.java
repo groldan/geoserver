@@ -65,7 +65,7 @@ import org.springframework.util.AntPathMatcher;
  * /rest/resource/workspace/** do the filtering here, as there's no "secure" {@link ResourceStore}.
  * But force a 404 instead of a 403 for consistency
  */
-class WorkspaceAdminRestAuthorizer implements AccessDecisionVoter<FilterInvocation> {
+public class WorkspaceAdminRestAuthorizer implements AccessDecisionVoter<FilterInvocation> {
 
     private WorkspaceAdminResourceFilter resourcePathFilter = new WorkspaceAdminResourceFilter();
 
@@ -90,6 +90,9 @@ class WorkspaceAdminRestAuthorizer implements AccessDecisionVoter<FilterInvocati
                     "/rest/workspaces/{workspace}.{extension}",
                     "/rest/workspaces/{workspace}",
                     "/rest/workspaces/{workspace}/**",
+                    "/rest/namespaces/{workspace}.{extension}",
+                    "/rest/namespaces/{workspace}",
+                    "/rest/namespaces/{workspace}/**",
                     "/rest/layers/{workspace}:{layer}",
                     "/rest/resource/workspaces/{workspace}",
                     "/rest/resource/workspaces/{workspace}/**");
@@ -107,15 +110,21 @@ class WorkspaceAdminRestAuthorizer implements AccessDecisionVoter<FilterInvocati
         }
 
         final HttpMethod httpMethod = HttpMethod.resolve(invocation.getRequest().getMethod());
+        boolean canAccess = canAccess(authentication, requestUri, httpMethod);
+        return canAccess ? ACCESS_GRANTED : ACCESS_ABSTAIN;
+    }
+
+    public boolean canAccess(
+            Authentication authentication, String requestUri, HttpMethod httpMethod) {
         final String resourcePath = adaptToResourcePath(requestUri);
-        int access = ACCESS_ABSTAIN;
+
         if (null != resourcePath) {
             ResourceAccess grant = resourcePathFilter.getAccessLimits(authentication, resourcePath);
             if (grant == WRITE || (grant == READ && isReadOnly(httpMethod))) {
-                access = ACCESS_GRANTED;
+                return true;
             }
         }
-        return access;
+        return false;
     }
 
     @Nullable
@@ -138,7 +147,8 @@ class WorkspaceAdminRestAuthorizer implements AccessDecisionVoter<FilterInvocati
             return "workspaces";
         } else if (matches(uri, "/rest/namespaces.{extension}", "/rest/namespaces")) {
             return "namespaces";
-        } else if (matches(uri, "/rest/styles.{extension}", "/rest/styles")) {
+        } else if (matches(uri, "/rest/styles.{extension}", "/rest/styles")
+                || matches(uri, "/rest/styles/**")) {
             return "styles";
         }
 
