@@ -9,6 +9,7 @@ import java.io.OutputStream;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.geoserver.platform.GeoServerExtensions;
+import org.geoserver.platform.resource.LockProvider;
 import org.geoserver.platform.resource.Resource;
 import org.geoserver.platform.resource.Resource.Type;
 import org.geoserver.platform.resource.ResourceNotificationDispatcher;
@@ -280,5 +281,15 @@ class SecureResourceStore implements ResourceStore {
      */
     private GeoServerSecurityManager getSecurityManager() {
         return GeoServerExtensions.bean(GeoServerSecurityManager.class);
+    }
+
+    @Override
+    public void setLockProvider(LockProvider lockProvider) {
+        delegate.setLockProvider(lockProvider);
+    }
+
+    @Override
+    public LockProvider getLockProvider() {
+        return delegate.getLockProvider();
     }
 }
