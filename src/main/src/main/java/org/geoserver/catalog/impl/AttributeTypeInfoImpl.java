@@ -16,6 +16,7 @@ import org.geotools.filter.text.cql2.CQLException;
 import org.geotools.filter.text.ecql.ECQL;
 import org.geotools.util.GrowableInternationalString;
 
+@SuppressWarnings("serial")
 public class AttributeTypeInfoImpl implements AttributeTypeInfo {
 
     protected String id;
