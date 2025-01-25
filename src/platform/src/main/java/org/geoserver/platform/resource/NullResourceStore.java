@@ -19,7 +19,6 @@ import java.util.List;
  */
 final class NullResourceStore implements ResourceStore {
     final long MODIFIED = System.currentTimeMillis();
-    final LockProvider locks = new NullLockProvider();
 
     @Override
     public Resource get(final String resourcePath) {
@@ -44,7 +43,7 @@ final class NullResourceStore implements ResourceStore {
 
             @Override
             public Lock lock() {
-                return locks.acquire(path);
+                return NullLockProvider.instance().acquire(path);
             }
 
             @Override
@@ -152,5 +151,15 @@ final class NullResourceStore implements ResourceStore {
     @Override
     public ResourceNotificationDispatcher getResourceNotificationDispatcher() {
         return null;
+    }
+
+    @Override
+    public void setLockProvider(LockProvider lockProvider) {
+        // no-op
+    }
+
+    @Override
+    public LockProvider getLockProvider() {
+        return NullLockProvider.instance();
     }
 }

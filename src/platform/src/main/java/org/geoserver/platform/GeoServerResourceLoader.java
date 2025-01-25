@@ -16,6 +16,7 @@ import java.net.URL;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.geoserver.platform.resource.FileSystemResourceStore;
+import org.geoserver.platform.resource.LockProvider;
 import org.geoserver.platform.resource.Paths;
 import org.geoserver.platform.resource.Resource;
 import org.geoserver.platform.resource.ResourceNotificationDispatcher;
@@ -600,5 +601,15 @@ public class GeoServerResourceLoader extends DefaultResourceLoader implements Re
 
     public ResourceStore getResourceStore() {
         return resources;
+    }
+
+    @Override
+    public void setLockProvider(LockProvider lockProvider) {
+        this.resources.setLockProvider(lockProvider);
+    }
+
+    @Override
+    public LockProvider getLockProvider() {
+        return this.resources.getLockProvider();
     }
 }

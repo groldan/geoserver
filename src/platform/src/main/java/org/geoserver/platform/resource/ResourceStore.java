@@ -96,4 +96,17 @@ public interface ResourceStore {
      * @return resource notification dispatcher
      */
     ResourceNotificationDispatcher getResourceNotificationDispatcher();
+
+    /**
+     * Override this resource store's default lock provider
+     *
+     * @param lockProvider non-null lock provider to use instead of the store's default
+     */
+    void setLockProvider(LockProvider lockProvider);
+
+    /**
+     * @return non-null lock provider to use. If not explicitly set, must return a lock provider appropriate to be used
+     *     with the resources this store manages.
+     */
+    LockProvider getLockProvider();
 }

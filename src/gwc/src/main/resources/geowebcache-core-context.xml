@@ -198,7 +198,7 @@
   </bean>
   
   <bean id="globalLock" class="org.geoserver.gwc.GeoServerLockProvider">
-      <property name="delegate" ref="lockProvider"/>
+      <property name="delegate" ref="resourceStore"/>
   </bean>
   
   <!-- The tool performing the automatic migration between metastore and fs hashes -->

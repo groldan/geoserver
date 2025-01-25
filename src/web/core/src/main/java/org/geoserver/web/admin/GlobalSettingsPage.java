@@ -14,9 +14,9 @@ import java.io.Serial;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.ajax.markup.html.form.AjaxCheckBox;
 import org.apache.wicket.markup.html.WebMarkupContainer;
@@ -139,10 +139,10 @@ public class GlobalSettingsPage extends ServerAdminPage {
 
         IModel<String> lockProviderModel = new PropertyModel<>(globalInfoModel, "lockProviderName");
         ApplicationContext applicationContext = GeoServerApplication.get().getApplicationContext();
-        List<String> providers =
-                new ArrayList<>(Arrays.asList(applicationContext.getBeanNamesForType(LockProvider.class)));
-        providers.remove("lockProvider"); // remove the global lock provider
-        Collections.sort(providers);
+
+        List<String> providers = Arrays.stream(applicationContext.getBeanNamesForType(LockProvider.class))
+                .sorted()
+                .collect(Collectors.toList());
 
         DropDownChoice<String> lockProviderChoice = new Select2DropDownChoice<>(
                 "lockProvider", lockProviderModel, providers, new LocalizedChoiceRenderer(this));
