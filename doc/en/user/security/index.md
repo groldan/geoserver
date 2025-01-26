@@ -15,6 +15,7 @@ The first page discusses configuration options in the web administration interfa
 - [Layer security](layer.md)
 - [Filesystem sandboxing](sandbox.md)
 - [REST Security](rest.md)
+- [REST Workspace Admin Security](rest_workspace_admin.md)
 - [URL Checks](urlchecks.md)
 - [Content Security Policy](csp.md)
 - [Disabling security](disable.md)
