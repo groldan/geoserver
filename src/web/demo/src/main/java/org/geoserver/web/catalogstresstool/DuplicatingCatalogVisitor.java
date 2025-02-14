@@ -9,6 +9,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static org.geoserver.catalog.Predicates.acceptAll;
 import static org.geoserver.catalog.Predicates.equal;
+import static org.geoserver.catalog.Predicates.isNull;
 
 import com.google.common.collect.Streams;
 import java.io.BufferedReader;
@@ -19,8 +20,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Consumer;
-import java.util.function.Function;
+import java.util.function.BiConsumer;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
@@ -28,7 +28,9 @@ import javax.annotation.Nullable;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.geoserver.catalog.Catalog;
+import org.geoserver.catalog.CatalogFactory;
 import org.geoserver.catalog.CatalogInfo;
+import org.geoserver.catalog.CatalogVisitor;
 import org.geoserver.catalog.CoverageInfo;
 import org.geoserver.catalog.CoverageStoreInfo;
 import org.geoserver.catalog.DataStoreInfo;
@@ -46,45 +48,32 @@ import org.geoserver.catalog.WMSStoreInfo;
 import org.geoserver.catalog.WMTSLayerInfo;
 import org.geoserver.catalog.WMTSStoreInfo;
 import org.geoserver.catalog.WorkspaceInfo;
-import org.geoserver.catalog.impl.CoverageInfoImpl;
-import org.geoserver.catalog.impl.CoverageStoreInfoImpl;
-import org.geoserver.catalog.impl.DataStoreInfoImpl;
-import org.geoserver.catalog.impl.FeatureTypeInfoImpl;
-import org.geoserver.catalog.impl.LayerGroupInfoImpl;
-import org.geoserver.catalog.impl.LayerInfoImpl;
-import org.geoserver.catalog.impl.StyleInfoImpl;
-import org.geoserver.catalog.impl.WMSLayerInfoImpl;
-import org.geoserver.catalog.impl.WMSStoreInfoImpl;
-import org.geoserver.catalog.impl.WMTSLayerInfoImpl;
-import org.geoserver.catalog.impl.WMTSStoreInfoImpl;
-import org.geoserver.catalog.impl.WorkspaceInfoImpl;
 import org.geoserver.catalog.util.CloseableIterator;
 import org.geoserver.ows.util.OwsUtils;
 import org.geoserver.security.SecureCatalogImpl;
 import org.geotools.api.filter.Filter;
 
-class DuplicatingCatalogVisitor implements AbstractCatalogVisitor {
+class DuplicatingCatalogVisitor implements CatalogVisitor {
 
     private final @Nonnull Catalog sourceCatalog;
     private @Nonnull Catalog targetCatalog;
 
-    private final @Nonnull UnaryOperator<String> nameMapper;
-    private final @Nonnull Consumer<CatalogInfo> listener;
+    private @Nonnull UnaryOperator<String> nameMapper;
+    private @Nonnull BiConsumer<CatalogInfo, CatalogInfo> beforeListener = (orig, copy) -> {};
+    private @Nonnull BiConsumer<CatalogInfo, CatalogInfo> afterListener = (orig, copy) -> {};
     private boolean recursive;
 
     /** The result of {@link #duplicate(CatalogInfo)} */
     private CatalogInfo copy;
 
-    public DuplicatingCatalogVisitor(Catalog catalog, UnaryOperator<String> nameMapper) {
-        this(catalog, nameMapper, c -> {});
+    public DuplicatingCatalogVisitor(Catalog catalog) {
+        this(catalog, UnaryOperator.identity());
     }
 
-    public DuplicatingCatalogVisitor(
-            Catalog catalog, UnaryOperator<String> nameMapper, Consumer<CatalogInfo> listener) {
+    public DuplicatingCatalogVisitor(Catalog catalog, UnaryOperator<String> nameMapper) {
         this.sourceCatalog = (Catalog) SecureCatalogImpl.unwrap(requireNonNull(catalog));
         this.targetCatalog = this.sourceCatalog;
         this.nameMapper = requireNonNull(nameMapper);
-        this.listener = requireNonNull(listener);
     }
 
     public DuplicatingCatalogVisitor targetCatalog(Catalog targetCatalog) {
@@ -92,8 +81,23 @@ class DuplicatingCatalogVisitor implements AbstractCatalogVisitor {
         return this;
     }
 
-    public DuplicatingCatalogVisitor recursive() {
-        this.recursive = true;
+    public DuplicatingCatalogVisitor nameMapper(UnaryOperator<String> nameMapper) {
+        this.nameMapper = requireNonNull(nameMapper);
+        return this;
+    }
+
+    public DuplicatingCatalogVisitor beforeListener(BiConsumer<CatalogInfo, CatalogInfo> beforeListener) {
+        this.beforeListener = requireNonNull(beforeListener);
+        return this;
+    }
+
+    public DuplicatingCatalogVisitor afterListener(BiConsumer<CatalogInfo, CatalogInfo> afterListener) {
+        this.afterListener = requireNonNull(afterListener);
+        return this;
+    }
+
+    public DuplicatingCatalogVisitor recursive(boolean recursive) {
+        this.recursive = recursive;
         return this;
     }
 
@@ -103,23 +107,31 @@ class DuplicatingCatalogVisitor implements AbstractCatalogVisitor {
         return (C) copy;
     }
 
+    /** Clones a full catalog. */
     @Override
     public void visit(Catalog catalog) {
-        try (Stream<WorkspaceInfo> stream = list(WorkspaceInfo.class, acceptAll())) {
-            stream.forEach(this::duplicate);
+
+        try (Stream<StyleInfo> globalStyles = list(StyleInfo.class, isNull("workspace"))) {
+            globalStyles.forEach(this::duplicate);
         }
-        this.copy = catalog;
+
+        try (Stream<WorkspaceInfo> workspaces = list(WorkspaceInfo.class, acceptAll())) {
+            workspaces.forEach(this::duplicate);
+        }
+
+        try (Stream<LayerGroupInfo> globalLayerGroups = list(LayerGroupInfo.class, isNull("workspace"))) {
+            globalLayerGroups.forEach(this::duplicate);
+        }
+        this.copy = targetCatalog;
     }
 
     @Override
     public void visit(WorkspaceInfo orig) {
-        WorkspaceInfo newWorkspace = add(prototype(orig));
-
-        // rely on the target Catalog's NamespaceWorkspaceConsistencyListener to create
-        // the appropriate NamespaceInfo if
-        // missing
-        requireNonNull(targetCatalog.getNamespaceByPrefix(newWorkspace.getName()));
-
+        WorkspaceInfo newWorkspace = addToTargetCatalog(orig, prototype(orig));
+        NamespaceInfo ns = sourceCatalog.getNamespaceByPrefix(orig.getName());
+        if (ns != null) {
+            cloneIfAbsent(ns);
+        }
         if (recursive) {
             recurseWorkspace(orig, newWorkspace);
         }
@@ -129,13 +141,11 @@ class DuplicatingCatalogVisitor implements AbstractCatalogVisitor {
     @Override
     public void visit(NamespaceInfo orig) {
         NamespaceInfo newNs = prototype(orig);
-        newNs.setURI(orig.getURI() + "-" + newNs.getPrefix());
-        newNs = add(newNs);
+        String uri = orig.getURI();
+        // newNs.setURI(uri + "-" + newNs.getPrefix());
+        newNs = addToTargetCatalog(orig, newNs);
 
-        // rely on the target Catalog's NamespaceWorkspaceConsistencyListener to create
-        // the appropriate NamespaceInfo if
-        // missing
-        requireNonNull(targetCatalog.getWorkspaceByName(newNs.getPrefix()));
+        cloneIfAbsent(sourceCatalog.getWorkspaceByName(newNs.getPrefix()));
 
         if (recursive) {
             // rely on NamespaceWorkspaceConsistencyListener to create the appropriate
@@ -148,7 +158,26 @@ class DuplicatingCatalogVisitor implements AbstractCatalogVisitor {
     }
 
     @Override
-    public void visit(StoreInfo orig) {
+    public void visit(DataStoreInfo store) {
+        visit((StoreInfo) store);
+    }
+
+    @Override
+    public void visit(CoverageStoreInfo store) {
+        visit((StoreInfo) store);
+    }
+
+    @Override
+    public void visit(WMSStoreInfo store) {
+        visit((StoreInfo) store);
+    }
+
+    @Override
+    public void visit(WMTSStoreInfo store) {
+        visit((StoreInfo) store);
+    }
+
+    void visit(StoreInfo orig) {
         StoreInfo newStore = prototype(orig);
         newStore.setWorkspace(getCopy(orig.getWorkspace()));
 
@@ -157,11 +186,30 @@ class DuplicatingCatalogVisitor implements AbstractCatalogVisitor {
             // while cloning many jdbc stores
             sourceCatalog.getResourcePool().dispose();
         }
-        this.copy = add(newStore);
+        this.copy = addToTargetCatalog(orig, newStore);
     }
 
     @Override
-    public void visit(ResourceInfo orig) {
+    public void visit(FeatureTypeInfo resource) {
+        visit((ResourceInfo) resource);
+    }
+
+    @Override
+    public void visit(CoverageInfo resource) {
+        visit((ResourceInfo) resource);
+    }
+
+    @Override
+    public void visit(WMSLayerInfo resource) {
+        visit((ResourceInfo) resource);
+    }
+
+    @Override
+    public void visit(WMTSLayerInfo resource) {
+        visit((ResourceInfo) resource);
+    }
+
+    void visit(ResourceInfo orig) {
         ResourceInfo newResource = copyResource(orig);
 
         LayerInfo layer = sourceCatalog.getLayerByName(orig.prefixedName());
@@ -183,7 +231,7 @@ class DuplicatingCatalogVisitor implements AbstractCatalogVisitor {
                 sourceCatalog.getNamespaceByPrefix(store.getWorkspace().getName());
         newResource.setNamespace(ns);
 
-        return add(newResource);
+        return addToTargetCatalog(orig, newResource);
     }
 
     /**
@@ -211,7 +259,7 @@ class DuplicatingCatalogVisitor implements AbstractCatalogVisitor {
             newStyles.clear();
             origStyles.stream().map(this::cloneIfNotGlobal).forEach(newStyles::add);
         }
-        this.copy = add(layerCopy);
+        this.copy = addToTargetCatalog(orig, layerCopy);
     }
 
     /**
@@ -220,6 +268,7 @@ class DuplicatingCatalogVisitor implements AbstractCatalogVisitor {
      */
     @Override
     public void visit(LayerGroupInfo orig) {
+        if (true) return;
         this.copy = cloneLayerGroup(orig);
     }
 
@@ -241,7 +290,7 @@ class DuplicatingCatalogVisitor implements AbstractCatalogVisitor {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        this.copy = add(newStyle);
+        this.copy = addToTargetCatalog(orig, newStyle);
     }
 
     private void recurseWorkspace(WorkspaceInfo orig, WorkspaceInfo targetWorkspace) {
@@ -285,7 +334,7 @@ class DuplicatingCatalogVisitor implements AbstractCatalogVisitor {
 
         WorkspaceInfo target = getCopy(orig.getWorkspace());
         String newName = getCopyName(orig);
-        StyleInfo existing = sourceCatalog.getStyleByName(target, newName);
+        StyleInfo existing = targetCatalog.getStyleByName(target, newName);
         if (existing == null) {
             return duplicate(orig);
         }
@@ -303,7 +352,7 @@ class DuplicatingCatalogVisitor implements AbstractCatalogVisitor {
                 lgCopy.setRootLayerStyle(cloneIfNotGlobal(orig.getRootLayerStyle()));
 
                 Set<StyleInfo> origStyles = new LinkedHashSet<>(orig.getStyles());
-                Set<StyleInfo> newStyles = null; // layerCopy.getStyles();
+                Set<StyleInfo> newStyles = null; // ayerCopy.getStyles();
                 newStyles.clear();
                 origStyles.stream().map(this::getCopy).forEach(newStyles::add);
             }
@@ -318,7 +367,11 @@ class DuplicatingCatalogVisitor implements AbstractCatalogVisitor {
             orig.getLayers().stream().map(this::cloneIfNeeded).forEach(lgCopy.getLayers()::add);
             orig.getLayerGroupStyles(); // ??
         }
-        return add(lgCopy);
+        return addToTargetCatalog(orig, lgCopy);
+    }
+
+    private <T extends CatalogInfo> T cloneIfAbsent(T orig) {
+        return Optional.ofNullable(orig).flatMap(this::findCopy).orElseGet(() -> duplicate(orig));
     }
 
     @SuppressWarnings("unchecked")
@@ -332,34 +385,42 @@ class DuplicatingCatalogVisitor implements AbstractCatalogVisitor {
         return null;
     }
 
-    @SuppressWarnings("unchecked")
-    protected <C extends CatalogInfo> C add(C info) {
-        if (info instanceof WorkspaceInfo) {
-            targetCatalog.add((WorkspaceInfo) info);
-            return (C) notify(info, targetCatalog::getWorkspace);
-        } else if (info instanceof StoreInfo) {
-            targetCatalog.add((StoreInfo) info);
-            return (C) notify(info, id -> targetCatalog.getStore(id, StoreInfo.class));
-        } else if (info instanceof ResourceInfo) {
-            targetCatalog.add((ResourceInfo) info);
-            return (C) notify(info, id -> targetCatalog.getResource(id, ResourceInfo.class));
-        } else if (info instanceof LayerInfo) {
-            targetCatalog.add((LayerInfo) info);
-            return (C) notify(info, targetCatalog::getLayer);
-        } else if (info instanceof LayerGroupInfo) {
-            targetCatalog.add((LayerGroupInfo) info);
-            return (C) notify(info, targetCatalog::getLayerGroup);
-        } else if (info instanceof StyleInfo) {
-            targetCatalog.add((StyleInfo) info);
-            return (C) notify(info, targetCatalog::getStyle);
-        }
-        throw new IllegalArgumentException(info.toString());
+    protected <C extends CatalogInfo> C addToTargetCatalog(C original, C copy) {
+        beforeListener.accept(original, copy);
+        C stored = add(copy, targetCatalog);
+        afterListener.accept(original, stored);
+        return stored;
     }
 
-    private <C extends CatalogInfo> C notify(C info, Function<String, C> findFunction) {
-        info = requireNonNull(findFunction.apply(info.getId()));
-        listener.accept(info);
-        return info;
+    @SuppressWarnings("unchecked")
+    static <C extends CatalogInfo> C add(C info, Catalog target) {
+        CatalogInfo stored;
+        if (info instanceof WorkspaceInfo ws) {
+            target.add(ws);
+            stored = target.getWorkspaceByName(ws.getName());
+        } else if (info instanceof NamespaceInfo ns) {
+            target.add(ns);
+            stored = target.getNamespaceByPrefix(ns.getPrefix());
+        } else if (info instanceof StoreInfo store) {
+            target.add(store);
+            stored = target.getStore(store.getId(), StoreInfo.class);
+        } else if (info instanceof ResourceInfo res) {
+            target.add(res);
+            stored = target.getResource(res.getId(), ResourceInfo.class);
+        } else if (info instanceof LayerInfo layer) {
+            target.add(layer);
+            stored = target.getLayer(layer.getId());
+        } else if (info instanceof LayerGroupInfo lg) {
+            target.add(lg);
+            stored = target.getLayerGroup(lg.getId());
+        } else if (info instanceof StyleInfo style) {
+            target.add(style);
+            stored = target.getStyle(style.getId());
+        } else {
+            throw new IllegalArgumentException(info.toString());
+        }
+        requireNonNull(stored);
+        return (C) stored;
     }
 
     private <T extends CatalogInfo> T prototype(T original) {
@@ -368,35 +429,7 @@ class DuplicatingCatalogVisitor implements AbstractCatalogVisitor {
     }
 
     private <T extends CatalogInfo> T prototype(T original, Class<T> clazz) {
-        T prototype;
-        if (original instanceof WorkspaceInfo) {
-            prototype = clazz.cast(new WorkspaceInfoImpl());
-        } else if (original instanceof DataStoreInfo) {
-            prototype = clazz.cast(new DataStoreInfoImpl(targetCatalog));
-        } else if (original instanceof CoverageStoreInfo) {
-            prototype = clazz.cast(new CoverageStoreInfoImpl(targetCatalog));
-        } else if (original instanceof WMSStoreInfo) {
-            prototype = clazz.cast(new WMSStoreInfoImpl(targetCatalog));
-        } else if (original instanceof WMTSStoreInfo) {
-            prototype = clazz.cast(new WMTSStoreInfoImpl(targetCatalog));
-        } else if (original instanceof FeatureTypeInfo) {
-            prototype = clazz.cast(new FeatureTypeInfoImpl(targetCatalog));
-        } else if (original instanceof CoverageInfo) {
-            prototype = clazz.cast(new CoverageInfoImpl(targetCatalog));
-        } else if (original instanceof WMSLayerInfo) {
-            prototype = clazz.cast(new WMSLayerInfoImpl(targetCatalog));
-        } else if (original instanceof WMTSLayerInfo) {
-            prototype = clazz.cast(new WMTSLayerInfoImpl(targetCatalog));
-        } else if (original instanceof LayerInfo) {
-            prototype = clazz.cast(new LayerInfoImpl());
-        } else if (original instanceof LayerGroupInfo) {
-            prototype = clazz.cast(new LayerGroupInfoImpl());
-        } else if (original instanceof StyleInfo) {
-            prototype = clazz.cast(new StyleInfoImpl(sourceCatalog));
-        } else {
-            throw new IllegalArgumentException(original.toString());
-        }
-
+        T prototype = create(clazz, targetCatalog.getFactory());
         OwsUtils.copy(original, prototype, clazz);
         OwsUtils.set(prototype, "id", null);
 
@@ -406,8 +439,41 @@ class DuplicatingCatalogVisitor implements AbstractCatalogVisitor {
 
         prototype.setDateCreated(null);
         prototype.setDateModified(null);
+        prototype.setModifiedBy(null);
 
         return prototype;
+    }
+
+    /** Note: this could be the default implementation of {@link CatalogFactory#create(Class)} */
+    public <T extends CatalogInfo> T create(Class<T> iface, CatalogFactory factory) {
+        if (WorkspaceInfo.class.equals(iface)) {
+            return iface.cast(factory.createWorkspace());
+        } else if (NamespaceInfo.class.equals(iface)) {
+            return iface.cast(factory.createNamespace());
+        } else if (DataStoreInfo.class.equals(iface)) {
+            return iface.cast(factory.createDataStore());
+        } else if (CoverageStoreInfo.class.equals(iface)) {
+            return iface.cast(factory.createCoverageStore());
+        } else if (WMSStoreInfo.class.equals(iface)) {
+            return iface.cast(factory.createWebMapServer());
+        } else if (WMTSStoreInfo.class.equals(iface)) {
+            return iface.cast(factory.createWebMapTileServer());
+        } else if (FeatureTypeInfo.class.equals(iface)) {
+            return iface.cast(factory.createFeatureType());
+        } else if (CoverageInfo.class.equals(iface)) {
+            return iface.cast(factory.createCoverage());
+        } else if (WMSLayerInfo.class.equals(iface)) {
+            return iface.cast(factory.createWMSLayer());
+        } else if (WMTSLayerInfo.class.equals(iface)) {
+            return iface.cast(factory.createWMTSLayer());
+        } else if (LayerInfo.class.equals(iface)) {
+            return iface.cast(factory.createLayer());
+        } else if (LayerGroupInfo.class.equals(iface)) {
+            return iface.cast(factory.createLayerGroup());
+        } else if (StyleInfo.class.equals(iface)) {
+            return iface.cast(factory.createStyle());
+        }
+        throw new IllegalArgumentException(iface.getCanonicalName() + " is not a CatalogInfo interface");
     }
 
     protected String getCopyName(CatalogInfo info) {

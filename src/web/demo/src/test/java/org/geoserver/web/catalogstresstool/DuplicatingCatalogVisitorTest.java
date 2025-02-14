@@ -1,127 +1,94 @@
 package org.geoserver.web.catalogstresstool;
 
+import static org.geoserver.catalog.impl.ModificationProxy.unwrap;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.*;
 
-import java.util.function.Consumer;
-import java.util.function.UnaryOperator;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CatalogInfo;
-import org.geoserver.catalog.LayerInfo;
 import org.geoserver.catalog.NamespaceInfo;
-import org.geoserver.catalog.ResourceInfo;
-import org.geoserver.catalog.StoreInfo;
+import org.geoserver.catalog.NamespaceWorkspaceConsistencyListener;
 import org.geoserver.catalog.WorkspaceInfo;
-import org.geoserver.catalog.impl.WorkspaceInfoImpl;
+import org.geoserver.catalog.faker.CatalogFaker;
+import org.geoserver.catalog.impl.CatalogImpl;
+import org.geoserver.ows.util.OwsUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 
 public class DuplicatingCatalogVisitorTest {
 
-    private Catalog mockCatalog;
+    private Catalog catalog;
+    private CatalogFaker faker;
+
     private DuplicatingCatalogVisitor visitor;
-    private UnaryOperator<String> nameMapper;
-    private Consumer<CatalogInfo> listener;
 
     @BeforeEach
     void setUp() {
-        mockCatalog = mock(Catalog.class);
-        nameMapper = name -> "copy_" + name; // Example name mapper for testing
-        listener = mock(Consumer.class);
+        catalog = new CatalogImpl();
+        catalog.addListener(new NamespaceWorkspaceConsistencyListener(catalog));
+        faker = new CatalogFaker(catalog);
+        visitor = new DuplicatingCatalogVisitor(catalog);
+    }
 
-        visitor = new DuplicatingCatalogVisitor(mockCatalog, nameMapper, listener);
+    private void assertEqualsExceptId(CatalogInfo orig, CatalogInfo dup) {
+        // mind equals() on ModificationProxy won't work
+        orig = unwrap(orig);
+        dup = unwrap(dup);
+        String dupId = dup.getId();
+        assertNotEquals(orig.getId(), dupId);
+        OwsUtils.set(dup, "Id", orig.getId());
+        try {
+            assertEquals(orig, dup);
+        } finally {
+            OwsUtils.set(dup, "Id", dupId);
+        }
+    }
+
+    <T extends CatalogInfo> T add(T info) {
+        return add(info, catalog);
+    }
+
+    <T extends CatalogInfo> T add(T info, Catalog target) {
+        return DuplicatingCatalogVisitor.add(info, catalog);
     }
 
     @Test
-    void testDuplicateWorkspaceInfo() {
-        // Arrange
-        WorkspaceInfo originalWorkspace = mock(WorkspaceInfo.class);
-        when(originalWorkspace.getName()).thenReturn("original_workspace");
+    void testDuplicateWorkspaceAlsoDuplicatesNamespace() {
+        WorkspaceInfo ws = faker.workspaceInfo();
+        NamespaceInfo ns = faker.namespaceInfo(ws);
+        ws = add(ws, catalog);
+        ns = add(ns, catalog);
 
-        WorkspaceInfoImpl prototypeWorkspace = new WorkspaceInfoImpl();
-        when(mockCatalog.getWorkspaceByName("copy_original_workspace")).thenReturn(null);
+        Catalog targetCatalog = new CatalogImpl();
+        visitor.targetCatalog(targetCatalog);
+        WorkspaceInfo dup = unwrap(visitor.duplicate(ws));
+        assertNotNull(dup);
+        assertNotSame(unwrap(ws), unwrap(dup));
+        assertEqualsExceptId(ws, dup);
 
-        // Act
-        WorkspaceInfo duplicatedWorkspace = visitor.duplicate(originalWorkspace);
-
-        // Assert
-        assertNotNull(duplicatedWorkspace);
-        assertEquals("copy_original_workspace", duplicatedWorkspace.getName());
+        NamespaceInfo dupNs = targetCatalog.getNamespaceByPrefix(ws.getName());
+        assertNotNull(dupNs);
+        assertEqualsExceptId(ns, dupNs);
     }
 
     @Test
-    void testDuplicateLayerInfo() {
-        // Arrange
-        LayerInfo originalLayer = mock(LayerInfo.class);
-        ResourceInfo originalResource = mock(ResourceInfo.class);
-        StoreInfo originalStore = mock(StoreInfo.class);
-        WorkspaceInfo originalWorkspace = mock(WorkspaceInfo.class);
+    void testDuplicateNamespaceAlsoDuplicatesWorkspace() {
+        WorkspaceInfo ws = faker.workspaceInfo();
+        NamespaceInfo ns = faker.namespaceInfo(ws);
+        ws = add(ws, catalog);
+        ns = add(ns, catalog);
 
-        when(originalLayer.getResource()).thenReturn(originalResource);
-        when(originalResource.getStore()).thenReturn(originalStore);
-        when(originalStore.getWorkspace()).thenReturn(originalWorkspace);
-        when(originalResource.prefixedName()).thenReturn("workspace:resource");
-        when(mockCatalog.getLayerByName("workspace:resource")).thenReturn(originalLayer);
+        Catalog targetCatalog = new CatalogImpl();
+        visitor.targetCatalog(targetCatalog);
+        NamespaceInfo dup = unwrap(visitor.duplicate(ns));
+        assertNotNull(dup);
+        assertNotSame(unwrap(ns), unwrap(dup));
+        assertEqualsExceptId(ns, dup);
 
-        // Act
-        LayerInfo duplicatedLayer = visitor.duplicate(originalLayer);
-
-        // Assert
-        assertNotNull(duplicatedLayer);
-        verify(mockCatalog, atLeastOnce()).getLayerByName("workspace:resource");
-    }
-
-    @Test
-    void testRecursiveDuplication() {
-        // Arrange
-        visitor.recursive();
-
-        WorkspaceInfo workspaceInfo = mock(WorkspaceInfo.class);
-        when(workspaceInfo.getName()).thenReturn("recursive_workspace");
-        when(mockCatalog.getNamespaceByPrefix("recursive_workspace")).thenReturn(mock(NamespaceInfo.class));
-
-        // Act
-        WorkspaceInfo duplicatedWorkspace = visitor.duplicate(workspaceInfo);
-
-        // Assert
-        assertNotNull(duplicatedWorkspace);
-        verify(mockCatalog, times(1)).getNamespaceByPrefix("recursive_workspace");
-    }
-
-    @Test
-    void testListenerIsCalled() {
-        // Arrange
-        WorkspaceInfo originalWorkspace = mock(WorkspaceInfo.class);
-        when(originalWorkspace.getName()).thenReturn("workspace");
-
-        WorkspaceInfoImpl prototypeWorkspace = new WorkspaceInfoImpl();
-        when(mockCatalog.getWorkspaceByName("copy_workspace")).thenReturn(prototypeWorkspace);
-
-        // Act
-        visitor.duplicate(originalWorkspace);
-
-        // Assert
-        ArgumentCaptor<CatalogInfo> captor = ArgumentCaptor.forClass(CatalogInfo.class);
-        verify(listener, times(1)).accept(captor.capture());
-        assertEquals("copy_workspace", ((WorkspaceInfo) captor.getValue()).getName());
-    }
-
-    @Test
-    void testExceptionThrownWhenCopyNotFound() {
-        // Arrange
-        WorkspaceInfo workspaceInfo = mock(WorkspaceInfo.class);
-        when(workspaceInfo.getName()).thenReturn("missing_workspace");
-        when(mockCatalog.getWorkspaceByName("copy_missing_workspace")).thenReturn(null);
-
-        // Act & Assert
-        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {
-            visitor.duplicate(workspaceInfo);
-        });
-
-        assertTrue(exception.getMessage().contains("WorkspaceInfo with name copy_missing_workspace not found"));
+        WorkspaceInfo dupWs = targetCatalog.getWorkspaceByName(ns.getPrefix());
+        assertNotNull(dupWs);
+        assertEqualsExceptId(ws, dupWs);
     }
 }

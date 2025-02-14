@@ -11,13 +11,14 @@ import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import java.io.Serial;
 import java.io.Serializable;
 import java.text.MessageFormat;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiConsumer;
+import java.util.function.UnaryOperator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.wicket.Application;
@@ -72,7 +73,10 @@ import org.geoserver.web.ToolPage;
 import org.geotools.api.filter.Filter;
 import org.geotools.util.logging.Logging;
 
-// TODO WICKET8 - Verify this page works OK
+/**
+ * @see #copyOne(Catalog, CatalogInfo, String, Stopwatch, boolean, CatalogInfo)
+ * @see DuplicatingCatalogVisitor
+ */
 @SuppressWarnings({"unchecked", "serial"})
 public class CatalogStressTester extends GeoServerSecuredPage {
 
@@ -96,10 +100,10 @@ public class CatalogStressTester extends GeoServerSecuredPage {
 
     private String progressMessage = "0/0";
 
+    private Form<?> form;
+
     /** DropDown choice model object becuase dbconfig freaks out if using the CatalogInfo objects directly */
     private static final class Tuple implements Serializable, Comparable<Tuple> {
-        @Serial
-        private static final long serialVersionUID = 1L;
 
         final String id, name;
 
@@ -115,8 +119,6 @@ public class CatalogStressTester extends GeoServerSecuredPage {
     }
 
     private static class TupleChoiceRenderer extends ChoiceRenderer<Tuple> {
-        @Serial
-        private static final long serialVersionUID = 1L;
 
         @Override
         public Object getDisplayValue(Tuple object) {
@@ -132,8 +134,7 @@ public class CatalogStressTester extends GeoServerSecuredPage {
     public CatalogStressTester() {
         super();
         setDefaultModel(new Model<>());
-        Form form = new Form<>("form", new Model<>());
-        add(form);
+        add(form = new Form<>("form", new Model<>()));
 
         IModel<List<Tuple>> wsModel = new WorkspacesTestModel();
         workspace = new DropDownChoice<>("workspace", new Model<>(), wsModel, new TupleChoiceRenderer());
@@ -143,9 +144,6 @@ public class CatalogStressTester extends GeoServerSecuredPage {
         workspace.setRequired(true);
         form.add(workspace);
         workspace.add(new OnChangeAjaxBehavior() {
-            @Serial
-            private static final long serialVersionUID = -5613056077847641106L;
-
             @Override
             protected void onUpdate(AjaxRequestTarget target) {
                 target.add(store);
@@ -160,8 +158,6 @@ public class CatalogStressTester extends GeoServerSecuredPage {
 
         store.setOutputMarkupId(true);
         store.add(new OnChangeAjaxBehavior() {
-            @Serial
-            private static final long serialVersionUID = -5333344688588590014L;
 
             @Override
             protected void onUpdate(AjaxRequestTarget target) {
@@ -211,8 +207,6 @@ public class CatalogStressTester extends GeoServerSecuredPage {
         form.add(progress);
 
         form.add(new AjaxButton("cancel") {
-            @Serial
-            private static final long serialVersionUID = 5767430648099432407L;
 
             @Override
             protected void onSubmit(AjaxRequestTarget target) {
@@ -221,8 +215,6 @@ public class CatalogStressTester extends GeoServerSecuredPage {
         });
 
         startLink = new AjaxButton("submit", form) {
-            @Serial
-            private static final long serialVersionUID = -4087484089208211355L;
 
             @Override
             protected void onSubmit(AjaxRequestTarget target) {
@@ -253,6 +245,32 @@ public class CatalogStressTester extends GeoServerSecuredPage {
         };
         form.add(startLink);
         startLink.setOutputMarkupId(true);
+    }
+
+    protected void onSubmit(AjaxRequestTarget target) {
+        progress.setDefaultModelObject("");
+        startLink.setVisible(false);
+        target.add(startLink);
+        target.add(progress);
+        final Catalog catalog = getCatalog();
+        Application application = getApplication();
+        Session session = getSession();
+        CompletableFuture.runAsync(() -> {
+            try {
+                // for #getLocalizer() to work
+                attachToCurrentThread(application, session);
+                startCopy(catalog);
+            } catch (Exception e) {
+                e.printStackTrace();
+                form.error(e.getMessage());
+                target.add(form);
+            } finally {
+                startLink.setVisible(true);
+                target.add(startLink);
+                target.add(progress);
+                dettachApplication();
+            }
+        });
     }
 
     private Application attachToCurrentThread(Application application, Session session) {
@@ -360,6 +378,21 @@ public class CatalogStressTester extends GeoServerSecuredPage {
 
         final Class<? extends CatalogInfo> clazz = interfaceOf(original);
         CatalogInfo prototype = prototype(original, catalog);
+
+        if (true) {
+            UnaryOperator<String> nameMapper = origName -> origName + nameSuffix;
+            BiConsumer<CatalogInfo, CatalogInfo> before = (orig, copy) -> sw.start();
+            BiConsumer<CatalogInfo, CatalogInfo> after = (orig, copy) -> sw.stop();
+
+            CatalogInfo dup = new DuplicatingCatalogVisitor(catalog)
+                    .targetCatalog(catalog) // same catalog
+                    .nameMapper(nameMapper)
+                    .beforeListener(before)
+                    .afterListener(after)
+                    .recursive(recursive)
+                    .duplicate(original);
+            return;
+        }
 
         try {
             OwsUtils.set(prototype, "id", null);
@@ -470,8 +503,6 @@ public class CatalogStressTester extends GeoServerSecuredPage {
     }
 
     private static class WorkspacesTestModel extends LoadableDetachableModel<List<Tuple>> {
-        @Serial
-        private static final long serialVersionUID = 1L;
 
         @Override
         protected List<Tuple> load() {
@@ -488,8 +519,6 @@ public class CatalogStressTester extends GeoServerSecuredPage {
     }
 
     private class ResourcesTestModel extends LoadableDetachableModel<List<Tuple>> {
-        @Serial
-        private static final long serialVersionUID = 1L;
 
         @Override
         protected List<Tuple> load() {
@@ -511,8 +540,6 @@ public class CatalogStressTester extends GeoServerSecuredPage {
     }
 
     private class StoresTestModel extends LoadableDetachableModel<List<Tuple>> {
-        @Serial
-        private static final long serialVersionUID = 1L;
 
         @Override
         protected List<Tuple> load() {
