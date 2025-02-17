@@ -38,6 +38,12 @@
         <module>oidc</module>
       </modules>
     </profile>
+    <profile>
+      <id>communityReleaseCloud</id>
+      <modules>
+        <module>oidc</module>
+      </modules>
+    </profile>
 
   </profiles>
 </project>
