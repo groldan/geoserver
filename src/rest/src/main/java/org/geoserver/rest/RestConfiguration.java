@@ -86,6 +86,22 @@ public class RestConfiguration extends DelegatingWebMvcConfiguration {
         @Override
         public List<MediaType> resolveMediaTypes(NativeWebRequest webRequest)
                 throws HttpMediaTypeNotAcceptableException {
+            // REVISIT, couldn't find a way for this configuration to apply only to /rest/**
+            // endpoints. Overriding createRequestMappingHandlerMapping() with a custom
+            // AntPathMatcher doesn't seem to work.
+            // Returning MEDIA_TYPE_ALL_LIST makes
+            // ContentNegotiationManager.resolveMediaTypes() continue with the other
+            // ContentNegotiationStrategy instead of breaking, hence letting non /rest/*
+            // endpoints (e.g. /actuator/** proceed without the customizations here
+            HttpServletRequest req = webRequest.getNativeRequest(HttpServletRequest.class);
+            String servletPath = req.getServletPath(); // e.g. /web, /rest, etc
+            String contextPath = webRequest.getContextPath(); // e.g. /geoserver
+            String requestURI = req.getRequestURI(); // e.g. /geoserver/rest/layers
+            String pathInfo = req.getPathInfo(); // e.g. /layers
+            if (!"/rest".equals(servletPath)) {
+                return ContentNegotiationStrategy.MEDIA_TYPE_ALL_LIST;
+            }
+
             List<ContentNegotiationStrategy> strategies =
                     GeoServerExtensions.extensions(ContentNegotiationStrategy.class);
             List<MediaType> mediaTypes;

@@ -180,6 +180,7 @@
         <module>wfs-freemarker</module>
         <module>stac-datastore</module>
         <module>acl</module>
+        <module>actuator</module>
       </modules>
     </profile>
     <profile>
@@ -535,6 +536,12 @@
       <id>acl</id>
       <modules>
         <module>acl</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>actuator</id>
+      <modules>
+        <module>actuator</module>
       </modules>
     </profile>
     <profile>
