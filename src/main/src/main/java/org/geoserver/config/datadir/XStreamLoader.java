@@ -69,6 +69,10 @@ class XStreamLoader {
         this.xpf = xpfac;
     }
 
+    public XStreamPersisterFactory getPersisterFactory() {
+        return xpf;
+    }
+
     /**
      * Deserializes a GeoServer configuration or catalog object from an XML file.
      *
