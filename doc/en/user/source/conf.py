@@ -78,7 +78,7 @@ print("Examples use release", release)
 # check environmental variable to see if ant build.xml passed in project.version
 # project_version = os.getenv("project.version")
 # if project_version == None: 
-#  release = '3.0-SNAPSHOT'
+#  release = '3.0.0-SNAPSHOT'
 # else:
 #  release = project_version
 
@@ -88,7 +88,7 @@ branch = 'main'
 series = '3.x'
 
 # Users don't need to see the "SNAPSHOT" notation when it's there
-community = '3.0-SNAPSHOT'
+community = '3.0.0-SNAPSHOT'
 
 download_release =   'https://sourceforge.net/projects/geoserver/files/GeoServer/'+release+'/geoserver-'+release+'-%s.zip'
 download_extension = 'https://sourceforge.net/projects/geoserver/files/GeoServer/'+release+'/extensions/geoserver-'+release+'-%s-plugin.zip'
