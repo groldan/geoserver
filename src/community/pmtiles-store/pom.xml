@@ -23,7 +23,10 @@
       <version>${gt.version}</version>
     </dependency>
     <dependency>
-      <!-- overriding the transitive from gt-pmtiles with provided scope since gs-main already provides it -->
+      <!--
+      overriding the transitive from gt-pmtiles with provided scope since gs-main already provides it
+      this prevents the jackson-databind jars to be packaged with the .zip assembly
+      -->
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
       <scope>provided</scope>
