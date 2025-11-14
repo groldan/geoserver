@@ -10,7 +10,6 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.wicket.model.CompoundPropertyModel;
 import org.apache.wicket.model.IModel;
 import org.apache.wicket.model.LoadableDetachableModel;
@@ -21,7 +20,6 @@ import org.geoserver.acl.plugin.web.components.AbstractRulesModel;
 import org.geoserver.acl.plugin.web.support.SerializablePredicate;
 import org.geoserver.web.GeoServerApplication;
 
-@Slf4j
 @SuppressWarnings("serial")
 public class AccessRequestSimulatorModel extends AbstractRulesModel {
 

@@ -60,7 +60,6 @@ import org.geoserver.security.CoverageAccessLimits;
 import org.geoserver.security.DataAccessLimits;
 import org.geoserver.security.LayerGroupAccessLimits;
 import org.geoserver.security.ResourceAccessManager;
-import org.geoserver.security.ResourceAccessManagerWrapper;
 import org.geoserver.security.StyleAccessLimits;
 import org.geoserver.security.VectorAccessLimits;
 import org.geoserver.security.WMSAccessLimits;
@@ -97,38 +96,33 @@ public class ACLResourceAccessManager extends AbstractResourceAccessManager
 
     private static final Logger LOGGER = Logging.getLogger(ACLResourceAccessManager.class);
 
-    static final FilterFactory FF = CommonFactoryFinder.getFilterFactory();
+    private static final FilterFactory FF = CommonFactoryFinder.getFilterFactory();
 
-    enum PropertyAccessMode {
-        READ,
-        WRITE
-    }
-
-    static final CatalogMode DEFAULT_CATALOG_MODE = CatalogMode.HIDE;
+    private static final CatalogMode DEFAULT_CATALOG_MODE = CatalogMode.HIDE;
 
     private AuthorizationService authorizationService;
 
-    private final AccessManagerConfigProvider configProvider;
+    private final AccessManagerConfig config;
 
     private LayerGroupContainmentCache groupsCache;
 
     private WPSHelper wpsHelper;
 
     public ACLResourceAccessManager(
-            AuthorizationService aclService,
+            AuthorizationService authorizationService,
             LayerGroupContainmentCache groupsCache,
-            AccessManagerConfigProvider configurationManager,
+            AccessManagerConfig configuration,
             WPSHelper wpsHelper) {
 
-        this.authorizationService = aclService;
-        this.configProvider = configurationManager;
+        this.authorizationService = authorizationService;
+        this.config = configuration;
         this.groupsCache = groupsCache;
         this.wpsHelper = wpsHelper;
     }
 
     @Override
     public int getPriority() {
-        return ExtensionPriority.LOWEST;
+        return ExtensionPriority.HIGHEST;
     }
 
     /**
@@ -167,7 +161,18 @@ public class ACLResourceAccessManager extends AbstractResourceAccessManager
             canRead = canWrite = canAdmin = true;
         } else if (isAuthenticated(user)) {
             canRead = true;
-            canWrite = configProvider.get().isGrantWriteToWorkspacesToAuthenticatedUsers();
+            /*
+             * TODO: This sets a global
+             * flag to enable/disable write access to FeatureTypes (and Coverages?). My understanding is it should be enabled at the Rule level
+             * and resolved by the authorization request/response. At the same time, it kind of collides with LayerDetails cqlWrite filters and
+             * service request rules (e.g. allow/deny WFS.Transaction). All in all resolving this value would be complementary
+             * because probably we can't forsee all the paths that could lead to an attempt to perform a modification on a FT/CV,
+             * but I still think a configuration at the Rule level would be more natural, like in a FileSystem ACL, a rule at the
+             * workspace granularity that allows write access to that workspace can be overridden for a given layer with a rule at the layer
+             * granularity?
+             */
+            canWrite = config.isGrantWriteToWorkspacesToAuthenticatedUsers();
+            ;
             canAdmin = isWorkspaceAdmin(user, workspace);
         } else {
             // further logic disabled because of
@@ -177,6 +182,18 @@ public class ACLResourceAccessManager extends AbstractResourceAccessManager
             canAdmin = false;
         }
         return new WorkspaceAccessLimits(catalogMode, canRead, canWrite, canAdmin);
+    }
+
+    /**
+     * Whether to allow write access to resources to authenticated users, if false only admins (users with
+     * {@literal ROLE_ADMINISTRATOR}) have write access.
+     */
+    public void setGrantWriteToWorkspacesToAuthenticatedUsers(boolean grantWriteToWorkspacesToAuthenticatedUsers) {
+        config.setGrantWriteToWorkspacesToAuthenticatedUsers(grantWriteToWorkspacesToAuthenticatedUsers);
+    }
+
+    public void initDefaults() {
+        config.initDefaults();
     }
 
     /**
@@ -191,7 +208,7 @@ public class ACLResourceAccessManager extends AbstractResourceAccessManager
      *     on the {@code 2.24.x} series, for the {@code ACLResourceAccessManager} to keep working and building against
      *     it. Add it back once the GeoServer maintenance version moves to the {@code 2.25.x} series.
      */
-    // @Override
+    @Override
     public boolean isWorkspaceAdmin(Authentication user, Catalog catalog) {
         AccessSummary accessSumary = getAccessSummary(user);
         // revisit: catalog is unsused in this implementation, but maybe verify at least
@@ -255,10 +272,6 @@ public class ACLResourceAccessManager extends AbstractResourceAccessManager
         String workspace = ws != null ? ws.getName() : null;
         String layer = layerGroup.getName();
         return (LayerGroupAccessLimits) getAccessLimits(user, layerGroup, layer, workspace, containers);
-    }
-
-    public AccessManagerConfig getConfig() {
-        return this.configProvider.get();
     }
 
     static boolean isAuthenticated(Authentication user) {
@@ -503,6 +516,17 @@ public class ACLResourceAccessManager extends AbstractResourceAccessManager
     private VectorAccessLimits buildVectorAccessLimits(
             ResourceInfo info, AccessInfo accessInfo, ProcessingResult resultLimits, final CatalogMode catalogMode) {
 
+        VectorAccessLimits accessLimits =
+                new VectorAccessLimits(catalogMode, null, Filter.EXCLUDE, null, Filter.EXCLUDE);
+
+        setFilters(info, accessInfo, resultLimits, accessLimits);
+
+        setAttributesAccessibility(accessInfo.getAttributes(), accessLimits);
+        return accessLimits;
+    }
+
+    private void setFilters(
+            ResourceInfo info, AccessInfo accessInfo, ProcessingResult resultLimits, VectorAccessLimits accessLimits) {
         // merge the area among the filters
         final Geometry intersectsArea = resolveIntersectsArea(info, accessInfo, resultLimits);
         final Geometry clipArea = resolveClipArea(info, accessInfo, resultLimits);
@@ -517,18 +541,23 @@ public class ACLResourceAccessManager extends AbstractResourceAccessManager
             readFilter = mergeFilter(readFilter, areaFilter);
             writeFilter = mergeFilter(writeFilter, areaFilter);
         }
+        accessLimits.setReadFilter(readFilter);
+        accessLimits.setWriteFilter(writeFilter);
+        accessLimits.setClipVectorFilter(clipArea);
+        accessLimits.setIntersectVectorFilter(intersectsArea);
+    }
 
-        // get the attributes
-        var readAttributes = toPropertyNames(accessInfo.getAttributes(), PropertyAccessMode.READ);
-        var writeAttributes = toPropertyNames(accessInfo.getAttributes(), PropertyAccessMode.WRITE);
-
-        var accessLimits =
-                new VectorAccessLimits(catalogMode, readAttributes, readFilter, writeAttributes, writeFilter);
-
-        if (clipArea != null) accessLimits.setClipVectorFilter(clipArea);
-        if (intersectsArea != null) accessLimits.setIntersectVectorFilter(intersectsArea);
-
-        return accessLimits;
+    private void setAttributesAccessibility(Set<LayerAttribute> attributesConfigs, VectorAccessLimits accessLimits) {
+        List<PropertyName> readAttributes = new ArrayList<>();
+        List<PropertyName> writeAttributes = new ArrayList<>();
+        toPropertyNames(attributesConfigs, readAttributes, writeAttributes);
+        // note ResourceAccessManagerWrapper expects null not empty lists
+        if (!readAttributes.isEmpty()) {
+            accessLimits.setReadAttributes(readAttributes);
+        }
+        if (!writeAttributes.isEmpty()) {
+            accessLimits.setWriteAttributes(writeAttributes);
+        }
     }
 
     private Intersects intersects(final Geometry intersectsArea) {
@@ -593,15 +622,13 @@ public class ACLResourceAccessManager extends AbstractResourceAccessManager
             List<LayerGroupInfo> containers,
             Collection<LayerGroupSummary> summaries) {
 
-        AccessManagerConfig configuration = configProvider.get();
-        ContainerLimitResolver resolver = ContainerLimitResolver.of(
-                containers, summaries, authorizationService, user, layer, workspace, configuration);
+        ContainerLimitResolver resolver =
+                ContainerLimitResolver.of(containers, summaries, authorizationService, user, layer, workspace);
 
         ProcessingResult result = resolver.resolveResourceInGroupLimits();
         Geometry intersect = result.getIntersectArea();
         Geometry clip = result.getClipArea();
-        // areas might be in a srid different from the one of the resource
-        // being requested.
+        // areas might be in a srid different from the one of the resource being requested.
         if (intersect != null || clip != null) {
             CoordinateReferenceSystem crs = GeomHelper.getCRSFromInfo(resourceInfo);
             intersect = GeomHelper.reprojectGeometry(intersect, crs);
@@ -614,7 +641,7 @@ public class ACLResourceAccessManager extends AbstractResourceAccessManager
         return result;
     }
 
-    // get the catalogMode for the resource privileging the container one if passed
+    // get the catalogMode for the resource prioritizing the container one if passed
     private CatalogMode getCatalogMode(AccessInfo accessInfo, ProcessingResult resultLimits) {
 
         org.geoserver.acl.domain.rules.CatalogMode ruleCatalogMode;
@@ -627,26 +654,18 @@ public class ACLResourceAccessManager extends AbstractResourceAccessManager
     }
 
     private CatalogMode convert(org.geoserver.acl.domain.rules.CatalogMode ruleCatalogMode) {
-        if (ruleCatalogMode != null) {
-            switch (ruleCatalogMode) {
-                case CHALLENGE:
-                    return CatalogMode.CHALLENGE;
-                case HIDE:
-                    return CatalogMode.HIDE;
-                case MIXED:
-                    return CatalogMode.MIXED;
-                default:
-                    return DEFAULT_CATALOG_MODE;
-            }
-        }
-        return DEFAULT_CATALOG_MODE;
+        return switch (ruleCatalogMode) {
+            case CHALLENGE -> CatalogMode.CHALLENGE;
+            case HIDE -> CatalogMode.HIDE;
+            case MIXED -> CatalogMode.MIXED;
+            default -> DEFAULT_CATALOG_MODE;
+        };
     }
 
     // Builds a rule filter to retrieve the AccessInfo for the resource
     private AccessRequest buildAccessRequest(String workspace, String layer, Authentication user) {
 
-        AccessManagerConfig configuration = configProvider.get();
-        return new AccessRequestBuilder(configuration)
+        return new AccessRequestBuilder()
                 .request(Dispatcher.REQUEST.get())
                 .workspace(workspace)
                 .layer(layer)
@@ -679,30 +698,20 @@ public class ACLResourceAccessManager extends AbstractResourceAccessManager
         return FF.and(filter, areaFilter);
     }
 
-    /**
-     * Builds the equivalent {@link PropertyName} list for the specified access mode
-     *
-     * @return {@code null} if attributes is empty, note {@link ResourceAccessManagerWrapper} depends on {@code null}.
-     *     The mapped property names otherwise.
-     */
-    private List<PropertyName> toPropertyNames(Set<LayerAttribute> attributes, PropertyAccessMode mode) {
-        // handle simple case
-        if (attributes == null || attributes.isEmpty()) {
-            return null;
-        }
-
-        // filter and translate
-        List<PropertyName> result = new ArrayList<>();
+    private void toPropertyNames(
+            Set<LayerAttribute> attributes, List<PropertyName> readAttributes, List<PropertyName> writeAttributes) {
         for (LayerAttribute attribute : attributes) {
             AccessType access = attribute.getAccess();
-            boolean alwaysVisible = access == AccessType.READWRITE;
-            if (alwaysVisible || (mode == PropertyAccessMode.READ && access == AccessType.READONLY)) {
-                PropertyName property = FF.property(attribute.getName());
-                result.add(property);
+            if (access == null /* shouldn't happen */ || access == AccessType.NONE) {
+                continue;
+            }
+            PropertyName property = FF.property(attribute.getName());
+            if (access == AccessType.READWRITE) {
+                writeAttributes.add(property);
+            } else {
+                readAttributes.add(property);
             }
         }
-
-        return result;
     }
 
     private AccessSummary getAccessSummary(Authentication user) {

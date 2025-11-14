@@ -67,6 +67,7 @@ public class AdminRuleEditPageTest extends AclWicketTestSupport {
 
         AdminRuleEditModel pageModel = new AdminRuleEditModel(new MutableAdminRule(userRule));
 
+        @SuppressWarnings("unused")
         AdminRuleEditPage page = tester.startPage(new AdminRuleEditPage(pageModel));
         tester.assertRenderedPage(AdminRuleEditPage.class);
         // print(page, true, true);
@@ -107,6 +108,7 @@ public class AdminRuleEditPageTest extends AclWicketTestSupport {
         AdminRuleEditPage page = tester.startPage(new AdminRuleEditPage(pageModel));
 
         byte[] serialized = SerializationUtils.serialize(page);
+        @SuppressWarnings("deprecation")
         AdminRuleEditPage deserialized = (AdminRuleEditPage) SerializationUtils.deserialize(serialized);
         assertNotNull(deserialized);
     }

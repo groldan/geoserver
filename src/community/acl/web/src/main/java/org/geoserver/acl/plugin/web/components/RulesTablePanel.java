@@ -21,7 +21,6 @@ import org.apache.wicket.model.IModel;
 import org.apache.wicket.request.resource.PackageResourceReference;
 import org.geoserver.acl.plugin.web.support.SerializableBiConsumer;
 import org.geoserver.acl.plugin.web.support.SerializableConsumer;
-import org.geoserver.catalog.MetadataMap;
 import org.geoserver.web.wicket.GeoServerDataProvider.Property;
 import org.geoserver.web.wicket.GeoServerDataProvider.PropertyPlaceholder;
 import org.geoserver.web.wicket.GeoServerTablePanel;
@@ -141,10 +140,6 @@ public final class RulesTablePanel<R extends Serializable> extends GeoServerTabl
         onSelectionUpdate.accept(target);
     }
 
-    private MetadataMap getMetaDataMapFromSession(String key) {
-        return (MetadataMap) getSession().getAttribute(key);
-    }
-
     public class UpDownButtonsPanel extends Panel {
 
         private R rule;
@@ -181,7 +176,7 @@ public final class RulesTablePanel<R extends Serializable> extends GeoServerTabl
         }
 
         private ImageAjaxLink<Object> moveDownLink() {
-            ImageAjaxLink<Object> downLink = new ImageAjaxLink<Object>("down", imageRef("arrow_down.png")) {
+            ImageAjaxLink<Object> downLink = new ImageAjaxLink<>("down", imageRef("arrow_down.png")) {
 
                 protected @Override void onClick(AjaxRequestTarget target) {
                     RulesTablePanel.this.getDataProvider().moveDown(rule);

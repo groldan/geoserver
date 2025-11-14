@@ -28,7 +28,6 @@ import java.util.List;
 import org.geoserver.acl.domain.rules.Rule;
 import org.geoserver.acl.domain.rules.RuleLimits;
 import org.geoserver.acl.plugin.accessmanager.ACLResourceAccessManager;
-import org.geoserver.acl.plugin.accessmanager.AccessManagerConfig;
 import org.geoserver.acl.plugin.it.support.AclIntegrationTestSupport;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.LayerGroupInfo;
@@ -98,7 +97,7 @@ public class AccessManagerIntegrationTest extends GeoServerSystemTestSupport {
         support.before();
         accessManager = applicationContext.getBean(ACLResourceAccessManager.class);
         // reset default config
-        accessManager.getConfig().initDefaults();
+        accessManager.initDefaults();
         // add rule to grant access to all to everything with a very low priority
         support.addRule(ALLOW, null, null, null, null, null, null, 9999);
     }
@@ -298,8 +297,8 @@ public class AccessManagerIntegrationTest extends GeoServerSystemTestSupport {
 
         // add allowed Area to layer groups rules
         RuleLimits limits1 = support.addRuleLimits(r1, HIDE, AREA_WKT_1, 4326);
-        RuleLimits limits2 = support.addRuleLimits(
-                r2, HIDE, reprojectWkt(AREA_WKT_2, CRS.decode("EPSG:4326"), CRS.decode("EPSG:3857"), 3857), 3857);
+		String wkt3857 = reprojectWkt(AREA_WKT_2, CRS.decode("EPSG:4326"), CRS.decode("EPSG:3857"), 3857);
+		RuleLimits limits2 = support.addRuleLimits(r2, HIDE, wkt3857, 3857);
         RuleLimits limits3 = support.addRuleLimits(r3, HIDE, AREA_WKT_3, 4326);
         RuleLimits limits4 = support.addRuleLimits(r4, HIDE, AREA_WKT_4, 4326);
 
@@ -384,7 +383,7 @@ public class AccessManagerIntegrationTest extends GeoServerSystemTestSupport {
 
     @Test
     public void testCiteCannotWriteOnWorkspace() {
-        accessManager.getConfig().setGrantWriteToWorkspacesToAuthenticatedUsers(false);
+        accessManager.setGrantWriteToWorkspacesToAuthenticatedUsers(false);
         Authentication user = getUser("cite", "cite", "ROLE_AUTHENTICATED");
 
         // check workspace access
@@ -600,11 +599,6 @@ public class AccessManagerIntegrationTest extends GeoServerSystemTestSupport {
 
     @Test
     public void testLayerInGroupDirectAccessLimitResolutionByRole() throws Exception {
-
-        AccessManagerConfig config = accessManager.getConfig();
-        config.setUseRolesToFilter(true);
-        config.setAcceptedRoles(List.of("ROLE_ONE"));
-
         Catalog catalog = getRawCatalog();
         LayerInfo lakes = catalog.getLayerByName(getLayerId(MockData.LAKES));
         LayerInfo fifteen = catalog.getLayerByName(getLayerId(MockData.FIFTEEN));
@@ -637,10 +631,6 @@ public class AccessManagerIntegrationTest extends GeoServerSystemTestSupport {
     @Test
     public void testLayerInGroupLimitResolutionByRole() throws Exception {
         // tests group limit resolution with filtering by role option enabled in ACL config.
-
-        AccessManagerConfig config = accessManager.getConfig();
-        config.setUseRolesToFilter(true);
-        config.setAcceptedRoles(List.of("ROLE_TWO"));
 
         Catalog catalog = getRawCatalog();
         LayerInfo lakes = catalog.getLayerByName(getLayerId(MockData.LAKES));

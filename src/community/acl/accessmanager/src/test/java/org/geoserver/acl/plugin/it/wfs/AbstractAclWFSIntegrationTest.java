@@ -54,7 +54,7 @@ public abstract class AbstractAclWFSIntegrationTest extends WFSTestSupport {
         support.before();
         accessManager = applicationContext.getBean(ACLResourceAccessManager.class);
         // reset default config
-        accessManager.getConfig().initDefaults();
+        accessManager.initDefaults();
     }
 
     @After

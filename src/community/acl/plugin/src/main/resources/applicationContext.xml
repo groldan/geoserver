@@ -15,4 +15,14 @@
 
    <!-- load from AclPluginSpringConfiguration -->
 	<context:component-scan base-package="org.geoserver.acl.plugin.config.spring"/>
+
+	<bean id="AclPluginExtension"
+		class="org.geoserver.platform.ModuleStatusImpl">
+		<property name="module" value="gs-acl-plugin" />
+		<property name="name" value="GeoServer ACL Extension" />
+		<property name="component" value="GeoServer ACL Extension" />
+		<property name="available" value="true" />
+		<property name="enabled" value="true" />
+		<property name="category" value="COMMUNITY" />
+    </bean>
 </beans>

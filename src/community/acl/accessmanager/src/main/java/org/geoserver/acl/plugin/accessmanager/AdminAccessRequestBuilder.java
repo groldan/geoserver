@@ -18,13 +18,8 @@ class AdminAccessRequestBuilder {
     private String ipAddress;
     private String workspace;
     private Authentication user;
-    private AccessManagerConfig config;
 
     private static final Logger LOGGER = Logging.getLogger(AdminAccessRequestBuilder.class);
-
-    AdminAccessRequestBuilder(AccessManagerConfig configuration) {
-        this.config = configuration;
-    }
 
     AdminAccessRequestBuilder ipAddress(String ipAddress) {
         this.ipAddress = ipAddress;
@@ -43,18 +38,17 @@ class AdminAccessRequestBuilder {
 
     /** Builds an {@link AdminAccessRequest} using the values set through the various builder's method. */
     public AdminAccessRequest build() {
-        AccessRequestUserResolver userResolver =
-                new AccessRequestUserResolver(config).withUser(user).resolve();
-        AdminAccessRequest.Builder builder = AdminAccessRequest.builder();
-
-        builder.user(userResolver.getUsername());
-        builder.roles(userResolver.getUnfilteredRoles());
-
-        builder.workspace(workspace);
         String sourceAddress = resolveSourceAddress();
-        builder.sourceAddress(sourceAddress);
+        Authentication auth = this.user;
+        String workspaceName = this.workspace;
 
-        AdminAccessRequest accessRequest = builder.build();
+        AdminAccessRequest accessRequest = AdminAccessRequest.builder()
+                .user(AccessRequestUserResolver.userName(auth))
+                .roles(AccessRequestUserResolver.roleNames(auth))
+                .sourceAddress(sourceAddress)
+                .workspace(workspaceName)
+                .build();
+
         LOGGER.log(Level.FINEST, "AdminAccessRequest: {0}", accessRequest);
 
         return accessRequest;

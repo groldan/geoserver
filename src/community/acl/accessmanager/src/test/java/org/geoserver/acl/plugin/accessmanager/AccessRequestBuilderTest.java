@@ -10,7 +10,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.Set;
 import org.geoserver.acl.authorization.AccessRequest;
 import org.geoserver.ows.Request;
@@ -23,9 +22,7 @@ public class AccessRequestBuilderTest {
 
     @Test
     public void testFilterByUser() {
-        AccessManagerConfig configuration = getAccessManagerConfiguration();
-        configuration.setUseRolesToFilter(false);
-        AccessRequestBuilder ruleFilterBuilder = new AccessRequestBuilder(configuration)
+        AccessRequestBuilder ruleFilterBuilder = new AccessRequestBuilder()
                 .user(getAuthentication())
                 .request(getRequest())
                 .layer("states")
@@ -44,18 +41,14 @@ public class AccessRequestBuilderTest {
 
     @Test
     public void testFilterByRole() {
-        AccessManagerConfig configuration = getAccessManagerConfiguration();
-        configuration.setUseRolesToFilter(true);
-        configuration.setAcceptedRoles(List.of("ROLE_ONE"));
-
-        AccessRequestBuilder ruleFilterBuilder = new AccessRequestBuilder(configuration)
+        AccessRequestBuilder ruleFilterBuilder = new AccessRequestBuilder()
                 .user(getAuthentication())
                 .request(getRequest())
                 .layer("states")
                 .workspace("topp");
 
         AccessRequest request = ruleFilterBuilder.build();
-        assertEquals(Set.of("ROLE_ONE"), request.getRoles());
+        assertEquals(Set.of("ROLE_ONE", "ROLE_TWO"), request.getRoles());
         assertEquals(getAuthentication().getName(), request.getUser());
         assertEquals("WMS", request.getService());
         assertEquals("GETMAP", request.getRequest());
@@ -67,9 +60,8 @@ public class AccessRequestBuilderTest {
 
     @Test
     public void testDefaults() {
-        AccessRequestBuilder ruleFilterBuilder = new AccessRequestBuilder(getAccessManagerConfiguration())
-                .user(getAuthentication())
-                .request(getRequest());
+        AccessRequestBuilder ruleFilterBuilder =
+                new AccessRequestBuilder().user(getAuthentication()).request(getRequest());
 
         AccessRequest request = ruleFilterBuilder.build();
         assertEquals(Set.of("ROLE_ONE", "ROLE_TWO"), request.getRoles());

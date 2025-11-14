@@ -5,7 +5,6 @@
 package org.geoserver.acl.plugin.config.accessmanager;
 
 import org.geoserver.acl.plugin.accessmanager.ACLResourceAccessManager;
-import org.geoserver.acl.plugin.config.configmanager.AclConfigurationManagerConfiguration;
 import org.geoserver.acl.plugin.config.domain.client.ApiClientAclDomainServicesConfiguration;
 import org.geoserver.security.ResourceAccessManager;
 import org.springframework.context.annotation.Configuration;
@@ -17,14 +16,11 @@ import org.springframework.context.annotation.Import;
  * <p>{@link ACLResourceAccessManager} implements GeoServer {@link ResourceAccessManager} by delegating resource access
  * requests to the GeoServer ACL service.
  *
- * @since 1.0
- * @see AclConfigurationManagerConfiguration
  * @see ApiClientAclDomainServicesConfiguration
  * @see AccessManagerSpringConfig
  */
 @Configuration
 @Import({ //
-    AclConfigurationManagerConfiguration.class, //
     ApiClientAclDomainServicesConfiguration.class, //
     AccessManagerSpringConfig.class
 })

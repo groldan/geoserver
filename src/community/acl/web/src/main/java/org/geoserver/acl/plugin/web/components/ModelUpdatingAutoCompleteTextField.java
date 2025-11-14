@@ -17,8 +17,6 @@ import org.geoserver.acl.plugin.web.support.SerializableFunction;
 /**
  * {@link AutoCompleteTextField} that dynamically updates the model value by calling
  * {@code getModel().setObject(getConvertedInput())}
- *
- * @since 1.0
  */
 @SuppressWarnings("serial")
 public class ModelUpdatingAutoCompleteTextField<T> extends AutoCompleteTextField<T> {

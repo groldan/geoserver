@@ -106,7 +106,6 @@ public abstract class AclBaseTest extends GeoServerSystemTestSupport {
         aclAuthorizationService = applicationContext.getBean(AuthorizationService.class);
 
         // reset config defaults
-        accessManager.getConfig().initDefaults();
         createDefaultRules(ruleAdminService);
     }
 

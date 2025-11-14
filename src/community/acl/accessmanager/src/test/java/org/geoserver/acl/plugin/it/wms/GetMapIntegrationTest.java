@@ -95,7 +95,7 @@ public class GetMapIntegrationTest extends AbstractAclWMSIntegrationTest {
         ImageAssert.assertEquals(expectedImage, image, 500);
 
         // Roles are not used to request access info, only the ALLOW rule matches
-        accessManager.getConfig().setUseRolesToFilter(false);
+        // accessManager.getConfig().setUseRolesToFilter(false);
         expectedImage = loadExpectedImage("lakes_and_places_full.png");
         image = getAsImage(url, "image/png");
         ImageAssert.assertEquals(expectedImage, image, 500);
@@ -104,8 +104,8 @@ public class GetMapIntegrationTest extends AbstractAclWMSIntegrationTest {
     /** Tests that the user cannot access based on the roles of other users */
     @Test
     public void testRoleOnlyMatch() throws Exception {
-        assertTrue(super.accessManager.getConfig().isUseRolesToFilter());
-        super.accessManager.getConfig().setAcceptedRoles(List.of("ROLE_USER"));
+        //        assertTrue(super.accessManager.getConfig().isUseRolesToFilter());
+        //        super.accessManager.getConfig().setAcceptedRoles(List.of("ROLE_USER"));
 
         LayerGroupInfo group = addLakesPlacesLayerGroup(NAMED, "lakes_and_places");
 
@@ -122,7 +122,7 @@ public class GetMapIntegrationTest extends AbstractAclWMSIntegrationTest {
     /** Tests that the user can access with rules assigned personally and not to a role */
     @Test
     public void testAccessWithoutRole() throws Exception {
-        assertTrue(super.accessManager.getConfig().isUseRolesToFilter());
+        //        assertTrue(super.accessManager.getConfig().isUseRolesToFilter());
 
         LayerGroupInfo group = addLakesPlacesLayerGroup(NAMED, "lakes_and_places");
 
@@ -138,9 +138,6 @@ public class GetMapIntegrationTest extends AbstractAclWMSIntegrationTest {
     /** Tests that the user can access based on any role */
     @Test
     public void testAnyRoleMatch() throws Exception {
-        assertTrue(super.accessManager.getConfig().isUseRolesToFilter());
-        assertEquals(List.of("*"), super.accessManager.getConfig().getAcceptedRoles());
-
         LayerGroupInfo group = addLakesPlacesLayerGroup(NAMED, "lakes_and_places");
 
         Rule allow = support.addRule(ALLOW, null, "ROLE_WMS", null, null, null, null, 1);

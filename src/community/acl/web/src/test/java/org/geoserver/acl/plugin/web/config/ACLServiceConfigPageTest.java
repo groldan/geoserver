@@ -6,36 +6,18 @@
  */
 package org.geoserver.acl.plugin.web.config;
 
-import static org.junit.Assert.assertNotNull;
-
-import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import org.apache.wicket.util.tester.FormTester;
-import org.geoserver.acl.plugin.accessmanager.config.AclConfigurationManager;
 import org.geoserver.acl.plugin.web.support.AclWicketTestSupport;
-import org.geoserver.platform.GeoServerExtensions;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
 public class ACLServiceConfigPageTest extends AclWicketTestSupport {
-
-    public @Rule TemporaryFolder configFolder = new TemporaryFolder();
-
-    private AclConfigurationManager configManager;
-    private File testConfigFile;
-
     @Before
     @Override
     public void beforeEach() throws IOException {
         super.beforeEach();
-        configManager = GeoServerExtensions.bean(AclConfigurationManager.class);
-        assertNotNull(configManager);
-        testConfigFile = configFolder.newFile("test-config.properties");
-        configManager.setConfigLocation(testConfigFile.toURI());
-
         login();
         tester.startPage(ACLServiceConfigPage.class);
     }

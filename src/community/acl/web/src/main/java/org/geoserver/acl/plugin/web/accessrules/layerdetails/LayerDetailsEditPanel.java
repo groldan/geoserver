@@ -10,7 +10,7 @@ import com.google.common.collect.Streams;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
+import java.util.logging.Logger;
 import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.ajax.form.OnChangeAjaxBehavior;
 import org.apache.wicket.event.IEvent;
@@ -48,6 +48,7 @@ import org.geoserver.acl.plugin.web.support.SerializableFunction;
 import org.geoserver.catalog.PublishedInfo;
 import org.geotools.filter.text.cql2.CQLException;
 import org.geotools.filter.text.ecql.ECQL;
+import org.geotools.util.logging.Logging;
 import org.wicketstuff.select2.ChoiceProvider;
 import org.wicketstuff.select2.Response;
 import org.wicketstuff.select2.StringTextChoiceProvider;
@@ -75,13 +76,12 @@ import org.wicketstuff.select2.StringTextChoiceProvider;
  * @see LayerAttributesEditPanel
  * @see WorkspaceChangeEvent
  * @see LayerChangeEvent
- * @since 1.0
  */
-@Slf4j
 @SuppressWarnings("serial")
 public class LayerDetailsEditPanel extends FormComponentPanel<MutableLayerDetails> {
 
-    private FormComponent<Boolean> setLayerDetailsCheck;
+    private static final Logger log = Logging.getLogger(LayerDetailsEditPanel.class);
+
     private WebMarkupContainer detailsContainer;
 
     private FormComponent<LayerType> layerType;
@@ -114,7 +114,7 @@ public class LayerDetailsEditPanel extends FormComponentPanel<MutableLayerDetail
         this.editModel = model;
         setModel(componentModel = CompoundPropertyModel.of(editModel.getModel()));
 
-        add(setLayerDetailsCheck = setLayerDetailsCheck());
+        add(setLayerDetailsCheck());
         add(detailsContainer = detailsContainer());
 
         detailsContainer.add(layerType = layerType());

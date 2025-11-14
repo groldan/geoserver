@@ -33,7 +33,7 @@ public class AbstractAclWMSIntegrationTest extends WMSTestSupport {
         support.before();
         accessManager = applicationContext.getBean(ACLResourceAccessManager.class);
         // reset default config
-        accessManager.getConfig().initDefaults();
+        accessManager.initDefaults();
     }
 
     @After

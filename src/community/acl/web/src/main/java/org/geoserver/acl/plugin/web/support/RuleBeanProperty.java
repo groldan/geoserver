@@ -33,9 +33,9 @@ public class RuleBeanProperty<T> extends BeanProperty<T> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public IModel getModel(IModel<T> itemModel) { // replace null by *
-        return new PropertyModel<Object>(itemModel, getPropertyPath()) {
+        return new PropertyModel<>(itemModel, getPropertyPath()) {
             @Override
             public Object getObject() {
                 Object o = super.getObject();

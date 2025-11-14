@@ -5,10 +5,11 @@
 package org.geoserver.acl.plugin.config.cache;
 
 import jakarta.annotation.PostConstruct;
-import lombok.extern.slf4j.Slf4j;
+import java.util.logging.Logger;
 import org.geoserver.acl.authorization.cache.CachingAuthorizationService;
 import org.geoserver.acl.authorization.cache.CachingAuthorizationServiceConfiguration;
 import org.geoserver.config.impl.GeoServerLifecycleHandler;
+import org.geotools.util.logging.Logging;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -17,13 +18,12 @@ import org.springframework.context.annotation.Import;
  * Plugin-specific extension for {@link CachingAuthorizationServiceConfiguration} to support GeoServer without spring
  * boot enabling and disabling through ConditionalOnAclEnabled.
  *
- * @since 2.3
  * @see CachingAuthorizationServiceConfiguration
  */
 @Configuration
 @Import(CachingAuthorizationServiceConfiguration.class)
-@Slf4j(topic = "org.geoserver.acl.plugin.config.cache")
 public class CachingAuthorizationServicePluginConfiguration {
+    private static final Logger log = Logging.getLogger(CachingAuthorizationServicePluginConfiguration.class);
 
     @PostConstruct
     void logUsing() {

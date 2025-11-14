@@ -8,10 +8,10 @@ package org.geoserver.acl.plugin.accessmanager;
 
 import static java.util.logging.Level.WARNING;
 
+import jakarta.annotation.Nullable;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.InetAddress;
 import java.util.Optional;
-import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.geoserver.acl.authorization.AccessRequest;
@@ -36,15 +36,10 @@ class AccessRequestBuilder {
     private String layer;
 
     private Authentication user;
-    private AccessManagerConfig config;
 
     private static final Logger LOGGER = Logging.getLogger(AccessRequestBuilder.class);
 
-    AccessRequestBuilder(AccessManagerConfig configuration) {
-        this.config = configuration;
-    }
-
-    AccessRequestBuilder request(Request request) {
+    AccessRequestBuilder request(@Nullable org.geoserver.ows.Request request) {
         this.owsRequest = request;
         return this;
     }
@@ -59,48 +54,47 @@ class AccessRequestBuilder {
         return this;
     }
 
-    AccessRequestBuilder ipAddress(String ipAddress) {
+    public AccessRequestBuilder ipAddress(String ipAddress) {
         this.ipAddress = ipAddress;
         return this;
     }
 
-    AccessRequestBuilder workspace(String workspace) {
+    public AccessRequestBuilder workspace(String workspace) {
         this.workspace = workspace;
         return this;
     }
 
-    AccessRequestBuilder layer(String layer) {
+    public AccessRequestBuilder layer(String layer) {
         this.layer = layer;
         return this;
     }
 
-    AccessRequestBuilder user(Authentication authentication) {
+    public AccessRequestBuilder user(Authentication authentication) {
         this.user = authentication;
         return this;
     }
 
     /** Builds an {@link AccessRequest} using the values set through the various builder's method. */
     public AccessRequest build() {
-        AccessRequestUserResolver userResolver =
-                new AccessRequestUserResolver(config).withUser(user).resolve();
-
-        Set<String> roles = userResolver.getUserRoles();
-
-        AccessRequest.Builder builder = AccessRequest.builder();
-        builder.user(userResolver.getUsername());
-        builder.roles(roles);
+        Authentication auth = this.user;
+        String sourceAddress = resolveSourceAddress();
 
         // get info from the current request
         Optional<Request> owsReq = resolveOwsRequest();
         String requestedService = resoleService(owsReq);
         String requestedServiceRequest = resolveServiceRequest(owsReq);
 
-        builder.service(requestedService);
-        builder.request(requestedServiceRequest);
-        builder.workspace(workspace);
-        builder.layer(layer);
-        String sourceAddress = resolveSourceAddress();
-        builder.sourceAddress(sourceAddress);
+        String workspace = this.workspace;
+        String layer = this.layer;
+
+        AccessRequest.Builder builder = AccessRequest.builder()
+                .user(AccessRequestUserResolver.userName(auth))
+                .roles(AccessRequestUserResolver.roleNames(auth))
+                .sourceAddress(sourceAddress)
+                .service(requestedService)
+                .request(requestedServiceRequest)
+                .workspace(workspace)
+                .layer(layer);
 
         AccessRequest accessRequest = builder.build();
         LOGGER.log(Level.FINEST, "AccessRequest: {0}", accessRequest);

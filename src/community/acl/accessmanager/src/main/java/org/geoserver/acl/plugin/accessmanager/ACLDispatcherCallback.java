@@ -59,16 +59,10 @@ public class ACLDispatcherCallback extends AbstractDispatcherCallback {
 
     private Catalog catalog;
 
-    private final AccessManagerConfigProvider configProvider;
-
-    public ACLDispatcherCallback(
-            AuthorizationService aclService,
-            LocalWorkspaceCatalog catalog,
-            AccessManagerConfigProvider configProvider) {
+    public ACLDispatcherCallback(AuthorizationService aclService, LocalWorkspaceCatalog catalog) {
 
         this.aclService = aclService;
         this.catalog = catalog;
-        this.configProvider = configProvider;
     }
 
     @Override
@@ -136,7 +130,7 @@ public class ACLDispatcherCallback extends AbstractDispatcherCallback {
             ResourceInfo resource = layer.getResource();
 
             // get the rule, it contains default and allowed styles
-            AccessRequest ruleFilter = new AccessRequestBuilder(configProvider.get())
+            AccessRequest ruleFilter = new AccessRequestBuilder()
                     .user(user)
                     .service(service)
                     .request(request)
@@ -191,8 +185,6 @@ public class ACLDispatcherCallback extends AbstractDispatcherCallback {
             ResourceInfo info = null;
             if (layer.getType() == MapLayerInfo.TYPE_VECTOR || layer.getType() == MapLayerInfo.TYPE_RASTER) {
                 info = layer.getResource();
-            } else if (!configProvider.get().isAllowRemoteAndInlineLayers()) {
-                throw new ServiceException("Remote layers are not allowed");
             }
 
             // get the rule, it contains default and allowed styles
@@ -201,7 +193,7 @@ public class ACLDispatcherCallback extends AbstractDispatcherCallback {
                 String workspace =
                         info == null ? null : info.getStore().getWorkspace().getName();
                 String layerName = info == null ? null : info.getName();
-                ruleFilter = new AccessRequestBuilder(configProvider.get())
+                ruleFilter = new AccessRequestBuilder()
                         .user(user)
                         .service(service)
                         .request(request)
@@ -308,7 +300,7 @@ public class ACLDispatcherCallback extends AbstractDispatcherCallback {
 
         private static LayersKvpParser singleton = null;
 
-        public static LayersKvpParser getInstance() {
+        public static synchronized LayersKvpParser getInstance() {
             if (singleton == null) singleton = new LayersKvpParser();
             return singleton;
         }

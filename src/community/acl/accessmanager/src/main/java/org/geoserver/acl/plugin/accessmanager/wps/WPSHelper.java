@@ -77,17 +77,16 @@ public class WPSHelper implements ApplicationContextAware {
 
         for (String procName : procNames) {
             LOGGER.fine("Retrieving AccessInfo for proc " + procName);
-            AccessRequest request = accessRequest.withSubfield(procName);
-
-            AccessInfo accessInfo = aclAuthService.getAccessInfo(request);
-            if (accessInfo.getGrant() == GrantType.DENY) {
+            AccessRequest processAccessRequest = accessRequest.withSubfield(procName);
+            AccessInfo processAccessInfo = aclAuthService.getAccessInfo(processAccessRequest);
+            if (processAccessInfo.getGrant() == GrantType.DENY) {
                 // shortcut: if at least one process is not allowed for current resource, do not
                 // evaluate the other procs
-                LOGGER.fine("Process " + procName + " not allowed to operate on layer");
+                LOGGER.fine(() -> "Process %s not allowed to operate on layer".formatted(procName));
                 return new WPSAccessInfo(AccessInfo.DENY_ALL, null, null);
             }
-            if (!accessInfo.equals(wpsAccessInfo)) {
-                procAccessInfo.add(accessInfo);
+            if (!processAccessInfo.equals(wpsAccessInfo)) {
+                procAccessInfo.add(processAccessInfo);
             } else {
                 // No specific rules for this proc, we're getting the generic WPS we already have
                 LOGGER.fine("Skipping accessInfo for " + procName);

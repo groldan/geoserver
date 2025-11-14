@@ -55,7 +55,7 @@ public class AdminRuleEditPage extends GeoServerSecuredPage {
         form.add(workspaceChoice = workspaceChoice());
         form.add(grantTypeChoice = grantTypeChoice());
         form.add(saveLink());
-        form.add(new BookmarkablePageLink<MutableAdminRule>("cancel", AdminRulesACLPage.class));
+        form.add(new BookmarkablePageLink<>("cancel", AdminRulesACLPage.class));
 
         // feedback panel for error messages
         form.add(new FeedbackPanel("feedback"));

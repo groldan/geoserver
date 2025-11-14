@@ -24,13 +24,13 @@ public class GeometryWktTextArea<T extends Geometry> extends TextArea<T> {
     private final Class<T> geomType;
 
     public static GeometryWktTextArea<Geometry> of(@NonNull String id) {
-        return new GeometryWktTextArea<Geometry>(id, Geometry.class, Model.of());
+        return new GeometryWktTextArea<>(id, Geometry.class, Model.of());
     }
 
     public GeometryWktTextArea(@NonNull String id, @NonNull Class<T> geomType, @NonNull IModel<T> model) {
         super(id, model);
         this.geomType = geomType;
-        add(new IValidator<T>() {
+        add(new IValidator<>() {
             public @Override void validate(IValidatable<T> validatable) {
                 try {
                     validatable.getValue();

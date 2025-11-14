@@ -48,7 +48,6 @@ import org.geoserver.acl.plugin.web.support.SerializableFunction;
  * @see LayerDetailsEditPanel
  * @see ModelUpdatingAutoCompleteTextField
  * @see IPAddressRangeValidator
- * @since 1.0
  */
 @SuppressWarnings("serial")
 class DataAccessRuleEditPanel extends FormComponentPanel<MutableRule> {
@@ -127,13 +126,13 @@ class DataAccessRuleEditPanel extends FormComponentPanel<MutableRule> {
     }
 
     private FormComponent<String> addressRangeChoice() {
-        TextField<String> field = new TextField<String>("addressRange");
+        TextField<String> field = new TextField<>("addressRange");
         field.add(new IPAddressRangeValidator());
         return field;
     }
 
     private FormComponent<Long> priority() {
-        NumberTextField<Long> p = new NumberTextField<Long>("priority");
+        NumberTextField<Long> p = new NumberTextField<>("priority");
         p.setRequired(true);
         p.setType(Long.class);
         return p;

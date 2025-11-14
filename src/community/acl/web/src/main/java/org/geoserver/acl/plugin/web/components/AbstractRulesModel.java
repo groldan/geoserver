@@ -14,13 +14,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.NonNull;
-import lombok.extern.slf4j.Slf4j;
-import org.geoserver.acl.plugin.accessmanager.AccessManagerConfig;
-import org.geoserver.acl.plugin.accessmanager.AccessManagerConfigProvider;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CatalogFacade;
 import org.geoserver.catalog.Predicates;
@@ -36,12 +35,13 @@ import org.geoserver.security.impl.GeoServerUser;
 import org.geoserver.web.GeoServerApplication;
 import org.geotools.api.filter.Filter;
 import org.geotools.api.filter.sort.SortBy;
-import org.springframework.context.ApplicationContext;
+import org.geotools.util.logging.Logging;
 import org.springframework.util.StringUtils;
 
-@Slf4j
 @SuppressWarnings("serial")
 public abstract class AbstractRulesModel implements Serializable {
+
+    private static final Logger log = Logging.getLogger(AbstractRulesModel.class);
 
     /**
      * Maximum number of items to show on {@link #getWorkspaceChoices(}, {@link #getUserChoices},
@@ -50,7 +50,7 @@ public abstract class AbstractRulesModel implements Serializable {
     protected static final int MAX_SUGGESTIONS = 100;
 
     private Stream<Service> findServices() {
-        return GeoServerExtensions.extensions(Service.class).stream();
+        return GeoServerExtensions.extensions(org.geoserver.platform.Service.class).stream();
     }
 
     public List<String> findServiceNames() {
@@ -192,7 +192,7 @@ public abstract class AbstractRulesModel implements Serializable {
                     .sorted()
                     .distinct();
         } catch (IOException e) {
-            log.warn("Error obtaining available roles", e);
+            log.log(Level.WARNING, "Error obtaining available roles", e);
             return Stream.empty();
         }
     }
@@ -219,7 +219,7 @@ public abstract class AbstractRulesModel implements Serializable {
                         try {
                             return t.getUsers();
                         } catch (IOException e) {
-                            log.warn("Error getting users from group service " + t.getName(), e);
+                            log.log(Level.WARNING, "Error getting users from group service " + t.getName(), e);
                             return Set.<GeoServerUser>of();
                         }
                     })
@@ -228,7 +228,7 @@ public abstract class AbstractRulesModel implements Serializable {
                     .sorted()
                     .distinct();
         } catch (IOException e) {
-            log.warn("Error getting users for role " + roleName, e);
+            log.log(Level.WARNING, "Error getting users for role " + roleName, e);
             return Stream.empty();
         }
     }
@@ -241,7 +241,7 @@ public abstract class AbstractRulesModel implements Serializable {
             try {
                 rolesForUser = roleService.getRolesForUser(userName);
             } catch (IOException e) {
-                log.warn(e.getLocalizedMessage(), e);
+                log.log(Level.WARNING, "Error fetching roles for user %s: %s".formatted(userName, e.getMessage()), e);
             }
         }
         return rolesForUser.stream().map(GeoServerRole::getAuthority);
@@ -253,20 +253,6 @@ public abstract class AbstractRulesModel implements Serializable {
 
     protected GeoServerSecurityManager securityManager() {
         return GeoServerApplication.get().getSecurityManager();
-    }
-
-    protected AccessManagerConfig config() {
-        return configProvider().get();
-    }
-
-    protected static AccessManagerConfigProvider configProvider() {
-        // can't use GeoServerApplication.getBeanOfType cause it delegates to
-        // GeoServerExtensions
-        // which throws an exception if there are multiple beans of the same type,
-        // disregarding the
-        // @Primary config
-        ApplicationContext context = GeoServerApplication.get().getApplicationContext();
-        return context.getBean(AccessManagerConfigProvider.class);
     }
 
     protected static final Map<String, List<String>> KNOWN_SERVICES = Map.of(

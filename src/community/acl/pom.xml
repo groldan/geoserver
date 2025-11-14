@@ -15,7 +15,6 @@
     <module>accessmanager</module>
     <module>web</module>
     <module>wps</module>
-    <module>config</module>
     <module>plugin</module>
     <module>assembly</module>
   </modules>
@@ -54,11 +53,6 @@
       <dependency>
         <groupId>org.geoserver.community</groupId>
         <artifactId>gs-acl-plugin-authservice-openapi</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.geoserver.community</groupId>
-        <artifactId>gs-acl-plugin-config</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>

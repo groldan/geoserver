@@ -40,7 +40,6 @@ import org.geoserver.web.wicket.GeoServerTablePanel;
 @SuppressWarnings("serial")
 class LayerAttributesEditPanel extends FormComponentPanel<List<MutableLayerAttribute>> {
 
-    private FormComponent<Boolean> layerAttributesCheck;
     private WebMarkupContainer attributesContainer;
     private LayerAttribtuesTable table;
 
@@ -50,7 +49,7 @@ class LayerAttributesEditPanel extends FormComponentPanel<List<MutableLayerAttri
         super(id, panelModel.getModel());
         this.panelModel = panelModel;
 
-        add(layerAttributesCheck = layerAttributesCheck());
+        add(layerAttributesCheck());
         add(attributesContainer = attributesContainer());
         setVisible(panelModel.isShowPanel());
     }

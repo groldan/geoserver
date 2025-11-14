@@ -20,7 +20,6 @@ import org.geoserver.web.GeoServerSecuredPage;
  * @author Niels Charlier - Originally as part of GeoFence's GeoServer extension
  * @author Gabriel Roldan (Camptocamp)
  * @see DataAccessRuleEditPanel
- * @since 1.0
  */
 @SuppressWarnings("serial")
 public class DataAccessRuleEditPage extends GeoServerSecuredPage {
@@ -46,7 +45,7 @@ public class DataAccessRuleEditPage extends GeoServerSecuredPage {
     }
 
     private BookmarkablePageLink<MutableRule> cancelLink() {
-        return new BookmarkablePageLink<MutableRule>("cancel", AccessRulesACLPage.class);
+        return new BookmarkablePageLink<>("cancel", AccessRulesACLPage.class);
     }
 
     private SubmitLink saveLink() {

@@ -19,14 +19,12 @@ import org.geoserver.acl.authorization.AuthorizationService;
 @SuppressWarnings("serial")
 class AccessInfoPanel extends Panel {
 
-    private Component grant;
-    private Component catalogMode;
     private AccessInfoFiltersTabbedPanel filterTabs;
 
     public AccessInfoPanel(String id, IModel<AccessInfo> model) {
         super(id, new CompoundPropertyModel<>(model));
-        add(grant = grant());
-        add(catalogMode = catalogMode());
+        add(grant());
+        add(catalogMode());
         add(filterTabs = new AccessInfoFiltersTabbedPanel("accessInfoTabbedPanel", model));
     }
 

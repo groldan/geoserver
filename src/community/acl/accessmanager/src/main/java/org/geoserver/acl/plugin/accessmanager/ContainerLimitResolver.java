@@ -26,6 +26,7 @@ import org.geoserver.acl.domain.rules.GrantType;
 import org.geoserver.acl.plugin.support.AccessInfoUtils;
 import org.geoserver.acl.plugin.support.GeomHelper;
 import org.geoserver.catalog.LayerGroupInfo;
+import org.geoserver.catalog.WorkspaceInfo;
 import org.geoserver.ows.Dispatcher;
 import org.geoserver.ows.Request;
 import org.geoserver.security.impl.LayerGroupContainmentCache.LayerGroupSummary;
@@ -41,7 +42,7 @@ import org.springframework.security.core.GrantedAuthority;
  */
 class ContainerLimitResolver {
 
-    private AuthorizationService ruleService;
+    private AuthorizationService authorizationService;
 
     private List<LayerGroupInfo> groupList;
 
@@ -52,8 +53,6 @@ class ContainerLimitResolver {
     private String layer;
 
     private String workspace;
-
-    private AccessManagerConfig configuration;
 
     private static final Logger LOGGER = Logging.getLogger(ContainerLimitResolver.class);
 
@@ -67,70 +66,72 @@ class ContainerLimitResolver {
     }
 
     /**
+     * Constructor for {@link #groupList}
+     *
      * @param groups the layer groups containing the resource in the context of a WMS request targeting a layer group.
      * @param ruleService the ACL access rules admin service.
      * @param authentication the Authentication object bound to this request.
      * @param layer the layer being requested.
      * @param workspace the workspace of the layer being requested.
-     * @param configuration the access manager configuration.
      */
     private ContainerLimitResolver(
             List<LayerGroupInfo> groups,
             AuthorizationService ruleService,
             Authentication authentication,
             String layer,
-            String workspace,
-            AccessManagerConfig configuration) {
-        this(ruleService, authentication, layer, workspace, configuration);
+            String workspace) {
+        this(ruleService, authentication, layer, workspace);
         this.groupList = groups;
     }
 
     /**
+     * Constructor for {@link #groupSummaries}
+     *
      * @param groups the layer groups containing the resource in the context of a WMS request directly targeting a layer
      *     contained in one or more layer groups.
      * @param ruleService the ACL access rules admin service.
      * @param authentication the Authentication object bound to this request.
      * @param layer the layer being requested.
      * @param workspace the workspace of the layer being requested.
-     * @param configuration the access manager configuration.
      */
     private ContainerLimitResolver(
             Collection<LayerGroupSummary> groups,
             AuthorizationService ruleService,
             Authentication authentication,
             String layer,
-            String workspace,
-            AccessManagerConfig configuration) {
-        this(ruleService, authentication, layer, workspace, configuration);
+            String workspace) {
+        this(ruleService, authentication, layer, workspace);
         this.groupSummaries = groups;
     }
 
+    /**
+     * Common constructor
+     *
+     * @param ruleService the ACL access rules admin service.
+     * @param authentication the Authentication object bound to this request.
+     * @param layer the layer being requested.
+     * @param workspace the workspace of the layer being requested.
+     */
     private ContainerLimitResolver(
-            AuthorizationService ruleService,
-            Authentication authentication,
-            String layer,
-            String workspace,
-            AccessManagerConfig configuration) {
-        this.ruleService = ruleService;
+            AuthorizationService ruleService, Authentication authentication, String layer, String workspace) {
+        this.authorizationService = ruleService;
         this.authentication = authentication;
         this.layer = layer;
         this.workspace = workspace;
-        this.configuration = configuration;
     }
 
-    static ContainerLimitResolver of(
+    public static ContainerLimitResolver of(
             List<LayerGroupInfo> groups,
             Collection<LayerGroupSummary> summaries,
             AuthorizationService ruleService,
             Authentication authentication,
             String layer,
-            String workspace,
-            AccessManagerConfig configuration) {
+            String workspace) {
 
         if (summaries.isEmpty()) {
-            return new ContainerLimitResolver(groups, ruleService, authentication, layer, workspace, configuration);
+            return new ContainerLimitResolver(groups, ruleService, authentication, layer, workspace);
         }
-        return new ContainerLimitResolver(summaries, ruleService, authentication, layer, workspace, configuration);
+        return new ContainerLimitResolver(summaries, ruleService, authentication, layer, workspace);
     }
 
     /**
@@ -142,8 +143,8 @@ class ContainerLimitResolver {
         Map<String, AccessInfo> publishedAccessByRole = new HashMap<>();
         Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
         for (GrantedAuthority authority : authorities) {
-            Optional<AccessRequest> request = requestByRole(authority, workspace, layer);
-            request.map(ruleService::getAccessInfo)
+            Optional<AccessRequest> request = requestForRole(authority, workspace, layer);
+            request.map(authorizationService::getAccessInfo)
                     .filter(not(this::isDeny))
                     .ifPresent(accessInfo -> publishedAccessByRole.put(authority.getAuthority(), accessInfo));
         }
@@ -337,10 +338,12 @@ class ContainerLimitResolver {
     // collect the containers area by role.
     private ListMultimap<String, AccessInfo> collectContainersAccessInfoByRole() {
         ListMultimap<String, AccessInfo> groupAccessInfoByRole = ArrayListMultimap.create();
-        if (groupSummaries == null) collectGroupAccessInfoByRole(groupList, authentication, groupAccessInfoByRole);
-        else
+        if (groupSummaries == null) {
+            collectGroupAccessInfoByRole(groupList, authentication, groupAccessInfoByRole);
+        } else {
             // in context of a direct access to a layer contained in some tree group
             collectGroupSummaryAccessInfoByRole(groupSummaries, authentication.getAuthorities(), groupAccessInfoByRole);
+        }
         return groupAccessInfoByRole;
     }
 
@@ -360,8 +363,8 @@ class ContainerLimitResolver {
             // temporary map to do additional checks before adding access info to multimap.
             Map<String, AccessInfo> map = new HashMap<>(authorities.size());
             for (GrantedAuthority authority : authorities) {
-                Optional<AccessRequest> request = requestByRole(authority, summaryWorkspace, summaryLayer);
-                request.map(ruleService::getAccessInfo)
+                Optional<AccessRequest> request = requestForRole(authority, summaryWorkspace, summaryLayer);
+                request.map(authorizationService::getAccessInfo)
                         .filter(not(this::isDeny))
                         .ifPresent(accessInfo -> map.put(authority.getAuthority(), accessInfo));
             }
@@ -377,47 +380,45 @@ class ContainerLimitResolver {
             ListMultimap<String, AccessInfo> groupAccessInfoByRole) {
 
         for (LayerGroupInfo group : groupList) {
-            String[] nameParts = group.prefixedName().split(":");
-            String layerName = null;
-            String workspaceName = null;
-            if (nameParts.length == 1) {
-                layerName = nameParts[0];
-            } else {
-                workspaceName = nameParts[0];
-                layerName = nameParts[1];
-            }
-            if (!isUserAllowed(layerName, workspaceName)) {
-                addAccessInfoByRole(groupAccessInfoByRole, user.getAuthorities(), layerName, workspaceName);
+            if (!isUserAllowed(group)) {
+                addAccessInfoByRole(groupAccessInfoByRole, user.getAuthorities(), group);
             }
         }
     }
 
-    private boolean isUserAllowed(String layer, String workspace) {
-        if (!configuration.isUseRolesToFilter()
-                || configuration.getAcceptedRoles().isEmpty()) {
-            // if this query result in allowing the user no need to go on with the
-            // limit enlargement/restriction for this group.
-            AccessRequestBuilder builder = new AccessRequestBuilder(configuration);
-            AccessRequest request = builder.user(authentication)
-                    .request(Dispatcher.REQUEST.get())
-                    .workspace(workspace)
-                    .layer(layer)
-                    .build();
-            AccessInfo accessInfo = ruleService.getAccessInfo(request);
-            LOGGER.fine("User allowed for the entire layer group. No limit processing is needed.");
-            return isAllow(accessInfo) && accessInfo.getArea() == null && accessInfo.getClipArea() == null;
-        }
-        return false;
+    // if this query result in allowing the user no need to go on with the
+    // limit enlargement/restriction for this group.
+    private boolean isUserAllowed(LayerGroupInfo layerGroup) {
+        String workspaceName = workspaceName(layerGroup);
+        String layerGroupName = layerGroup.getName();
+
+        AccessRequest request = new AccessRequestBuilder()
+                .user(authentication)
+                .request(Dispatcher.REQUEST.get())
+                .workspace(workspaceName)
+                .layer(layerGroupName)
+                .build();
+        AccessInfo accessInfo = authorizationService.getAccessInfo(request);
+        LOGGER.fine("User allowed for the entire layer group. No limit processing is needed.");
+        return isAllow(accessInfo) && accessInfo.getArea() == null && accessInfo.getClipArea() == null;
+    }
+
+    private String workspaceName(LayerGroupInfo layerGroup) {
+        WorkspaceInfo workspace = layerGroup.getWorkspace();
+        String workspaceName = workspace == null ? null : workspace.getName();
+        return workspaceName;
     }
 
     private void addAccessInfoByRole(
             ListMultimap<String, AccessInfo> multimap,
             Collection<? extends GrantedAuthority> authorities,
-            String layer,
-            String workspace) {
+            LayerGroupInfo layerGroup) {
+
+        String workspaceName = workspaceName(layerGroup);
+        String layerGroupName = layerGroup.getName();
         for (GrantedAuthority authority : authorities) {
-            Optional<AccessRequest> request = requestByRole(authority, workspace, layer);
-            request.map(ruleService::getAccessInfo)
+            Optional<AccessRequest> request = requestForRole(authority, workspaceName, layerGroupName);
+            request.map(authorizationService::getAccessInfo)
                     .ifPresent(
                             // we have at least one allow. No limits will be taken in consideration.
                             accessInfo -> multimap.put(authority.getAuthority(), accessInfo));
@@ -465,36 +466,16 @@ class ContainerLimitResolver {
         }
     }
 
-    private Optional<AccessRequest> requestByRole(GrantedAuthority grantedAuthority, String workspace, String layer) {
-
-        // filter is invalid if the role name is not among configured one
-        // use roles to filter option is set.
-        if (roleIsInValid(grantedAuthority)) {
-            LOGGER.finer(() -> "Skipping layegroup limits resolution for role "
-                    + grantedAuthority.getAuthority()
-                    + " because not among allowed ones");
-            return Optional.empty();
-        }
+    private Optional<AccessRequest> requestForRole(GrantedAuthority grantedAuthority, String workspace, String layer) {
         // is valid then we set role and user name.
         Request request = Dispatcher.REQUEST.get();
-        return Optional.of(new AccessRequestBuilder(configuration)
+        Authentication auth = this.authentication;
+        return Optional.of(new AccessRequestBuilder()
+                .user(auth)
                 .layer(layer)
                 .workspace(workspace)
                 .request(request)
                 .build()
-                .withUser(authentication.getName())
                 .withRoles(Set.of(grantedAuthority.getAuthority())));
-    }
-
-    private boolean roleIsInValid(GrantedAuthority grantedAuthority) {
-        return configuration.isUseRolesToFilter()
-                && !configuration.getAcceptedRoles().isEmpty()
-                && !getFilteredRoles(grantedAuthority).contains(grantedAuthority.getAuthority());
-    }
-
-    private Set<String> getFilteredRoles(GrantedAuthority grantedAuthority) {
-        return new AccessRequestUserResolver(configuration)
-                .withAuthorities(List.of(grantedAuthority))
-                .getFilteredRoles();
     }
 }

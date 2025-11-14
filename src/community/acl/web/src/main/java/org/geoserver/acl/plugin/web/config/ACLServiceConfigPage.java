@@ -6,7 +6,6 @@
  */
 package org.geoserver.acl.plugin.web.config;
 
-import java.io.Serial;
 import java.util.logging.Level;
 import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.ajax.markup.html.form.AjaxSubmitLink;
@@ -26,10 +25,8 @@ import org.geoserver.web.wicket.model.ExtPropertyModel;
  * @author "Mauro Bartolomeoli - mauro.bartolomeoli@geo-solutions.it" - Originally as part of GeoFence's GeoServer
  *     extension
  */
+@SuppressWarnings("serial")
 public class ACLServiceConfigPage extends GeoServerSecuredPage {
-
-    @Serial
-    private static final long serialVersionUID = 5845823599005718408L;
 
     private ACLServiceConfigPageModel pageModel;
 
@@ -56,18 +53,7 @@ public class ACLServiceConfigPage extends GeoServerSecuredPage {
 
     private AbstractSubmitLink testConnectionLink() {
         return new AjaxSubmitLink("test") {
-            @Serial
-            private static final long serialVersionUID = 1L;
-
-            // signature of wicket 7.x, remove when the minimum version is 2.27.x
-            @SuppressWarnings("unused")
-            protected void onSubmit(AjaxRequestTarget target, Form form) {
-                onSubmit(target);
-            }
-
-            // signature for wicket 9.x+, uncomment the Override annotation when the minimum version
-            // is 2.27.x
-            // @Override
+            @Override
             protected void onSubmit(AjaxRequestTarget target) {
                 try {
                     FormComponent<?> url = (FormComponent<?>) super.getForm().get("servicesUrl");

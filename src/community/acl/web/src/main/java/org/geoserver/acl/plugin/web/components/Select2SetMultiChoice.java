@@ -8,26 +8,28 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
+import java.util.logging.Logger;
 import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.ajax.form.OnChangeAjaxBehavior;
 import org.apache.wicket.markup.html.form.FormComponentPanel;
 import org.apache.wicket.model.IModel;
 import org.apache.wicket.model.Model;
+import org.geotools.util.logging.Logging;
 import org.wicketstuff.select2.ChoiceProvider;
 import org.wicketstuff.select2.Select2MultiChoice;
 import org.wicketstuff.select2.Settings;
 
-@Slf4j
 @SuppressWarnings("serial")
 public class Select2SetMultiChoice<T> extends FormComponentPanel<Set<T>> {
+
+    private static final Logger log = Logging.getLogger(Select2SetMultiChoice.class);
 
     private Select2MultiChoice<T> select2;
 
     public Select2SetMultiChoice(String id, IModel<Set<T>> model, ChoiceProvider<T> provider) {
         super(id, model);
 
-        Collection<T> initalValue = new ArrayList<T>(model.getObject() == null ? Set.of() : model.getObject());
+        Collection<T> initalValue = new ArrayList<>(model.getObject() == null ? Set.of() : model.getObject());
         IModel<Collection<T>> selectModel = Model.of(initalValue);
 
         add(select2 = new Select2MultiChoice<>("select", selectModel, provider));
@@ -43,7 +45,7 @@ public class Select2SetMultiChoice<T> extends FormComponentPanel<Set<T>> {
             @Override
             protected void onUpdate(AjaxRequestTarget target) {
                 Collection<T> modelObject = select2.getModelObject();
-                log.debug("multichoice model updated: {}", modelObject);
+                log.finer(() -> "multichoice model updated: %s".formatted(modelObject));
             }
         });
     }

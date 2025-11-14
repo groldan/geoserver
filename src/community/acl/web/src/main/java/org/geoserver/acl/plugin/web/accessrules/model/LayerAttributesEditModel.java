@@ -12,7 +12,7 @@ import org.apache.wicket.model.IModel;
 import org.apache.wicket.model.Model;
 import org.geoserver.acl.domain.rules.LayerDetails.LayerType;
 
-/** @since 1.0 */
+/** */
 @SuppressWarnings("serial")
 public class LayerAttributesEditModel implements Serializable {
 

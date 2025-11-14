@@ -13,12 +13,8 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Set;
-import org.apache.wicket.Component;
 import org.apache.wicket.ajax.AjaxRequestTarget;
-import org.apache.wicket.behavior.AbstractAjaxBehavior;
-import org.apache.wicket.behavior.Behavior;
 import org.apache.wicket.markup.html.form.CheckBox;
 import org.apache.wicket.util.tester.FormTester;
 import org.geoserver.acl.domain.rules.GrantType;
@@ -188,18 +184,5 @@ public class LayerDetailsEditPanelTest extends AclWicketTestSupport {
         assertEquals(Set.of("style1", "style2", "style3"), updated.getAllowedStyles());
         assertEquals("prop1 = 1", updated.getCqlFilterRead());
         assertEquals("prop2 = 2", updated.getCqlFilterWrite());
-    }
-
-    private void executeAjaxBehavior(String componentPath, Class<? extends AbstractAjaxBehavior> behaviorType) {
-        Component component = tester.getComponentFromLastRenderedPage(componentPath);
-        List<? extends Behavior> behaviors = component.getBehaviors();
-        for (Behavior behavior : behaviors) {
-            if (behaviorType.isInstance(behavior)) {
-                tester.executeBehavior(behaviorType.cast(behavior));
-                return;
-            }
-        }
-        throw new IllegalArgumentException(
-                "Couldn't find " + behaviorType.getSimpleName() + " on component " + componentPath);
     }
 }

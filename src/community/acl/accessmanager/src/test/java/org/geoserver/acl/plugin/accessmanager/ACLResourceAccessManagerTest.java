@@ -72,7 +72,7 @@ public class ACLResourceAccessManagerTest extends AclBaseTest {
 
     @Test
     public void testCiteCannotWriteOnWorkspace() {
-        accessManager.getConfig().setGrantWriteToWorkspacesToAuthenticatedUsers(false);
+        accessManager.setGrantWriteToWorkspacesToAuthenticatedUsers(false);
         Authentication user = getUser("cite", "cite", "ROLE_AUTHENTICATED");
 
         // check workspace access
@@ -84,7 +84,7 @@ public class ACLResourceAccessManagerTest extends AclBaseTest {
 
     @Test
     public void testCiteCanWriteOnWorkspace() {
-        accessManager.getConfig().setGrantWriteToWorkspacesToAuthenticatedUsers(true);
+        accessManager.setGrantWriteToWorkspacesToAuthenticatedUsers(true);
 
         Authentication user = getUser("cite", "cite", "ROLE_AUTHENTICATED");
 
@@ -93,7 +93,7 @@ public class ACLResourceAccessManagerTest extends AclBaseTest {
         WorkspaceAccessLimits wl = accessManager.getAccessLimits(user, citeWS);
         assertTrue(wl.isReadable());
         assertTrue(wl.isWritable());
-        accessManager.getConfig().setGrantWriteToWorkspacesToAuthenticatedUsers(false);
+        accessManager.setGrantWriteToWorkspacesToAuthenticatedUsers(false);
     }
 
     @Test

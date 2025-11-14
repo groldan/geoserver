@@ -13,6 +13,7 @@ public class DataAccessRuleEditPanelTest extends AclWicketTestSupport {
     @Test
     public void test() {
         DataAccessRuleEditModel pageModel = new DataAccessRuleEditModel();
+        @SuppressWarnings("unused")
         DataAccessRuleEditPanel panel =
                 tester.startComponentInPage(new DataAccessRuleEditPanel("testPanel", pageModel));
         tester.assertNoErrorMessage();

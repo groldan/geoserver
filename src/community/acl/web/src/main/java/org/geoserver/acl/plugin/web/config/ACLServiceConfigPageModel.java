@@ -4,22 +4,19 @@
  */
 package org.geoserver.acl.plugin.web.config;
 
-import java.io.Serial;
 import java.io.Serializable;
-import java.util.Objects;
 import lombok.Getter;
 import org.apache.wicket.model.CompoundPropertyModel;
 import org.apache.wicket.model.IModel;
 import org.apache.wicket.model.PropertyModel;
+import org.geoserver.acl.authorization.AccessRequest;
+import org.geoserver.acl.authorization.AuthorizationService;
 import org.geoserver.acl.plugin.accessmanager.AccessManagerConfig;
-import org.geoserver.acl.plugin.accessmanager.config.AclConfigurationManager;
-import org.geoserver.platform.GeoServerExtensions;
+import org.geoserver.web.GeoServerApplication;
 import org.geoserver.web.wicket.model.ExtPropertyModel;
 
+@SuppressWarnings("serial")
 public class ACLServiceConfigPageModel implements Serializable {
-
-    @Serial
-    private static final long serialVersionUID = 1L;
 
     private @Getter CompoundPropertyModel<AccessManagerConfig> configModel;
 
@@ -35,19 +32,13 @@ public class ACLServiceConfigPageModel implements Serializable {
     }
 
     ACLServiceConfigPageModel() {
-        AccessManagerConfig config = getConfigManager().getConfiguration().clone();
+        AccessManagerConfig config = GeoServerApplication.get().getBeanOfType(AccessManagerConfig.class);
         configModel = new CompoundPropertyModel<>(config);
-        serviceUrl = new ExtPropertyModel<String>(configModel, "serviceUrl");
+        serviceUrl = new ExtPropertyModel<>(configModel, "serviceUrl");
         allowRemoteAndInlineLayers = new PropertyModel<>(configModel, "allowRemoteAndInlineLayers");
         grantWriteToWorkspacesToAuthenticatedUsers =
                 new PropertyModel<>(configModel, "grantWriteToWorkspacesToAuthenticatedUsers");
         useRolesToFilter = new PropertyModel<>(configModel, "useRolesToFilter");
-    }
-
-    public AclConfigurationManager getConfigManager() {
-        AclConfigurationManager manager = GeoServerExtensions.bean(AclConfigurationManager.class);
-        Objects.requireNonNull(manager, AclConfigurationManager.class.getSimpleName() + " bean not found");
-        return manager;
     }
 
     /** @return {@code true} if the ACL service runs in-process, {@code false} if it hits a remote service */
@@ -57,26 +48,11 @@ public class ACLServiceConfigPageModel implements Serializable {
 
     public void testConnection() throws Exception {
         AccessManagerConfig newConfig = configModel.getObject();
-        getConfigManager().testConfig(newConfig);
+        testConfig(newConfig);
     }
 
-    public void applyAndSaveConfiguration() throws Exception {
-        AclConfigurationManager manager = getConfigManager();
-        final AccessManagerConfig currentConfig = manager.getConfiguration();
-        AccessManagerConfig config = configModel.getObject();
-
-        try {
-            manager.setConfiguration(config);
-        } catch (Exception e) {
-            manager.setConfiguration(currentConfig);
-            throw e;
-        }
-
-        try {
-            manager.storeConfiguration();
-        } catch (Exception e) {
-            manager.setConfiguration(currentConfig);
-            throw e;
-        }
+    public void testConfig(AccessManagerConfig config) {
+        AuthorizationService service = GeoServerApplication.get().getBeanOfType(AuthorizationService.class);
+        service.getMatchingRules(AccessRequest.builder().build());
     }
 }

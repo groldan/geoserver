@@ -40,7 +40,7 @@ public class AdminRulesACLPage extends GeoServerSecuredPage {
     }
 
     private AjaxLink<Object> removeLink() {
-        AjaxLink<Object> removeLink = new AjaxLink<Object>("removeSelected") {
+        AjaxLink<Object> removeLink = new AjaxLink<>("removeSelected") {
             public @Override void onClick(AjaxRequestTarget target) {
                 dataProvider.remove(rulesPanel.getSelection());
                 rulesPanel.clearSelection();
@@ -53,7 +53,7 @@ public class AdminRulesACLPage extends GeoServerSecuredPage {
     }
 
     private AjaxLink<Object> addNewLink() {
-        return new AjaxLink<Object>("addNew") {
+        return new AjaxLink<>("addNew") {
             public @Override void onClick(AjaxRequestTarget target) {
                 setResponsePage(new AdminRuleEditPage(new AdminRuleEditModel()));
             }
@@ -67,7 +67,7 @@ public class AdminRulesACLPage extends GeoServerSecuredPage {
             doReturn(AdminRulesACLPage.class);
         });
         panel.setOnSelectionUpdate(target -> {
-            removeLink.setEnabled(rulesPanel.getSelection().size() > 0);
+            removeLink.setEnabled(!rulesPanel.getSelection().isEmpty());
             target.add(removeLink);
         });
         panel.setOnEdit(rule -> {

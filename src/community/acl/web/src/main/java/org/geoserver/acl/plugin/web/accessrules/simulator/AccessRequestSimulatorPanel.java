@@ -239,7 +239,7 @@ public class AccessRequestSimulatorPanel extends Panel {
 
     private FormComponent<String> ipAddressChoice() {
         IModel<String> model = model().bind("sourceAddress");
-        return new TextField<String>("sourceAddress", model);
+        return new TextField<>("sourceAddress", model);
     }
 
     private FormComponent<String> serviceChoice() {

@@ -44,7 +44,7 @@ public class AccessRulesACLPage extends GeoServerSecuredPage {
     }
 
     private AjaxLink<Object> removeLink() {
-        AjaxLink<Object> link = new AjaxLink<Object>("removeSelected") {
+        AjaxLink<Object> link = new AjaxLink<>("removeSelected") {
             public @Override void onClick(AjaxRequestTarget target) {
                 dataProvider.remove(rulesTable.getSelection());
                 rulesTable.clearSelection();
@@ -57,7 +57,7 @@ public class AccessRulesACLPage extends GeoServerSecuredPage {
     }
 
     private AjaxLink<Object> addNewLink() {
-        return new AjaxLink<Object>("addNew") {
+        return new AjaxLink<>("addNew") {
             public @Override void onClick(AjaxRequestTarget target) {
                 setResponsePage(new DataAccessRuleEditPage(new DataAccessRuleEditModel()));
             }
@@ -65,7 +65,7 @@ public class AccessRulesACLPage extends GeoServerSecuredPage {
     }
 
     private AjaxLink<Object> simulatorLink() {
-        return new AjaxLink<Object>("simulator") {
+        return new AjaxLink<>("simulator") {
             public @Override void onClick(AjaxRequestTarget target) {
                 boolean show = !simulator.isVisible();
                 if (show) {
@@ -85,7 +85,7 @@ public class AccessRulesACLPage extends GeoServerSecuredPage {
             doReturn(AccessRulesACLPage.class);
         });
         panel.setOnSelectionUpdate(target -> {
-            removeLink.setEnabled(rulesTable.getSelection().size() > 0);
+            removeLink.setEnabled(!rulesTable.getSelection().isEmpty());
             target.add(removeLink);
         });
         panel.setOnEdit(rule -> {

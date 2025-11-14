@@ -4,7 +4,6 @@
  */
 package org.geoserver.acl.plugin.config.domain.client;
 
-import lombok.extern.slf4j.Slf4j;
 import org.geoserver.acl.api.client.AuthorizationApi;
 import org.geoserver.acl.api.client.DataRulesApi;
 import org.geoserver.acl.api.client.WorkspaceAdminRulesApi;
@@ -42,13 +41,12 @@ import org.springframework.core.env.Environment;
  */
 @Configuration
 @Import({
-    // repositories from api-client
+    // repositories org.geoserver.acl.integration.openapi:gs-acl-api-client
     ApiClientConfiguration.class,
-    // services from domain-spring-integration
+    // services from org.geoserver.acl.integration:gs-acl-domain-spring-integration
     RuleAdminServiceConfiguration.class,
     AdminRuleAdminServiceConfiguration.class,
 })
-@Slf4j(topic = "org.geoserver.acl.plugin.config.domain.client")
 public class ApiClientAclDomainServicesConfiguration {
 
     @Bean
@@ -60,7 +58,6 @@ public class ApiClientAclDomainServicesConfiguration {
         boolean startupCheck = env.getProperty("geoserver.acl.client.startupCheck", Boolean.class, true);
         Integer initTimeout = env.getProperty("geoserver.acl.client.initTimeout", Integer.class);
 
-        log.info("GeoServer Acess Control List API: {}, user: {}, caching: {}", basePath, username, caching);
         ApiClientProperties configProps = new ApiClientProperties();
         configProps.setBasePath(basePath);
         configProps.setUsername(username);

@@ -44,7 +44,7 @@ public class DataAccessRulesDataProvider extends RulesDataProvider<MutableRule> 
     }
 
     private static RuleAdminService adminService() {
-        return (RuleAdminService) GeoServerApplication.get().getBeanOfType(RuleAdminService.class);
+        return GeoServerApplication.get().getBeanOfType(RuleAdminService.class);
     }
 
     @Override

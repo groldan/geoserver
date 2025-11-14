@@ -19,10 +19,6 @@
     </dependency>
     <dependency>
       <groupId>org.geoserver.community</groupId>
-      <artifactId>gs-acl-plugin-config</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.geoserver.community</groupId>
       <artifactId>gs-acl-plugin-webui</artifactId>
     </dependency>
     <dependency>
@@ -37,13 +33,6 @@
 	    -->
       <groupId>org.geoserver.acl.integration</groupId>
       <artifactId>gs-acl-cache</artifactId>
-      <scope>provided</scope>
-      <optional>true</optional>
-    </dependency>
-    <dependency>
-      <!-- Optional, if present, Rule and AdminRule events will be sent to the event-bus, and incoming events will be published locally as RuleEvent and AdminRuleEvent respectively -->
-      <groupId>org.geoserver.acl.integration</groupId>
-      <artifactId>gs-acl-spring-cloud-bus</artifactId>
       <scope>provided</scope>
       <optional>true</optional>
     </dependency>
@@ -114,13 +103,24 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>org.projectlombok</groupId>
-      <artifactId>lombok</artifactId>
-      <scope>provided</scope>
+      <groupId>org.geoserver</groupId>
+      <artifactId>gs-main</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.geoserver</groupId>
       <artifactId>gs-wms</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.geoserver.acl</groupId>
+      <artifactId>gs-acl-testcontainer</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

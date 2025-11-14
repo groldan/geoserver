@@ -10,11 +10,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.NonNull;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.model.IModel;
 import org.geoserver.acl.domain.rules.GrantType;
@@ -32,11 +33,12 @@ import org.geoserver.catalog.PublishedInfo;
 import org.geoserver.catalog.PublishedType;
 import org.geoserver.catalog.StyleInfo;
 import org.geoserver.web.GeoServerApplication;
+import org.geotools.util.logging.Logging;
 import org.springframework.util.StringUtils;
 
-@Slf4j
 @SuppressWarnings("serial")
 public class DataAccessRuleEditModel extends AbstractRuleEditModel<MutableRule> {
+    private static final Logger log = Logging.getLogger(DataAccessRuleEditModel.class);
 
     /**
      * @see #workSpaceNameChanged(String)
@@ -212,7 +214,7 @@ public class DataAccessRuleEditModel extends AbstractRuleEditModel<MutableRule> 
                 try {
                     attributes = resource.attributes();
                 } catch (IOException e) {
-                    log.warn("Error getting layer attributes for " + info.prefixedName(), e);
+                    log.log(Level.WARNING, "Error getting layer attributes for " + info.prefixedName(), e);
                 }
             }
         }

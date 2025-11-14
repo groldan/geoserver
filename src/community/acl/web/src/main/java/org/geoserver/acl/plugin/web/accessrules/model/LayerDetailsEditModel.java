@@ -74,14 +74,16 @@ public class LayerDetailsEditModel implements Serializable {
 
     public boolean hasDisplayablePropertiesSet() {
         MutableLayerDetails ld = getModel().getObject();
-        return ld != null && nonNull(ld.getDefaultStyle())
-                || nonNull(ld.getCqlFilterRead())
-                || nonNull(ld.getCqlFilterWrite())
-                || nonNull(ld.getArea())
-                // || (nonNull(catalogMode) && catalogMode == HIDE)
-                // || (nonNull(spatialFilterType) && spatialFilterType == INTERSECT)
-                || (nonNull(ld.getAllowedStyles()) && !ld.getAllowedStyles().isEmpty())
-                || (nonNull(ld.getAttributes()) && !ld.getAttributes().isEmpty());
+        return ld != null
+                && (nonNull(ld.getDefaultStyle())
+                        || nonNull(ld.getCqlFilterRead())
+                        || nonNull(ld.getCqlFilterWrite())
+                        || nonNull(ld.getArea())
+                        // || (nonNull(catalogMode) && catalogMode == HIDE)
+                        // || (nonNull(spatialFilterType) && spatialFilterType == INTERSECT)
+                        || (nonNull(ld.getAllowedStyles())
+                                && !ld.getAllowedStyles().isEmpty())
+                        || (nonNull(ld.getAttributes()) && !ld.getAttributes().isEmpty()));
     }
 
     public Iterator<String> getStyleChoices(String input) {

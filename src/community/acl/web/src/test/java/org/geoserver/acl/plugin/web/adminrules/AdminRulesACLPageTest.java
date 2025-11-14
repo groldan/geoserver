@@ -54,6 +54,7 @@ public class AdminRulesACLPageTest extends AclWicketTestSupport {
         AdminRulesACLPage page = tester.startPage(AdminRulesACLPage.class);
 
         byte[] serialized = SerializationUtils.serialize(page);
+        @SuppressWarnings("deprecation")
         AdminRulesACLPage deserialized = (AdminRulesACLPage) SerializationUtils.deserialize(serialized);
         assertNotNull(deserialized);
     }
