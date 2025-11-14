@@ -28,12 +28,11 @@
     <bean class="org.geoserver.platform.SystemEnvironmentStatus"/>
     
     <!--  lock providers -->
-    <bean id="nullLockProvider" class="org.geoserver.platform.resource.NullLockProvider"/>
+    <bean id="nullLockProvider" class="org.geoserver.platform.resource.NullLockProvider" factory-method="instance"/>
     <bean id="memoryLockProvider" class="org.geoserver.platform.resource.MemoryLockProvider"/>
     <bean id="fileLockProvider" class="org.geoserver.platform.resource.FileLockProvider"/>
-    <bean id="lockProvider" class="org.geoserver.platform.resource.GlobalLockProvider">
-        <property name="delegate" ref="nullLockProvider"/>
-    </bean>
+
+    <!-- If there's a configured lock provider, overrides the ResourceStore's default -->
     <bean id="lockProviderInitializer" class="org.geoserver.config.LockProviderInitializer"/>
     
     <!-- used by alternative resource stores -->
@@ -41,7 +40,7 @@
     
 	<!-- resources -->
     <bean id="dataDirectoryResourceStore" class="org.geoserver.platform.resource.DataDirectoryResourceStore">
-        <property name="lockProvider" ref="lockProvider"/>
+        <property name="lockProvider" ref="fileLockProvider"/>
     </bean>
 
     <bean id="resourceStore" class="org.geoserver.platform.resource.ResourceStoreFactory" />

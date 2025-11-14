@@ -31,7 +31,7 @@ public class DataDirectoryResourceStore extends FileSystemResourceStore implemen
     public void setServletContext(ServletContext servletContext) {
         String data = GeoServerResourceLoader.lookupGeoServerDataDirectory(servletContext);
         if (data != null) {
-            this.baseDirectory = new File(data);
+            setBaseDirectory(new File(data));
         } else {
             throw new IllegalStateException("Unable to determine data directory");
         }

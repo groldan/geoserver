@@ -7,15 +7,12 @@ package org.geoserver.web.data.store;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.List;
 import java.util.logging.Level;
 import org.apache.wicket.Component;
 import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.request.mapper.parameter.PageParameters;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.DataStoreInfo;
-import org.geoserver.catalog.FeatureTypeInfo;
-import org.geoserver.catalog.NamespaceInfo;
 import org.geoserver.catalog.ResourcePool;
 import org.geoserver.security.impl.FileSandboxEnforcer;
 import org.geoserver.web.wicket.GeoServerDialog;
@@ -194,14 +191,6 @@ public class DataAccessEditPage extends AbstractDataAccessPage implements Serial
         try {
             final Catalog catalog = getCatalog();
 
-            // The namespace may have changed, in which case we need to update the store resources
-            NamespaceInfo namespace =
-                    catalog.getNamespaceByPrefix(info.getWorkspace().getName());
-            List<FeatureTypeInfo> configuredResources = catalog.getResourcesByStore(info, FeatureTypeInfo.class);
-            for (FeatureTypeInfo alreadyConfigured : configuredResources) {
-                alreadyConfigured.setNamespace(namespace);
-            }
-
             ResourcePool resourcePool = catalog.getResourcePool();
             resourcePool.clear(info);
 
@@ -211,10 +200,7 @@ public class DataAccessEditPage extends AbstractDataAccessPage implements Serial
             catalog.validate(expandedStore, false).throwIfInvalid();
 
             catalog.save(info);
-            // save the resources after saving the store
-            for (FeatureTypeInfo alreadyConfigured : configuredResources) {
-                catalog.save(alreadyConfigured);
-            }
+
             LOGGER.finer("Saved store " + info.getName());
         } catch (FileSandboxEnforcer.SandboxException e) {
             // this one is non recoverable, give up and inform the user
