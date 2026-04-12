@@ -88,7 +88,7 @@ public class WorkspaceAdminRestAccessRule implements ConfigAttribute, Comparable
      * @param antPattern the Ant-style URL pattern this rule applies to
      * @param methods the set of HTTP methods allowed by this rule
      */
-    WorkspaceAdminRestAccessRule(int priority, String antPattern, Set<HttpMethod> methods) {
+    public WorkspaceAdminRestAccessRule(int priority, String antPattern, Set<HttpMethod> methods) {
         this.priority = priority;
         this.antPattern = antPattern;
         this.methods = Set.copyOf(methods);

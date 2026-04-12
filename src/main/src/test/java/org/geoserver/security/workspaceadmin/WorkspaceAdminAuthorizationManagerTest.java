@@ -5,7 +5,6 @@
 package org.geoserver.security.workspaceadmin;
 
 import static org.geoserver.security.filter.GeoServerSecurityInterceptorFilter.ACCESS_ABSTAIN;
-import static org.geoserver.security.filter.GeoServerSecurityInterceptorFilter.ACCESS_DENIED;
 import static org.geoserver.security.filter.GeoServerSecurityInterceptorFilter.ACCESS_GRANTED;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
@@ -71,21 +70,18 @@ public class WorkspaceAdminAuthorizationManagerTest {
     }
 
     @Test
-    public void testCheckWhenNotFullyAuthenticated() {
-        // Test when user is not fully authenticated
-        when(authorizer.isFullyAuthenticated(authentication)).thenReturn(false);
+    public void testCheckAbstainsWhenNotFullyAuthenticated() {
+        // Test when user is not fully authenticated (not a workspace admin)
+        when(authorizer.isWorkspaceAdmin(authentication)).thenReturn(false);
 
-        // Should deny access when not fully authenticated
+        // Should abstain, letting other authorization managers handle it
         @Nullable AuthorizationResult decision = authManager.authorize(authSupplier, request);
-        assertEquals(ACCESS_DENIED, decision);
+        assertEquals(ACCESS_ABSTAIN, decision);
     }
 
     @Test
     public void testCheckWhenNoMatchingRules() {
         when(request.getRequestURI()).thenReturn("/geoserver/rest/logging");
-
-        // Setup authentication and request
-        when(authorizer.isFullyAuthenticated(authentication)).thenReturn(true);
 
         // No matching rules
         when(metadataSource.getAttributes(request)).thenReturn(Collections.emptyList());
@@ -97,9 +93,6 @@ public class WorkspaceAdminAuthorizationManagerTest {
 
     @Test
     public void testCheckWhenMatchingRuleButNotWorkspaceAdmin() {
-        // Setup authentication and request
-        when(authorizer.isFullyAuthenticated(authentication)).thenReturn(true);
-
         // Create a matching rule
         WorkspaceAdminRestAccessRule rule = new WorkspaceAdminRestAccessRule(1, "/rest/workspaces/topp", Set.of(GET));
         when(metadataSource.getAttributes(request)).thenReturn(List.of(rule));
@@ -115,9 +108,6 @@ public class WorkspaceAdminAuthorizationManagerTest {
 
     @Test
     public void testCheckWhenMatchingRuleAndWorkspaceAdmin() {
-        // Setup authentication and request
-        when(authorizer.isFullyAuthenticated(authentication)).thenReturn(true);
-
         // Create a matching rule
         WorkspaceAdminRestAccessRule rule = new WorkspaceAdminRestAccessRule(1, "/rest/workspaces/topp", Set.of(GET));
         when(metadataSource.getAttributes(request)).thenReturn(List.of(rule));

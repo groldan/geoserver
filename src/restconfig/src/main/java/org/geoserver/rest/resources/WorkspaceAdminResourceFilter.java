@@ -15,9 +15,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.util.AntPathMatcher;
 
 /**
- * A filter interface to determine which {@link Resource resources} an authenticated user can see and/or write to, based
- * on the {@link WorkspaceAdminAuthorizer} ability to determine whether an {@link Authentication} belongs to a workspace
- * administrator, and if so, which workspaces it's allowed to see.
+ * A filter interface for {@link SecureResourceStore} to determine which {@link Resource resources} an authenticated
+ * user can see and/or write to, based on the {@link WorkspaceAdminAuthorizer} ability to determine whether an
+ * {@link Authentication} belongs to a workspace administrator, and if so, which workspaces it's allowed to see.
  *
  * <p>This can be used, for example, to secure the {@link ResourceStore}, or to determine which REST API URIs to allow
  * access to.
@@ -30,10 +30,12 @@ import org.springframework.util.AntPathMatcher;
  *
  * <ul>
  *   <li>{@literal ""}: the root folder, read-only.
- *   <li>{@literal "workspaces/**"}: workspaces folder, read-only.
+ *   <li>{@literal "styles/**"}: global styles folder, read-only.
+ *   <li>{@literal "workspaces"}: workspaces folder listing, read-only.
  *   <li>{@literal "workspaces/{workspace}/**"}: read-write access limited to workspaces the user is an admin of
  * </ul>
  *
+ * @see SecureResourceStore
  * @see WorkspaceAdminAuthorizer
  */
 class WorkspaceAdminResourceFilter {
@@ -84,7 +86,7 @@ class WorkspaceAdminResourceFilter {
      * List of root resource names to allow access to a user that is a workspace administrator. Usually as derived from
      * REST calls to {@literal /rest/resource/**}
      */
-    private static final List<String> collectionsAntPatterns = List.of("", "workspaces");
+    private static final List<String> collectionsAntPatterns = List.of("", "styles", "styles/**", "workspaces");
 
     private static final List<String> workspaceAntPatterns =
             List.of("workspaces/{workspace}", "workspaces/{workspace}/**");

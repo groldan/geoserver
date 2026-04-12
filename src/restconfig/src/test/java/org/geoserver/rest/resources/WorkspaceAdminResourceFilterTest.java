@@ -27,11 +27,8 @@ public class WorkspaceAdminResourceFilterTest {
 
     @Before
     public void setUp() {
-        // Mock dependencies
         authorizer = mock(WorkspaceAdminAuthorizer.class);
         authentication = mock(Authentication.class);
-
-        // Create the filter
         filter = new WorkspaceAdminResourceFilter(authorizer);
     }
 

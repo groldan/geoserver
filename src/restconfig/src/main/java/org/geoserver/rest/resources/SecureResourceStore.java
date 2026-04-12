@@ -4,15 +4,17 @@
  */
 package org.geoserver.rest.resources;
 
+import java.io.File;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.platform.resource.Resource;
 import org.geoserver.platform.resource.Resource.Type;
 import org.geoserver.platform.resource.ResourceNotificationDispatcher;
 import org.geoserver.platform.resource.ResourceStore;
+import org.geoserver.rest.resources.WorkspaceAdminResourceFilter.ResourceAccess;
 import org.geoserver.security.GeoServerSecurityManager;
 import org.geoserver.security.workspaceadmin.WorkspaceAdminAuthorizer;
 import org.jspecify.annotations.Nullable;
@@ -27,11 +29,12 @@ import org.springframework.security.core.context.SecurityContextHolder;
  * It uses {@link WorkspaceAdminResourceFilter} to determine which resources a user can access, and returns
  * {@link SecuredResource} instances that enforce these permissions at the resource level.
  *
- * <p>For users with administrator privileges, all operations pass through directly to the delegate store. For workspace
+ * <p>For users with full admin rights, all operations pass through directly to the delegate store. For workspace
  * administrators, access is limited to resources within workspaces they administer.
  *
  * @see SecuredResource
  * @see WorkspaceAdminResourceFilter
+ * @see ResourceController
  */
 class SecureResourceStore implements ResourceStore {
 
@@ -41,28 +44,21 @@ class SecureResourceStore implements ResourceStore {
     /** Filter that determines which resources a user can access */
     private final WorkspaceAdminResourceFilter resourcePathFilter;
 
-    /**
-     * Creates a new secure resource store wrapping the given delegate.
-     *
-     * @param delegate the underlying resource store to secure
-     * @throws NullPointerException if the WorkspaceAdminAuthorizer bean is not available
-     */
+    /** Creates a new secure resource store wrapping the given delegate. */
     SecureResourceStore(ResourceStore delegate) {
         this.delegate = delegate;
-        this.resourcePathFilter =
-                new WorkspaceAdminResourceFilter(WorkspaceAdminAuthorizer.get().orElseThrow());
+        WorkspaceAdminAuthorizer workspaceAdminAuthorizer =
+                WorkspaceAdminAuthorizer.get().orElseThrow();
+        this.resourcePathFilter = new WorkspaceAdminResourceFilter(workspaceAdminAuthorizer);
     }
 
-    //// ResourceStore methods
+    // ResourceStore methods //
 
     /**
      * Returns a resource for the given path.
      *
      * <p>For administrators, this returns the delegate resource directly. For other users, it returns a
      * {@link SecuredResource} that enforces access control.
-     *
-     * @param path the path to the resource
-     * @return a secured resource for non-admin users, or the delegate resource for admins
      */
     @Override
     public Resource get(String path) {
@@ -75,12 +71,7 @@ class SecureResourceStore implements ResourceStore {
         return new SecuredResource(resource, this);
     }
 
-    /**
-     * Removes the resource at the given path if the current user has write access.
-     *
-     * @param path the path to the resource to remove
-     * @return true if the resource was removed, false otherwise
-     */
+    /** Removes the resource at the given path if the current user has write access. */
     @Override
     public boolean remove(String path) {
         return canWrite(path) && delegate.remove(path);
@@ -89,27 +80,19 @@ class SecureResourceStore implements ResourceStore {
     /**
      * Moves a resource from one path to another if the current user has write access to both the source and target
      * paths.
-     *
-     * @param source the source path
-     * @param target the target path
-     * @return true if the resource was moved, false otherwise
      */
     @Override
     public boolean move(String source, String target) {
         return canWrite(source) && canWrite(target) && delegate.move(source, target);
     }
 
-    /**
-     * Returns the resource notification dispatcher from the delegate store.
-     *
-     * @return the resource notification dispatcher
-     */
+    /** @return the resource notification dispatcher from the delegate store */
     @Override
     public ResourceNotificationDispatcher getResourceNotificationDispatcher() {
         return delegate.getResourceNotificationDispatcher();
     }
 
-    // support methods for SecuredResource so all logic is centralized in the store
+    // support methods for SecuredResource so all logic is centralized in the store //
 
     /**
      * Lists all accessible child resources for the given path.
@@ -122,10 +105,14 @@ class SecureResourceStore implements ResourceStore {
     List<Resource> list(String path) {
         if (canRead(path)) {
             // if canRead(path) == true, can't assume it holds true for any children
-            return delegate.get(path).list().stream()
-                    .filter(this::canRead)
-                    .map(this::wrap)
-                    .collect(Collectors.toList());
+            List<Resource> delegateChildren = delegate.get(path).list();
+            List<Resource> visible = new ArrayList<>();
+            for (Resource child : delegateChildren) {
+                if (canRead(child)) {
+                    visible.add(wrap(child));
+                }
+            }
+            return visible;
         }
         return List.of();
     }
@@ -149,8 +136,6 @@ class SecureResourceStore implements ResourceStore {
     /**
      * Opens an input stream to read a secured resource if the current user has read access.
      *
-     * @param resource the secured resource to read
-     * @return an input stream to the resource
      * @throws IllegalStateException if the user doesn't have read access
      */
     InputStream in(SecuredResource resource) {
@@ -163,19 +148,39 @@ class SecureResourceStore implements ResourceStore {
     /**
      * Opens an output stream to write to a secured resource if the current user has write access.
      *
-     * @param resource the secured resource to write to
-     * @return an output stream to the resource
      * @throws IllegalStateException if the user doesn't have write access or the resource doesn't exist
      */
     OutputStream out(SecuredResource resource) {
         if (canWrite(resource)) {
             return resource.delegate.out();
         }
-        if (canRead(resource)) throw new IllegalStateException("resource is read only: " + resource.path());
+        if (canRead(resource)) {
+            throw new IllegalStateException("resource is read only: " + resource.path());
+        }
         throw new IllegalStateException("resource not found" + resource.path());
     }
 
-    //// internal methods
+    File file(SecuredResource resource) {
+        if (canWrite(resource)) {
+            return resource.delegate.file();
+        }
+        if (canRead(resource)) {
+            throw new IllegalStateException("resource is read only: " + resource.path());
+        }
+        throw new IllegalStateException("resource not found" + resource.path());
+    }
+
+    File dir(SecuredResource resource) {
+        if (canWrite(resource)) {
+            return resource.delegate.dir();
+        }
+        if (canRead(resource)) {
+            throw new IllegalStateException("resource is read only: " + resource.path());
+        }
+        throw new IllegalStateException("resource not found" + resource.path());
+    }
+
+    // internal methods //
 
     /**
      * Wraps a resource with a SecuredResource.
@@ -184,100 +189,65 @@ class SecureResourceStore implements ResourceStore {
      * @return a secured version of the resource
      */
     SecuredResource wrap(Resource resource) {
-        if (resource instanceof SecuredResource) {
-            return (SecuredResource) resource;
+        if (resource instanceof SecuredResource secured) {
+            return secured;
         }
         return new SecuredResource(resource, this);
     }
 
-    /**
-     * Checks if the current user can read the given resource.
-     *
-     * @param resource the resource to check
-     * @return true if the user can read the resource, false otherwise
-     */
+    /** @return true if the user can read the resource, false otherwise */
     private boolean canRead(Resource resource) {
         return canRead(resource.path());
     }
 
-    /**
-     * Checks if the current user can write to the given resource.
-     *
-     * @param resource the resource to check
-     * @return true if the user can write to the resource, false otherwise
-     */
+    /** @return true if the user can write to the resource, false otherwise */
     private boolean canWrite(Resource resource) {
         return canWrite(resource.path());
     }
 
-    /**
-     * Checks if the current user can read the resource at the given path.
-     *
-     * @param path the resource path to check
-     * @return true if the user can read the resource, false otherwise
-     */
+    /** @return true if the user can read the resource, false otherwise */
     boolean canRead(String path) {
-        return isAuthenticatedAsAdmin() || userCanRead(path);
+        boolean isFullAdmin = isAuthenticatedAsAdmin();
+        return isFullAdmin || userCanRead(path);
     }
 
-    /**
-     * Checks if the current user can write to the resource at the given path.
-     *
-     * @param path the resource path to check
-     * @return true if the user can write to the resource, false otherwise
-     */
+    /** @return true if the user can write to the resource, false otherwise */
     boolean canWrite(String path) {
-        return isAuthenticatedAsAdmin() || userCanWriteTo(path);
+        boolean isFullAdmin = isAuthenticatedAsAdmin();
+        return isFullAdmin || userCanWriteTo(path);
     }
 
-    /**
-     * Checks if the current non-admin user can read the resource at the given path.
-     *
-     * @param path the resource path to check
-     * @return true if the user can read the resource, false otherwise
-     */
+    /** @return true if the user can read the resource, false otherwise */
     private boolean userCanRead(String path) {
-        Authentication authentication = getAuthentication();
-        return null != authentication
-                && resourcePathFilter.getAccessLimits(authentication, path).canRead();
+        ResourceAccess access = getAccess(path);
+        return access.canRead();
     }
-
-    /**
-     * Checks if the current non-admin user can write to the resource at the given path.
-     *
-     * @param path the resource path to check
-     * @return true if the user can write to the resource, false otherwise
-     */
+    /** @return true if the user can write to the resource according to #resourcePathFilter, false otherwise */
     private boolean userCanWriteTo(String path) {
-        Authentication authentication = getAuthentication();
-        return null != authentication
-                && resourcePathFilter.getAccessLimits(authentication, path).canWrite();
+        ResourceAccess access = getAccess(path);
+        return access.canWrite();
     }
 
-    /**
-     * Checks if the current user is authenticated as an administrator.
-     *
-     * @return true if the user is an administrator, false otherwise
-     */
+    private ResourceAccess getAccess(String path) {
+        Authentication authentication = getAuthentication();
+        if (authentication == null) {
+            return ResourceAccess.NONE;
+        }
+        return resourcePathFilter.getAccessLimits(authentication, path);
+    }
+
+    /** @return true if the user is an administrator, false otherwise */
     private boolean isAuthenticatedAsAdmin() {
         return getSecurityManager().checkAuthenticationForAdminRole();
     }
 
-    /**
-     * Gets the current authentication.
-     *
-     * @return the current authentication, or null if not authenticated
-     */
+    /** @return the current authentication, or null if not authenticated */
     @Nullable
     private Authentication getAuthentication() {
         return SecurityContextHolder.getContext().getAuthentication();
     }
 
-    /**
-     * Returns the security manager.
-     *
-     * @return the GeoServer security manager
-     */
+    /** @return the GeoServer security manager */
     private GeoServerSecurityManager getSecurityManager() {
         return GeoServerExtensions.bean(GeoServerSecurityManager.class);
     }

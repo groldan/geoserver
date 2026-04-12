@@ -99,12 +99,12 @@ class SecuredResource extends ResourceDecorator {
 
     @Override
     public File file() {
-        return delegate.file();
+        return store.file(this);
     }
 
     @Override
     public File dir() {
-        return delegate.dir();
+        return store.dir(this);
     }
 
     @Override

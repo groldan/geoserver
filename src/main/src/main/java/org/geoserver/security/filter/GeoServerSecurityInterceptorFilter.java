@@ -219,14 +219,17 @@ public class GeoServerSecurityInterceptorFilter extends GeoServerCompositeFilter
         SecurityInterceptorFilterConfig siConfig = (SecurityInterceptorFilterConfig) config;
         boolean allowIfAllAbstainDecisions = siConfig.isAllowIfAllAbstainDecisions();
 
-        AuthenticatedAuthorizationManager aam = new AuthenticatedAuthorizationManager(source);
-        WorkspaceAdminAuthorizationManager waam = new WorkspaceAdminAuthorizationManager(source);
-        RoleAuthorizationManager ram = new RoleAuthorizationManager(source);
-        AffirmativeAuthorizationManager am =
-                new AffirmativeAuthorizationManager(List.of(aam, waam, ram), allowIfAllAbstainDecisions);
-        AuthorizationFilter filter = new AuthorizationFilter(am);
+        AuthenticatedAuthorizationManager authenticated = new AuthenticatedAuthorizationManager(source);
+        WorkspaceAdminAuthorizationManager wsAdmin = new WorkspaceAdminAuthorizationManager(source);
+        RoleAuthorizationManager roleBased = new RoleAuthorizationManager(source);
+        List<AuthorizationManager<HttpServletRequest>> delegates = List.of(authenticated, wsAdmin, roleBased);
 
-        getNestedFilters().add(filter);
+        AffirmativeAuthorizationManager affirmativeAuthManager =
+                new AffirmativeAuthorizationManager(delegates, allowIfAllAbstainDecisions);
+
+        AuthorizationFilter authorizationFilter = new AuthorizationFilter(affirmativeAuthManager);
+
+        getNestedFilters().add(authorizationFilter);
     }
 
     @Override

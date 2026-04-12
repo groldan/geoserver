@@ -43,7 +43,6 @@ public class SecureResourceStoreTest {
 
     @Before
     public void setUp() {
-        // Mock dependencies
         delegate = mock(ResourceStore.class);
         authorizer = mock(WorkspaceAdminAuthorizer.class);
         authentication = mock(Authentication.class);

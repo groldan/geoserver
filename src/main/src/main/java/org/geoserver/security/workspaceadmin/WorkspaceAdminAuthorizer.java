@@ -6,6 +6,7 @@ package org.geoserver.security.workspaceadmin;
 
 import static java.util.Objects.requireNonNull;
 import static org.geoserver.platform.GeoServerExtensions.bean;
+import static org.springframework.web.context.request.RequestAttributes.SCOPE_REQUEST;
 
 import java.util.List;
 import java.util.Objects;
@@ -160,27 +161,25 @@ public class WorkspaceAdminAuthorizer {
      * Determines if the given authentication represents a workspace administrator. The result is cached per request for
      * performance.
      *
+     * <p>This authorizer may be called several times per request, use a per-request cached value
+     *
      * @param authentication the authentication to check
      * @return true if the authentication represents a workspace administrator, false otherwise
      */
     public boolean isWorkspaceAdmin(Authentication authentication) {
         // if not authenticated deny access
-        if (!isFullyAuthenticated(authentication)) {
-            return false;
+        Boolean workspaceAdmin = false;
+        if (isFullyAuthenticated(authentication)) {
+            workspaceAdmin = getRequestScopeCachedValue().orElseGet(() -> checkIsWorkspaceAdmin(authentication));
+            setRequestScopeCachedValue(workspaceAdmin);
         }
-        // this authorizer may be called several times per request, use a per-request
-        // cached value
-        Boolean workspaceAdmin = getRequestScopeCachedValue();
-        if (null == workspaceAdmin) {
-            ResourceAccessManager accessManager = getAccessManager();
-            if (null == accessManager) {
-                return false;
-            }
-            Catalog catalog = getCatalog();
-            workspaceAdmin = accessManager.isWorkspaceAdmin(authentication, catalog);
-            setRequestScopeCachedValue(workspaceAdmin.booleanValue());
-        }
-        return workspaceAdmin.booleanValue();
+        return workspaceAdmin;
+    }
+
+    private boolean checkIsWorkspaceAdmin(Authentication authentication) {
+        ResourceAccessManager accessManager = getAccessManager();
+        Catalog catalog = getCatalog();
+        return accessManager.isWorkspaceAdmin(authentication, catalog);
     }
 
     /**
@@ -189,7 +188,7 @@ public class WorkspaceAdminAuthorizer {
      * @param auth the authentication to check
      * @return true if the authentication is valid and not anonymous, false otherwise
      */
-    public boolean isFullyAuthenticated(Authentication auth) {
+    boolean isFullyAuthenticated(Authentication auth) {
         return null != auth && auth.isAuthenticated() && !(auth instanceof AnonymousAuthenticationToken);
     }
 
@@ -202,22 +201,21 @@ public class WorkspaceAdminAuthorizer {
     void setRequestScopeCachedValue(boolean workspaceAdmin) {
         RequestAttributes atts = RequestContextHolder.getRequestAttributes();
         if (null != atts) {
-            atts.setAttribute(WSADMIN_REQUEST_CONTEXT_KEY, workspaceAdmin, RequestAttributes.SCOPE_REQUEST);
+            atts.setAttribute(WSADMIN_REQUEST_CONTEXT_KEY, workspaceAdmin, SCOPE_REQUEST);
         }
     }
 
     /**
      * Retrieves the cached workspace admin status from the current request scope.
      *
-     * @return the cached status if available, null otherwise
+     * @return the cached status if available, empty otherwise
      */
-    @Nullable
-    Boolean getRequestScopeCachedValue() {
+    private Optional<Boolean> getRequestScopeCachedValue() {
         RequestAttributes atts = RequestContextHolder.getRequestAttributes();
-        if (null != atts) {
-            return (Boolean) atts.getAttribute(WSADMIN_REQUEST_CONTEXT_KEY, RequestAttributes.SCOPE_REQUEST);
+        if (atts == null) {
+            return Optional.empty();
         }
-        return null;
+        return Optional.ofNullable((Boolean) atts.getAttribute(WSADMIN_REQUEST_CONTEXT_KEY, SCOPE_REQUEST));
     }
 
     /**

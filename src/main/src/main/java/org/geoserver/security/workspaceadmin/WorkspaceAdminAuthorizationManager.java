@@ -5,7 +5,6 @@
 package org.geoserver.security.workspaceadmin;
 
 import static org.geoserver.security.filter.GeoServerSecurityInterceptorFilter.ACCESS_ABSTAIN;
-import static org.geoserver.security.filter.GeoServerSecurityInterceptorFilter.ACCESS_DENIED;
 import static org.geoserver.security.filter.GeoServerSecurityInterceptorFilter.ACCESS_GRANTED;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,6 +19,7 @@ import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.authorization.AuthorizationResult;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.util.UrlUtils;
+import org.springframework.util.StringUtils;
 
 /**
  * Authorization manager specifically for handling workspace administrator access permissions.
@@ -36,7 +36,6 @@ import org.springframework.security.web.util.UrlUtils;
  *
  * <ol>
  *   <li>First checks if the {@link WorkspaceAdminAuthorizer} service is available
- *   <li>Verifies that the authentication represents a fully authenticated user (not anonymous)
  *   <li>Extracts the request URI and HTTP method
  *   <li>Checks if there's a matching {@link WorkspaceAdminRestAccessRule} for the URI and method
  *   <li>If a rule matches, confirms that the user is a workspace administrator
@@ -77,7 +76,6 @@ public final class WorkspaceAdminAuthorizationManager implements AuthorizationMa
      *
      * <ul>
      *   <li>Obtaining the WorkspaceAdminAuthorizer service
-     *   <li>Checking if the user is fully authenticated
      *   <li>Determining if any workspace admin access rules match the requested URI and HTTP method
      *   <li>Verifying that the user has workspace administrator privileges
      * </ul>
@@ -85,9 +83,8 @@ public final class WorkspaceAdminAuthorizationManager implements AuthorizationMa
      * <p>The method will return:
      *
      * <ul>
-     *   <li>{@link GeoServerSecurityInterceptorFilter#ACCESS_ABSTAIN} if the WorkspaceAdminAuthorizer is not available
-     *       or if no matching rules are found
-     *   <li>{@link GeoServerSecurityInterceptorFilter#ACCESS_DENIED} if the user is not fully authenticated
+     *   <li>{@link GeoServerSecurityInterceptorFilter#ACCESS_ABSTAIN} if the WorkspaceAdminAuthorizer is not available,
+     *       if no matching rules are found, or if the user is not a workspace administrator
      *   <li>{@link GeoServerSecurityInterceptorFilter#ACCESS_GRANTED} if a matching rule is found and the user is a
      *       workspace administrator
      * </ul>
@@ -100,37 +97,60 @@ public final class WorkspaceAdminAuthorizationManager implements AuthorizationMa
     @Nullable
     public AuthorizationResult authorize(
             Supplier<? extends @Nullable Authentication> authentication, HttpServletRequest request) {
-        // Get the authentication object
+
         final Authentication auth = authentication.get();
 
-        // If the authorizer service isn't available, abstain from making a decision
+        // if the authorizer service isn't available, abstain from making a decision
         if (WorkspaceAdminAuthorizer.get().isEmpty()) {
             return ACCESS_ABSTAIN;
         }
 
-        // Get the workspace admin authorizer service
         WorkspaceAdminAuthorizer authorizer = WorkspaceAdminAuthorizer.get().orElseThrow();
 
-        // Deny access if the user is not fully authenticated (e.g., anonymous)
-        if (!authorizer.isFullyAuthenticated(auth)) {
-            return ACCESS_DENIED;
+        // if the user is not a workspace administrator, just abstain
+        if (!authorizer.isWorkspaceAdmin(auth)) {
+            return ACCESS_ABSTAIN;
         }
 
-        // Extract the request URI and HTTP method
-        final String uri = UrlUtils.buildRequestUrl(request);
+        // extract the request URI and HTTP method
+        final String uri = buildRequestUrl(request);
         final HttpMethod method = HttpMethod.valueOf(request.getMethod());
 
-        // Get the security attributes (rules) that apply to this request
+        // get the security attributes (rules) that apply to this request
         Collection<ConfigAttribute> attributes = metadata.getAttributes(request);
 
-        // Check if any workspace admin rules match the request URI and method
+        // check if any workspace admin rules match the request URI and method
         boolean match = attributes.stream()
                 .filter(WorkspaceAdminRestAccessRule.class::isInstance)
                 .map(WorkspaceAdminRestAccessRule.class::cast)
                 .anyMatch(rule -> rule.matches(uri, method));
 
-        // Grant access if a rule matches and the user is a workspace admin, otherwise abstain
-        // defer the call to isWorkspaceAdmin() as the last step as it can be slow
-        return match && authorizer.isWorkspaceAdmin(auth) ? ACCESS_GRANTED : ACCESS_ABSTAIN;
+        // grant access if a rule matches, otherwise abstain
+        return match ? ACCESS_GRANTED : ACCESS_ABSTAIN;
+    }
+
+    /**
+     * Replacement for {@link UrlUtils#buildRequestUrl()} because it adds a {@code ?} trailing character even if the
+     * querystring is empty
+     */
+    private String buildRequestUrl(HttpServletRequest r) {
+        String servletPath = r.getServletPath();
+        String requestURI = r.getRequestURI();
+        String contextPath = r.getContextPath();
+        String pathInfo = r.getPathInfo();
+        String queryString = r.getQueryString();
+        StringBuilder url = new StringBuilder();
+        if (servletPath != null) {
+            url.append(servletPath);
+            if (pathInfo != null) {
+                url.append(pathInfo);
+            }
+        } else {
+            url.append(requestURI.substring(contextPath.length()));
+        }
+        if (StringUtils.hasLength(queryString)) {
+            url.append("?").append(queryString);
+        }
+        return url.toString();
     }
 }
