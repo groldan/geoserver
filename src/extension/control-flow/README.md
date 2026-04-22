@@ -254,10 +254,11 @@ visibility for the state that does not.
 controllers have granted, cleared on release). Two hooks use it:
 
 1. **Timeout-triggered peer dump.** When `requestIncoming` returns `false` and the callback is about to throw a 503, it walks
-`ACTIVE_RUNNING` once and emits one `WARNING` per peer whose hold duration exceeds `timeout`. Each line names the peer thread,
-the `Request` it is running, and the **top stack frame** of that thread. So at the moment of the 503 the log already distinguishes
-a peer doing real work (top frame inside the renderer, the datastore query, etc.) from a peer wedged in, e.g. `org.sqlite.core.NativeDB._open_utf8(Native Method)`,
-without needing a separate `jstack`.
+`ACTIVE_RUNNING` once and, if any peer is currently holding a slot longer than `timeout`, emits a single `WARNING` listing
+those peers. Each line in the dump names the peer thread, the `Request` it is running, and the **top stack frame** of that
+thread. So at the moment of the 503 the log already distinguishes a peer doing real work (top frame inside the renderer, the
+datastore query, etc.) from a peer wedged in, e.g. `org.sqlite.core.NativeDB._open_utf8(Native Method)`, without needing a
+separate `jstack`. The message ends with an explicit caveat (see below).
 2. **Release-time confirmation.** When a request finally releases after holding its slot longer than `timeout`, the release path
 logs a single `WARNING` naming the request and the hold duration. If the operation never returns - the stuck case - this line
 never appears; the peer dump from (1) is the primary signal.
@@ -267,10 +268,21 @@ render with `timeout=10` will also trigger the WARN, but its top frame reads as 
 A stuck slot has a top frame that is identical across successive dumps and inside I/O or native code. The watchdog is a pointer,
 not a verdict; the stack frame is the evidence.
 
-The message format is stable so alerts can key off it:
+There is also a second false-positive shape worth being explicit about: a long-held slot is not always *the cause* of the
+timeout it surfaces under. Picture eight slots full of short WMS GetMap requests cycling quickly, plus one legitimately long
+WFS download that has been running for minutes. When the queue saturates and a ninth request times out, the watchdog will name
+the WFS thread - because it crossed the `timeout` budget - even though the actual reason for the 503 is the WMS traffic
+piling up behind a fully-utilised pool. The dump is correct ("this peer has been holding a slot for a long time") but is
+not by itself a verdict ("this peer caused the timeout"). The message includes a `Note:` line spelling this out so operators
+do not chase the wrong thread; again, the top stack frame is what tells you whether you are looking at progress or a wedge.
+
+The message format is stable so alerts can key off it. One WARN record is emitted per 503, with one indented line per peer:
 
 ```
-Request [<timedOutRequest>] timed out waiting on <controller>; peer thread <name> has been holding a slot for <heldMs>ms running [<peerRequest>] - top frame: <stack element>
+Request [<timedOutRequest>] timed out waiting on <controller>; the following peer(s) have been holding a slot longer than the <timeout>ms timeout:
+  - peer thread <name> has been holding a slot for <heldMs>ms running [<peerRequest>] - top frame: <stack element>
+  - peer thread <name> has been holding a slot for <heldMs>ms running [<peerRequest>] - top frame: <stack element>
+Note: a long-held slot is not necessarily the cause of this timeout. ...
 ```
 
 Sample output from a real incident - a GetMap request on thread `-148` times out waiting on `wms.getmap` because four
@@ -278,17 +290,19 @@ peer threads have been wedged in native SQLite calls for ~770 seconds:
 
 ```
 'qtp1439007204-148' INFO   [geoserver.flow] - Request [WMS 1.1.0 GetMap] starting, processing through flow controllers
-'qtp1439007204-148' WARN   [geoserver.flow] - Request [WMS 1.1.0 GetMap] timed out waiting on BasicOWSController(wms.getmap,SimpleBlocker(4)); peer thread qtp1439007204-81 has been holding a slot for 769328ms running [WMS 1.1.1 GetMap] - top frame: org.sqlite.core.NativeDB._open_utf8(Native Method)
-'qtp1439007204-148' WARN   [geoserver.flow] - Request [WMS 1.1.0 GetMap] timed out waiting on BasicOWSController(wms.getmap,SimpleBlocker(4)); peer thread qtp1439007204-149 has been holding a slot for 769348ms running [WMS 1.1.1 GetMap] - top frame: org.sqlite.core.NativeDB._close(Native Method)
-'qtp1439007204-148' WARN   [geoserver.flow] - Request [WMS 1.1.0 GetMap] timed out waiting on BasicOWSController(wms.getmap,SimpleBlocker(4)); peer thread qtp1439007204-154 has been holding a slot for 769349ms running [WMS 1.1.1 GetMap] - top frame: org.sqlite.core.NativeDB._open_utf8(Native Method)
-'qtp1439007204-148' WARN   [geoserver.flow] - Request [WMS 1.1.0 GetMap] timed out waiting on BasicOWSController(wms.getmap,SimpleBlocker(4)); peer thread qtp1439007204-155 has been holding a slot for 769349ms running [WMS 1.1.1 GetMap] - top frame: org.sqlite.core.NativeDB._open_utf8(Native Method)
+'qtp1439007204-148' WARN   [geoserver.flow] - Request [WMS 1.1.0 GetMap] timed out waiting on BasicOWSController(wms.getmap,SimpleBlocker(4)); the following peer(s) have been holding a slot longer than the 10000ms timeout:
+  - peer thread qtp1439007204-81 has been holding a slot for 769328ms running [WMS 1.1.1 GetMap] - top frame: org.sqlite.core.NativeDB._open_utf8(Native Method)
+  - peer thread qtp1439007204-149 has been holding a slot for 769348ms running [WMS 1.1.1 GetMap] - top frame: org.sqlite.core.NativeDB._close(Native Method)
+  - peer thread qtp1439007204-154 has been holding a slot for 769349ms running [WMS 1.1.1 GetMap] - top frame: org.sqlite.core.NativeDB._open_utf8(Native Method)
+  - peer thread qtp1439007204-155 has been holding a slot for 769349ms running [WMS 1.1.1 GetMap] - top frame: org.sqlite.core.NativeDB._open_utf8(Native Method)
+Note: a long-held slot is not necessarily the cause of this timeout. Under heavy concurrent traffic the listed peer(s) may simply be legitimately slow requests (e.g. a large WFS download) holding a slot when many shorter requests piled up behind them. Use the top stack frame to tell a wedged peer (stuck in native I/O, a lock, etc.) from a peer that is making progress.
 'qtp1439007204-148' INFO   [geoserver.flow] - Request control-flow performed, running requests: 4, blocked requests: 0
 'qtp1439007204-148' INFO   [geoserver.flow] - releasing flow controllers for [WMS 1.1.0 GetMap]
 'qtp1439007204-148' INFO   [geoserver.flow] - Request completed, running requests: 4, blocked requests: 0
 ```
 
 That block points straight at the root cause: every peer has held its slot for ~770 s (hold times consistent across the
-four WARN lines), and every top frame is inside `org.sqlite.core.NativeDB`. The problem is in the SQLite/GeoPackage connection layer,
+four indented lines), and every top frame is inside `org.sqlite.core.NativeDB`. The problem is in the SQLite/GeoPackage connection layer,
 not in control-flow, and the evidence is right there in the log without a separate `jstack`.
 
 The watchdog introduces no background threads or scheduled tasks; it runs inline on the 503-throwing path and on the normal release path.
@@ -306,7 +320,7 @@ Messages emitted under the `geoserver.flow` logger:
 | INFO  | `releasing flow controllers for [...]` | Release path has started (`finished()` or the `doFilter` `finally`). |
 | INFO  | `Request completed, running requests: X, blocked requests: Y` | End of release path. |
 | FINE  | `Nested request found, not locking on it` | Re-entrant `operationDispatched` on the same thread; only `nestingLevel` was incremented. |
-| WARN  | `Request [...] timed out waiting on <controller>; peer thread <name> has been holding a slot for <N>ms running [...] - top frame: ...` | Stuck-slot watchdog (see above). |
+| WARN  | `Request [...] timed out waiting on <controller>; the following peer(s) have been holding a slot longer than the <timeout>ms timeout:` followed by an indented `- peer thread <name> has been holding a slot for <N>ms running [...] - top frame: ...` line per peer and a trailing `Note:` caveat. | Stuck-slot watchdog (see above). One record per 503. |
 | WARN  | `Request [...] held flow-controller slot for <N>ms, over the configured <timeout>ms timeout; peer requests may have returned HTTP 503 while waiting for this one.` | Release-time stuck-slot warning. |
 
 Because `/N` is a shared counter read at log-emission time, values across different threads' `enter`/`exit` lines fluctuate freely. Do not read them as belonging to a single request.

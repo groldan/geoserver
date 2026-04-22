@@ -236,27 +236,59 @@ public class ControlFlowCallback extends AbstractDispatcherCallback
 
     /**
      * Called when a request is about to return HTTP 503 because it could not acquire {@code blockedOn} within the
-     * configured timeout. Walks the live view of currently-running requests and emits one WARN line per peer that has
-     * been holding its slot for longer than the timeout. Each line includes the top stack frame of the owner thread so
-     * operators can tell queue-wait timeouts (harmless, benchmarking) apart from stuck-slot timeouts (the peer is stuck
-     * in the I/O layer, the datastore, rendering, etc.) without needing a separate jstack.
+     * configured timeout. Walks the live view of currently-running requests and, if any peer has been holding its slot
+     * for longer than the timeout, emits a single WARN listing those peers together with the top stack frame of each
+     * owner thread, so operators can tell queue-wait timeouts (harmless, benchmarking) apart from stuck-slot timeouts
+     * (the peer is stuck in the I/O layer, the datastore, rendering, etc.) without needing a separate jstack.
+     *
+     * <p>The message ends with an explicit caveat: a long-held slot is suspicious, not necessarily guilty. Under heavy
+     * concurrent traffic, a request that legitimately takes a long time (for example a large WFS download) will surface
+     * here even though the actual reason peers are timing out is just contention against many other requests.
      */
     private static void logStuckRunningRequests(FlowController blockedOn, Request timedOutRequest, long timeout) {
         if (!LOGGER.isLoggable(Level.WARNING) || ACTIVE_RUNNING.isEmpty()) {
             return;
         }
         final long now = System.currentTimeMillis();
+        StringBuilder sb = null;
         for (CallbackContext peer : ACTIVE_RUNNING.values()) {
-            boolean hasRun = peer.runningStartMs > 0 && peer.owner != null;
-            long heldMs = hasRun ? (now - peer.runningStartMs) : -1L;
-            if (hasRun && heldMs > timeout) {
-                StackTraceElement[] stack = peer.owner.getStackTrace();
-                String top = stack.length > 0 ? stack[0].toString() : "<thread exited>";
-                LOGGER.warning(
-                        "Request [%s] timed out waiting on %s; peer thread %s has been holding a slot for %dms running [%s] - top frame: %s"
-                                .formatted(
-                                        timedOutRequest, blockedOn, peer.owner.getName(), heldMs, peer.request, top));
+            if (peer.runningStartMs <= 0 || peer.owner == null) {
+                continue;
             }
+            long heldMs = now - peer.runningStartMs;
+            if (heldMs <= timeout) {
+                continue;
+            }
+            StackTraceElement[] stack = peer.owner.getStackTrace();
+            String top = stack.length > 0 ? stack[0].toString() : "<thread exited>";
+            if (sb == null) {
+                sb = new StringBuilder()
+                        .append("Request [")
+                        .append(timedOutRequest)
+                        .append("] timed out waiting on ")
+                        .append(blockedOn)
+                        .append("; the following peer(s) have been holding a slot longer than the ")
+                        .append(timeout)
+                        .append("ms timeout:");
+            }
+            sb.append(System.lineSeparator())
+                    .append("  - peer thread ")
+                    .append(peer.owner.getName())
+                    .append(" has been holding a slot for ")
+                    .append(heldMs)
+                    .append("ms running [")
+                    .append(peer.request)
+                    .append("] - top frame: ")
+                    .append(top);
+        }
+        if (sb != null) {
+            sb.append(System.lineSeparator())
+                    .append("Note: a long-held slot is not necessarily the cause of this timeout. Under heavy ")
+                    .append("concurrent traffic the listed peer(s) may simply be legitimately slow requests (e.g. a ")
+                    .append("large WFS download) holding a slot when many shorter requests piled up behind them. ")
+                    .append("Use the top stack frame to tell a wedged peer (stuck in native I/O, a lock, etc.) ")
+                    .append("from a peer that is making progress.");
+            LOGGER.warning(sb.toString());
         }
     }
 
