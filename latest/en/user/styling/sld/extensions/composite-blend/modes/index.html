@@ -8,7 +8,7 @@
       
       
       
-        <link rel="canonical" href="https://docs.geoserver.org/3.0.x/latest/en/user/styling/sld/extensions/composite-blend/modes/">
+        <link rel="canonical" href="https://docs.geoserver.org/3.1.x/latest/en/user/styling/sld/extensions/composite-blend/modes/">
       
       
         <link rel="prev" href="../syntax/">
@@ -21,15 +21,15 @@
       
       
       <link rel="icon" href="../../../../../../../img/geoserver.ico">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
-        <title>Composite and blending modes - GeoServer Documentation</title>
+        <title>Composite and blending modes - Documentation</title>
       
     
     
-      <link rel="stylesheet" href="../../../../../../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../../../../../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../../../../../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -146,8 +146,12 @@
       </div>
     
     
-      <header class="md-header" data-md-component="header">
-  <nav class="md-header__inner md-grid" aria-label="Header"><a href="../../../../../../.." title="GeoServer Documentation" class="md-header__button md-logo" aria-label="GeoServer Documentation" data-md-component="logo">
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header"><a href="../../../../../../.." title="Documentation" class="md-header__button md-logo" aria-label="Documentation" data-md-component="logo">
       
   <img src="../../../../../../../img/geoserver-logo.svg" alt="logo">
 
@@ -157,7 +161,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            GeoServer Documentation
+            Documentation
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -385,12 +389,12 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../../../../../../.." title="GeoServer Documentation" class="md-nav__button md-logo" aria-label="GeoServer Documentation" data-md-component="logo">
+    <a href="../../../../../../.." title="Documentation" class="md-nav__button md-logo" aria-label="Documentation" data-md-component="logo">
       
   <img src="../../../../../../../img/geoserver-logo.svg" alt="logo">
 
     </a>
-    GeoServer Documentation
+    Documentation
   </label>
   
     <div class="md-nav__source">
@@ -4941,17 +4945,6 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#source-and-destination-imagery" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Source and destination imagery
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#alpha-compositing-modes" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4979,6 +4972,243 @@
     <span class="md-ellipsis">
       
         destination
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#source-over" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        source-over
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#destination-over" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        destination-over
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#source-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        source-in
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#destination-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        destination-in
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#source-out" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        source-out
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#destination-out" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        destination-out
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#source-atop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        source-atop
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#destination-atop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        destination-atop
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#xor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        xor
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#color-blending-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Color blending modes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Color blending modes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#multiply" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        multiply
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#screen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        screen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#overlay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        overlay
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#darken" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        darken
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lighten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        lighten
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#color-dodge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        color-dodge
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#color-burn" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        color-burn
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hard-light" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hard-light
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#soft-light" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        soft-light
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#difference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        difference
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#exclusion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        exclusion
       
     </span>
   </a>
@@ -15852,6 +16082,8 @@
       
         
       
+        
+      
     
     
     
@@ -18916,6 +19148,22 @@
       
         
       
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
     
     
     
@@ -18928,6 +19176,363 @@
         
         
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_16_27" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../../extensions/oidc/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OAuth2 OpenID Connect
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2_16_27" id="__nav_2_16_27_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_16_27_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_16_27">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    OAuth2 OpenID Connect
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../extensions/oidc/installing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installing the OAUTH2/OIDC module
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../extensions/oidc/configuring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OAUTH2/OIDC configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../extensions/oidc/oauth2/google/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configure the Google authentication provider
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../extensions/oidc/oauth2/github/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configure the GitHub authentication provider
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../extensions/oidc/oauth2/azure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configure the Microsoft Azure authentication provider
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../extensions/oidc/oauth2/keycloak/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuring with Keycloak
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../extensions/oidc/oauth2/generic/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuring with a Generic OIDC IDP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../extensions/oidc/role-config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuring the roles source
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../extensions/oidc/advanced/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Information
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../extensions/oidc/migrating/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migrating from the legacy OAuth2/OIDC plugins
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_16_28" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -18949,14 +19554,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_2_16_27" id="__nav_2_16_27_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_2_16_28" id="__nav_2_16_28_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_16_27_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_16_27">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_16_28_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_16_28">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -19060,7 +19665,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_16_28" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_16_29" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -19082,14 +19687,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_2_16_28" id="__nav_2_16_28_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_2_16_29" id="__nav_2_16_29_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_16_28_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_16_28">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_16_29_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_16_29">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -19195,7 +19800,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_16_29" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_16_30" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -19217,14 +19822,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_2_16_29" id="__nav_2_16_29_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_2_16_30" id="__nav_2_16_30_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_16_29_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_16_29">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_16_30_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_16_30">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -19356,7 +19961,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_16_30" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_16_31" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -19378,14 +19983,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_2_16_30" id="__nav_2_16_30_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_2_16_31" id="__nav_2_16_31_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_16_30_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_16_30">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_16_31_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_16_31">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -19517,7 +20122,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_16_32" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_16_33" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -19539,14 +20144,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_2_16_32" id="__nav_2_16_32_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_2_16_33" id="__nav_2_16_33_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_16_32_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_16_32">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_16_33_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_16_33">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -19654,7 +20259,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_16_33" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_16_34" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -19676,14 +20281,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_2_16_33" id="__nav_2_16_33_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_2_16_34" id="__nav_2_16_34_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_16_33_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_16_33">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_16_34_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_16_34">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -19847,7 +20452,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_16_34" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_16_35" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -19869,14 +20474,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_2_16_34" id="__nav_2_16_34_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_2_16_35" id="__nav_2_16_35_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_16_34_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_16_34">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_16_35_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_16_35">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -20036,7 +20641,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_16_35" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_16_36" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -20058,14 +20663,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_2_16_35" id="__nav_2_16_35_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_2_16_36" id="__nav_2_16_36_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_16_35_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_16_35">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_16_36_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_16_36">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -20169,7 +20774,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_16_36" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_16_37" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -20191,14 +20796,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_2_16_36" id="__nav_2_16_36_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_2_16_37" id="__nav_2_16_37_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_16_36_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_16_36">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_16_37_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_16_37">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -20885,6 +21490,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -20907,7 +21516,7 @@
   <span class="md-ellipsis">
     
   
-    Backup and Restore Documentation
+    Backup and Restore
   
 
     
@@ -20929,7 +21538,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Backup and Restore Documentation
+    Backup and Restore
   
 
           </label>
@@ -20979,7 +21588,7 @@
   <span class="md-ellipsis">
     
   
-    Usage Via GeoServer's User Interface
+    Usage via the web interface
   
 
     
@@ -21007,7 +21616,35 @@
   <span class="md-ellipsis">
     
   
-    Usage Via GeoServer's REST API
+    Usage via GeoServer's REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../community/backuprestore/options/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backup and Restore options
   
 
     
@@ -21035,7 +21672,7 @@
   <span class="md-ellipsis">
     
   
-    Backup and Restore Extension for the management of ImageMosaic indexers
+    ImageMosaic indexer extension
   
 
     
@@ -21063,7 +21700,35 @@
   <span class="md-ellipsis">
     
   
-    Use Cases
+    Use cases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../community/backuprestore/migration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What changed between 2.x and 3.x
   
 
     
@@ -21724,7 +22389,7 @@
   <span class="md-ellipsis">
     
   
-    Features Templatring Rest API
+    Features Templating Rest API
   
 
     
@@ -23334,6 +23999,139 @@
   
   
   
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_17_31" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../../community/keycloak/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Keycloak Role Service
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2_17_31" id="__nav_2_17_31_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_17_31_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_17_31">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Keycloak Role Service
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../community/keycloak/installing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installing the Keycloak Role Service module
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../community/keycloak/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuring the Keycloak Role Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../../../../../community/libdeflate/" class="md-nav__link">
         
@@ -23386,7 +24184,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_17_32" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_17_33" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -23408,14 +24206,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_2_17_32" id="__nav_2_17_32_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_2_17_33" id="__nav_2_17_33_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_17_32_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_17_32">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_17_33_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_17_33">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -23549,7 +24347,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_17_33" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_17_34" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -23571,14 +24369,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_2_17_33" id="__nav_2_17_33_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_2_17_34" id="__nav_2_17_34_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_17_33_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_17_33">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_17_34_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_17_34">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -23712,7 +24510,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_17_34" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_17_35" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -23734,14 +24532,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_2_17_34" id="__nav_2_17_34_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_2_17_35" id="__nav_2_17_35_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_17_34_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_17_34">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_17_35_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_17_35">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -23969,7 +24767,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_17_38" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_17_39" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -23991,14 +24789,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_2_17_38" id="__nav_2_17_38_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_2_17_39" id="__nav_2_17_39_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_17_38_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_17_38">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_17_39_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_17_39">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -24265,349 +25063,6 @@
   
 
       </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    
-    
-      
-        
-          
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-    
-    
-    
-      
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_17_40" >
-        
-          
-          <div class="md-nav__link md-nav__container">
-            <a href="../../../../../community/oidc/" class="md-nav__link ">
-              
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    OAuth2 OpenID Connect
-  
-
-    
-  </span>
-  
-  
-
-            </a>
-            
-              
-              <label class="md-nav__link " for="__nav_2_17_40" id="__nav_2_17_40_label" tabindex="0">
-                <span class="md-nav__icon md-icon"></span>
-              </label>
-            
-          </div>
-        
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_17_40_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_17_40">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    OAuth2 OpenID Connect
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../../../community/oidc/installing/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Installing the OAUTH2/OIDC module
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../../../community/oidc/configuring/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    OAUTH2/OIDC configuration
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../../../community/oidc/oauth2/google/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Configure the Google authentication provider
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../../../community/oidc/oauth2/github/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Configure the GitHub authentication provider
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../../../community/oidc/oauth2/azure/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Configure the Microsoft Azure authentication provider
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../../../community/oidc/oauth2/keycloak/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Configuring with Keycloak
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../../../community/oidc/oauth2/generic/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Configuring with a Generic OIDC IDP
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../../../community/oidc/role-config/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Configuring the roles source
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../../../community/oidc/advanced/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Advanced Information
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
     </li>
   
 
@@ -29851,17 +30306,6 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#source-and-destination-imagery" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Source and destination imagery
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#alpha-compositing-modes" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -29889,6 +30333,243 @@
     <span class="md-ellipsis">
       
         destination
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#source-over" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        source-over
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#destination-over" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        destination-over
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#source-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        source-in
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#destination-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        destination-in
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#source-out" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        source-out
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#destination-out" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        destination-out
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#source-atop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        source-atop
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#destination-atop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        destination-atop
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#xor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        xor
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#color-blending-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Color blending modes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Color blending modes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#multiply" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        multiply
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#screen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        screen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#overlay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        overlay
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#darken" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        darken
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lighten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        lighten
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#color-dodge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        color-dodge
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#color-burn" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        color-burn
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hard-light" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hard-light
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#soft-light" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        soft-light
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#difference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        difference
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#exclusion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        exclusion
       
     </span>
   </a>
@@ -29927,10 +30608,9 @@
 
 <h1 id="composite-and-blending-modes">Composite and blending modes<a class="headerlink" href="#composite-and-blending-modes" title="Permanent link">&para;</a></h1>
 <p>There are two types of modes: alpha composite and color blending.</p>
-<p>Alpha compositing controls how two images are merged together by using the alpha levels of the two. No color mixing is performed, only pure selection of source or destination pixels.</p>
-<p>Color blending modes mix the colors of source and destination in various ways. Each pixel in the result is a combination of the source and destination pixels.</p>
-<p>The examples shown below illustrate how the modes affect source and destination imagery.</p>
-<h2 id="source-and-destination-imagery">Source and destination imagery<a class="headerlink" href="#source-and-destination-imagery" title="Permanent link">&para;</a></h2>
+<p>Alpha compositing controls how two images are merged together by using the alpha levels of the two. No color mixing is being performed, only pure binary selection (either one or the other).</p>
+<p>Color blending modes mix the colors of source and destination in various ways. Each pixel in the result will be some sort of combination between the source and destination pixels.</p>
+<p>The following page shows the full list of available modes. (See the <a href="../syntax/">syntax</a> page for more details.) To aid in comprehension, two source and two destination images will be used to show visually how each mode works:</p>
 <table>
 <thead>
 <tr>
@@ -29940,8 +30620,8 @@
 </thead>
 <tbody>
 <tr>
-<td><img alt="Source 1" src="../images/map.png" /></td>
-<td><img alt="Source 2" src="../images/map2.png" /></td>
+<td><img alt="" src="../images/map.png" /></td>
+<td><img alt="" src="../images/map2.png" /></td>
 </tr>
 </tbody>
 </table>
@@ -29954,8 +30634,8 @@
 </thead>
 <tbody>
 <tr>
-<td><img alt="Destination 1" src="../images/bkg.png" /></td>
-<td><img alt="Destination 2" src="../images/bkg2.png" /></td>
+<td><img alt="" src="../images/bkg.png" /></td>
+<td><img alt="" src="../images/bkg2.png" /></td>
 </tr>
 </tbody>
 </table>
@@ -29971,14 +30651,349 @@
 </thead>
 <tbody>
 <tr>
-<td><img alt="copy example 1" src="../images/blend1-copy.png" /></td>
-<td><img alt="copy example 2" src="../images/blend2-copy.png" /></td>
+<td><img alt="" src="../images/blend1-copy.png" /></td>
+<td><img alt="" src="../images/blend2-copy.png" /></td>
 </tr>
 </tbody>
 </table>
 <h3 id="destination">destination<a class="headerlink" href="#destination" title="Permanent link">&para;</a></h3>
-<p>Only the destination will be present in the output.</p>
-<p><em>Note:</em> this page is a reference for the available composite and blending modes in GeoServer. For syntax details, see <a href="../syntax/">Composite blend syntax</a>.</p>
+<p>Only the destination will be present in the output</p>
+<table>
+<thead>
+<tr>
+<th>Example 1</th>
+<th>Example 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img alt="" src="../images/blend1-destination.png" /></td>
+<td><img alt="" src="../images/blend2-destination.png" /></td>
+</tr>
+</tbody>
+</table>
+<h3 id="source-over">source-over<a class="headerlink" href="#source-over" title="Permanent link">&para;</a></h3>
+<p>The source is drawn over the destination, and the destination is visible where the source is transparent. Opposite of <em>destination-over</em>.</p>
+<table>
+<thead>
+<tr>
+<th>Example 1</th>
+<th>Example 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img alt="" src="../images/blend1-source-over.png" /></td>
+<td><img alt="" src="../images/blend2-source-over.png" /></td>
+</tr>
+</tbody>
+</table>
+<h3 id="destination-over">destination-over<a class="headerlink" href="#destination-over" title="Permanent link">&para;</a></h3>
+<p>The source is drawn below the destination, and is visible only when the destination is transparent. Opposite of <em>source-over</em>.</p>
+<table>
+<thead>
+<tr>
+<th>Example 1</th>
+<th>Example 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img alt="" src="../images/blend1-destination-over.png" /></td>
+<td><img alt="" src="../images/blend2-destination-over.png" /></td>
+</tr>
+</tbody>
+</table>
+<h3 id="source-in">source-in<a class="headerlink" href="#source-in" title="Permanent link">&para;</a></h3>
+<p>The source is visible only when overlapping some non-transparent pixel of the destination. This allows the background map to act as a mask for the layer/feature being drawn. Opposite of <em>destination-in</em>.</p>
+<table>
+<thead>
+<tr>
+<th>Example 1</th>
+<th>Example 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img alt="" src="../images/blend1-source-in.png" /></td>
+<td><img alt="" src="../images/blend2-source-in.png" /></td>
+</tr>
+</tbody>
+</table>
+<h3 id="destination-in">destination-in<a class="headerlink" href="#destination-in" title="Permanent link">&para;</a></h3>
+<p>The destination is retained only when overlapping some non transparent pixel in the source. This allows the layer/feature to be drawn to act as a mask for the background map. Opposite of <em>source-in</em>.</p>
+<table>
+<thead>
+<tr>
+<th>Example 1</th>
+<th>Example 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img alt="" src="../images/blend1-destination-in.png" /></td>
+<td><img alt="" src="../images/blend2-destination-in.png" /></td>
+</tr>
+</tbody>
+</table>
+<h3 id="source-out">source-out<a class="headerlink" href="#source-out" title="Permanent link">&para;</a></h3>
+<p>The source is retained only in areas where the destination is transparent. This acts as a reverse mask when compared to <em>source-in</em>.</p>
+<table>
+<thead>
+<tr>
+<th>Example 1</th>
+<th>Example 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img alt="" src="../images/blend1-source-out.png" /></td>
+<td><img alt="" src="../images/blend2-source-out.png" /></td>
+</tr>
+</tbody>
+</table>
+<h3 id="destination-out">destination-out<a class="headerlink" href="#destination-out" title="Permanent link">&para;</a></h3>
+<p>The destination is retained only in areas where the source is transparent. This acts as a reverse mask when compared to <em>destination-in</em>.</p>
+<table>
+<thead>
+<tr>
+<th>Example 1</th>
+<th>Example 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img alt="" src="../images/blend1-destination-out.png" /></td>
+<td><img alt="" src="../images/blend2-destination-out.png" /></td>
+</tr>
+</tbody>
+</table>
+<h3 id="source-atop">source-atop<a class="headerlink" href="#source-atop" title="Permanent link">&para;</a></h3>
+<p>The destination is drawn fully, while the source is drawn only where it intersects the destination.</p>
+<table>
+<thead>
+<tr>
+<th>Example 1</th>
+<th>Example 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img alt="" src="../images/blend1-source-atop.png" /></td>
+<td><img alt="" src="../images/blend2-source-atop.png" /></td>
+</tr>
+</tbody>
+</table>
+<h3 id="destination-atop">destination-atop<a class="headerlink" href="#destination-atop" title="Permanent link">&para;</a></h3>
+<p>The source is drawn fully, and the destination is drawn over the source and only where it intersects it.</p>
+<table>
+<thead>
+<tr>
+<th>Example 1</th>
+<th>Example 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img alt="" src="../images/blend1-destination-atop.png" /></td>
+<td><img alt="" src="../images/blend2-destination-atop.png" /></td>
+</tr>
+</tbody>
+</table>
+<h3 id="xor">xor<a class="headerlink" href="#xor" title="Permanent link">&para;</a></h3>
+<p>"Exclusive Or" mode. Each pixel is rendered only if either the source or the destination is not blank, but not both.</p>
+<table>
+<thead>
+<tr>
+<th>Example 1</th>
+<th>Example 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img alt="" src="../images/blend1-xor.png" /></td>
+<td><img alt="" src="../images/blend2-xor.png" /></td>
+</tr>
+</tbody>
+</table>
+<h2 id="color-blending-modes">Color blending modes<a class="headerlink" href="#color-blending-modes" title="Permanent link">&para;</a></h2>
+<h3 id="multiply">multiply<a class="headerlink" href="#multiply" title="Permanent link">&para;</a></h3>
+<p>The source color is multiplied by the destination color and replaces the destination. The resulting color is always at least as dark as either the source or destination color. Multiplying any color with black results in black. Multiplying any color with white preserves the original color.</p>
+<table>
+<thead>
+<tr>
+<th>Example 1</th>
+<th>Example 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img alt="" src="../images/blend1-multiply.png" /></td>
+<td><img alt="" src="../images/blend2-multiply.png" /></td>
+</tr>
+</tbody>
+</table>
+<h3 id="screen">screen<a class="headerlink" href="#screen" title="Permanent link">&para;</a></h3>
+<p>Multiplies the complements of the source and destination color values, then complements the result. The end result color is always at least as light as either of the two constituent colors. Screening any color with white produces white; screening with black leaves the original color unchanged.</p>
+<p>The effect is similar to projecting multiple photographic slides simultaneously onto a single screen.</p>
+<table>
+<thead>
+<tr>
+<th>Example 1</th>
+<th>Example 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img alt="" src="../images/blend1-screen.png" /></td>
+<td><img alt="" src="../images/blend2-screen.png" /></td>
+</tr>
+</tbody>
+</table>
+<h3 id="overlay">overlay<a class="headerlink" href="#overlay" title="Permanent link">&para;</a></h3>
+<p>Multiplies (screens) the colors depending on the destination color value. Source colors overlay the destination while preserving its highlights and shadows. The backdrop color is not replaced but is mixed with the source color to reflect the lightness or darkness of the backdrop.</p>
+<table>
+<thead>
+<tr>
+<th>Example 1</th>
+<th>Example 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img alt="" src="../images/blend1-overlay.png" /></td>
+<td><img alt="" src="../images/blend2-overlay.png" /></td>
+</tr>
+</tbody>
+</table>
+<h3 id="darken">darken<a class="headerlink" href="#darken" title="Permanent link">&para;</a></h3>
+<p>Selects the darker of the destination and source colors. The destination is replaced with the source only where the source is darker.</p>
+<table>
+<thead>
+<tr>
+<th>Example 1</th>
+<th>Example 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img alt="" src="../images/blend1-darken.png" /></td>
+<td><img alt="" src="../images/blend2-darken.png" /></td>
+</tr>
+</tbody>
+</table>
+<h3 id="lighten">lighten<a class="headerlink" href="#lighten" title="Permanent link">&para;</a></h3>
+<p>Selects the lighter of the destination and source colors. The destination is replaced with the source only where the source is lighter.</p>
+<table>
+<thead>
+<tr>
+<th>Example 1</th>
+<th>Example 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img alt="" src="../images/blend1-lighten.png" /></td>
+<td><img alt="" src="../images/blend2-lighten.png" /></td>
+</tr>
+</tbody>
+</table>
+<h3 id="color-dodge">color-dodge<a class="headerlink" href="#color-dodge" title="Permanent link">&para;</a></h3>
+<p>Brightens the destination color to reflect the source color. Drawing with black produces no changes.</p>
+<table>
+<thead>
+<tr>
+<th>Example 1</th>
+<th>Example 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img alt="" src="../images/blend1-color-dodge.png" /></td>
+<td><img alt="" src="../images/blend2-color-dodge.png" /></td>
+</tr>
+</tbody>
+</table>
+<h3 id="color-burn">color-burn<a class="headerlink" href="#color-burn" title="Permanent link">&para;</a></h3>
+<p>Darkens the destination color to reflect the source color. Drawing with white produces no change.</p>
+<table>
+<thead>
+<tr>
+<th>Example 1</th>
+<th>Example 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img alt="" src="../images/blend1-color-burn.png" /></td>
+<td><img alt="" src="../images/blend2-color-burn.png" /></td>
+</tr>
+</tbody>
+</table>
+<h3 id="hard-light">hard-light<a class="headerlink" href="#hard-light" title="Permanent link">&para;</a></h3>
+<p>Multiplies or screens the colors, depending on the source color value. The effect is similar to shining a harsh spotlight on the destination.</p>
+<table>
+<thead>
+<tr>
+<th>Example 1</th>
+<th>Example 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img alt="" src="../images/blend1-hard-light.png" /></td>
+<td><img alt="" src="../images/blend2-hard-light.png" /></td>
+</tr>
+</tbody>
+</table>
+<h3 id="soft-light">soft-light<a class="headerlink" href="#soft-light" title="Permanent link">&para;</a></h3>
+<p>Darkens or lightens the colors, depending on the source color value. The effect is similar to shining a diffused spotlight on the destination.</p>
+<table>
+<thead>
+<tr>
+<th>Example 1</th>
+<th>Example 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img alt="" src="../images/blend1-soft-light.png" /></td>
+<td><img alt="" src="../images/blend2-soft-light.png" /></td>
+</tr>
+</tbody>
+</table>
+<h3 id="difference">difference<a class="headerlink" href="#difference" title="Permanent link">&para;</a></h3>
+<p>Subtracts the darker of the two constituent colors from the lighter color. White inverts the destination color; black produces no change.</p>
+<table>
+<thead>
+<tr>
+<th>Example 1</th>
+<th>Example 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img alt="" src="../images/blend1-difference.png" /></td>
+<td><img alt="" src="../images/blend2-difference.png" /></td>
+</tr>
+</tbody>
+</table>
+<h3 id="exclusion">exclusion<a class="headerlink" href="#exclusion" title="Permanent link">&para;</a></h3>
+<p>Produces an effect similar to that of <em>difference</em> but lower in contrast. White inverts the destination color; black produces no change.</p>
+<table>
+<thead>
+<tr>
+<th>Example 1</th>
+<th>Example 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img alt="" src="../images/blend1-exclusion.png" /></td>
+<td><img alt="" src="../images/blend2-exclusion.png" /></td>
+</tr>
+</tbody>
+</table>
 
 
 
@@ -30103,10 +31118,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../../../../../../..", "features": ["search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "content.action.edit", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "navigation.indexes", "navigation.footer"], "search": "../../../../../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../../../../../..", "features": ["search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "content.action.edit", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "navigation.indexes", "navigation.footer"], "search": "../../../../../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"alias": true, "default": "stable", "provider": "mike"}}</script>
     
     
-      <script src="../../../../../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../../../../../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
         <script src="../../../../../../../javascripts/hide-empty-toc.js"></script>
       

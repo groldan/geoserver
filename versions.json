@@ -3,8 +3,9 @@
     "version": "latest",
     "title": "main (Latest)",
     "aliases": [
-      "3.0.x",
-      "main"
+      "main",
+      "3.1.x",
+      "3.0.x"
     ]
   }
 ]
